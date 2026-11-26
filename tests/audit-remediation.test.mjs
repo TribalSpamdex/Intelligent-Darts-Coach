@@ -222,4 +222,5 @@ test('H4/H6: native benchmark chronology must be consistent with original record
   assert.equal(read(h).filter(o=>o.skill===(i===0?'scoring':'bull')).length,0);
  }
  assert.equal(projectEvidence(host,{today:date,now:start+60000}).observations.length,0,'not-yet-completed native measurement cannot leak');
+ assert.equal(projectEvidence(host,{today:date,now:end+60000}).observations.length,0,'replaying yesterday after midnight must not leak the completed benchmark');
 });
