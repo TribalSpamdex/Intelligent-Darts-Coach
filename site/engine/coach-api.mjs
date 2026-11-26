@@ -6,7 +6,7 @@ import {explainReport} from './explanation.mjs';
 import {advice} from './tactics.mjs';
 import {trainingRecommendation,logSession} from './session-intelligence.mjs';
 import {recordAnswer} from './diagnosis.mjs';
-import {recordReadiness,dayValid} from './context.mjs';
+import {recordReadiness,dayValid,asOfState} from './context.mjs';
 import {recordLeg} from './match.mjs';
 import {appendThrow} from './target-evidence.mjs';
 import {nextActions} from './next-actions.mjs';
@@ -22,7 +22,7 @@ function checkEnvelope(req,allowed){shape(req,['version','type','day','payload']
 function snapshot(raw){return validateState(copy(raw));}
 export function newPlayer(){return snapshot(emptyMemory())}
 export function query(raw,req){
- checkEnvelope(req,QUERIES);const m=snapshot(raw),p=req.payload,day=req.day;
+ checkEnvelope(req,QUERIES);const p=req.payload,day=req.day,m=asOfState(snapshot(raw),day);
  if(req.type==='checkout'){shape(p,['score','darts','actual','doubleIn','opened','context','protocol','opponent']);return {version:1,engine:VERSION,type:req.type,result:advice(m,p)}}
  if(req.type==='memory-summary'){shape(p,[]);return {version:1,engine:VERSION,type:req.type,result:{facts:currentFacts(m),observations:m.observations.length,throws:m.throws.length,legs:m.legs.length,sessions:m.sessions.length,interventions:m.interventions.length}}}
  const report=fullReport(m,day);
@@ -45,7 +45,7 @@ export function command(raw,req,{confirmed=false}={}){
  case 'session':shape(p,['id','day','number','status','segments']);next=logSession(m,p);break;
  case 'readiness':shape(p,['day','context','fatigue','pressure','confidence','pain','note']);next=recordReadiness(m,p);break;
  case 'answer':shape(p,['day','skill','context','protocol','question','answer']);next=recordAnswer(m,p);break;
- case 'fact':shape(p,['key','value','evidence']);if(!['reported','confirmed'].includes(p.evidence))throw Error('Only player-reported or player-confirmed facts allowed');next=setFact(m,p.key,p.value,p.evidence);break;
+ case 'fact':shape(p,['key','value','evidence']);if(!['reported','confirmed'].includes(p.evidence))throw Error('Only player-reported or player-confirmed facts allowed');next=setFact(m,p.key,p.value,p.evidence,day+'T00:00:00.000Z');break;
  case 'propose':shape(p,['id']);next=propose(m,fullReport(m,day),p.id,day);break;
  case 'respond':shape(p,['id','decision']);if(p.decision==='accepted'){const i=m.interventions.find(i=>i.id===p.id);if(!i)throw Error('Unknown intervention');const check=canAccept(m,i,day);if(!check.allowed)throw Error(check.reason)}next=respond(m,p.id,p.decision,day);break;
  }
