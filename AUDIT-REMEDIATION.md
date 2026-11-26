@@ -115,3 +115,12 @@ The original independent tournament-in-ten-days question was unsupported,
 and reported comparisons printed a regular expression as part of the skill
 name. Bounded dated preparation previews are read-only, respect wellbeing
 and do not register an event. Targeted Node suite passed 29/29.
+
+The second pass reproduced a retention preview and save with zero delivered
+sessions through tests/coach-integration.test.mjs. Numerical retention remains
+an observational calculation. Linked intervention previews, saves and audit
+counts now require the same attributable allocation as learning. Three distinct
+matching days enable the save; absent delivery preserves historic raw records
+without endorsing them. Duplicate donor/recipient names and impossible elapsed
+time also disqualify attribution. The former empty-host positive fixture now
+tests both the negative case and a full three-session positive case.

@@ -110,6 +110,8 @@ test('H3: actual round evidence is necessary and sufficient for allocation eligi
  const variants=[
   h=>{h.games=[]},
   h=>{h.games.pop()},
+  h=>{const s=h.sessions[0];s.activities[0].at=s.provenanceLocked.at+1000;h.games[0].at=s.activities[0].at},
+  h=>{const t=h.sessions[0].wholeSessionAudit.idcTransfer.delivery;t.donor.name=t.receiver.name},
   h=>{h.sessions[0].completed=false},
   h=>{h.sessions[0].activities[0].seconds=839},
   h=>{h.games[0].thrown=0},

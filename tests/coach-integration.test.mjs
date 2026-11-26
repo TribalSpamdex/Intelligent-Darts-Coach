@@ -43,6 +43,21 @@ test('retention preview and explicit save round-trip through real coach memory',
  const before=make(40,18),after=make(22,30),delayed=make(2,30);
  m.state.observations=[...before,...after,...delayed];
  m.state.interventions=[{...scope,id:'reviewed',action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:shift(36),responseDay:shift(36),reviewDay:shift(18),reviewAfterDays:14,maximumDays:21,baselineIds:before.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}}];m.baselines.reviewed=before;
+ assert.equal(previewRetention(h,m,'reviewed',day,now).status,'delivery-unverified');
+ assert.throws(()=>changeMemory(h,m,day,'retention',{id:'reviewed'},now),/delivery-unverified/);
+ for(const daysAgo of [34,32,30]){
+  const date=shift(daysAgo),start=Date.parse(date+'T12:00:00Z'),id='session-'+daysAgo;
+  const exerciseId=id+':exercise:1',name='Doubles Survival';
+  const decision={status:'transferred',intervention:'reviewed',skill:'doubles',day:date,from:0,to:1,seconds:300};
+  const queue=[{name:'Scoring Challenge',seconds:900,mode:'timed',wholeCoach:{category:'scoring'}},{name,seconds:600,mode:'timed',wholeCoach:{category:'doubles'}}];
+  assert.ok(applyTransfer(queue,decision));
+  decision.delivery.receiverIndex=1;
+  const exercises=queue.map((e,index)=>({id:id+':exercise:'+index,index,name:e.name,mode:e.mode,plannedSeconds:e.seconds}));
+  h.sessions.push({id,start,date,quick:false,extra:false,completed:true,wholeSessionAudit:{idcTransfer:decision},
+   provenanceLocked:{kind:'post-allocation',at:start,exercises},
+   activities:[{exerciseId,exerciseIndex:1,name,plannedSeconds:900,seconds:900,at:start+900000}]});
+  h.games.push({name,sessionId:id,exerciseId,exerciseIndex:1,at:start+890000,day:date,quick:false,extra:false,completion:'natural',variant:'doubles',thrown:30});
+ }
  assert.equal(previewRetention(h,m,'reviewed',day,now).status,'observed-retention');
  const saved=changeMemory(h,m,day,'retention',{id:'reviewed'},now);
  assert.equal(saved.state.interventions[0].retentionHistory.length,1);

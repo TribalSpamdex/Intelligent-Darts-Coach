@@ -59,14 +59,14 @@ export function verifiedRetention(state,item,baseline,day){
  }
  return {valid,invalid:invalid.length};
 }
-export function outcomeAudit(host,state,baselines,day){
+export function outcomeAudit(host,state,baselines,day,now=Date.now()){
  state=asOfState(state,day);
  return state.interventions.filter(i=>i.responseDay&&i.responseDay<=day&&i.status!=='declined').map(item=>{
   const integrity=baselineIntegrity(item,baselines[item.id]??[],state.observations,day),delivery=interventionDelivery(host,item,day);
   const reproduction=reviewReproduction(item,baselines[item.id]??[],state.observations,day);
   const retention=verifiedRetention(state,item,baselines[item.id]??[],day);
   const status=integrity.status==='baseline-edited'?'baseline-edited':['outcome-changed','unverifiable'].includes(reproduction.status)?'review-needs-verification':item.reviewDay&&item.reviewDay>day?'accepted':item.outcome?.status??item.status;
-  return {id:item.id,skill:item.skill,protocol:item.protocol,status,integrity,delivery,reproduction,retention:{verified:retention.valid.length,invalid:retention.invalid},limitation:'An observed outcome is not proof that the intervention caused it. Historical outcome labels can become stale if source records change.'};
+  return {id:item.id,skill:item.skill,protocol:item.protocol,status,integrity,delivery,reproduction,retention:{verified:retention.valid.length>0&&attributableAllocation(host,item,day,now)?retention.valid.length:0,invalid:retention.invalid},limitation:'An observed outcome is not proof that the intervention caused it. Historical outcome labels can become stale if source records change.'};
  });
 }
 export function outcomeLines(rows){

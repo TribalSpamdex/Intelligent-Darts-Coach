@@ -61,6 +61,11 @@ export function attributableAllocation(host,item,day,now=Date.now()){
   const index=session?.wholeSessionAudit?.idcTransfer?.delivery?.receiverIndex;
   const receiver=session?.provenanceLocked?.exercises?.[index],activity=session?.activities?.find(a=>a.exerciseId===receiver?.id);
   if(!receiver||!activity)continue;
+  // Activity seconds are rounded by the native recorder. Even uninterrupted
+  // practice cannot use more time than has passed since the plan was locked.
+  if(activity.seconds>Math.ceil((activity.at-session.provenanceLocked.at)/1000))continue;
+  const transfer=session.wholeSessionAudit.idcTransfer.delivery;
+  if(transfer.donor.name===transfer.receiver.name)continue;
   const rounds=host.games.filter(g=>g.sessionId===session.id&&g.exerciseId===receiver.id&&g.exerciseIndex===index&&g.name===receiver.name&&g.quick===false&&g.extra===false&&!g.recovery&&['natural','partial'].includes(g.completion)&&g.day===session.date&&Number.isFinite(g.at)&&g.at>=session.provenanceLocked.at&&g.at<=activity.at);
   const unique=new Set(rounds.map(g=>g.at));
   if(rounds.length!==unique.size||!rounds.some(g=>attributableRound(g,item.skill)))continue;
@@ -77,7 +82,7 @@ export function coachingAccountability(host,state,baselines,day,now=Date.now()){
   const integrity=baselineIntegrity(i,base,state.observations,day),review=reviewReproduction(i,base,state.observations,day),retention=verifiedRetention(state,i,base,day),delivery=deliveryEvidence(host,i,day,now);
   const due=dayGap(i.responseDay,day)>=i.reviewAfterDays;
   const status=integrity.status!=='intact'?'baseline-edited':review.status==='reproduced'?!attributableAllocation(host,i,day,now)?'review-reproduced-delivery-unverified':'review-reproduced':review.status==='not-reviewed'?due?'review-due':'awaiting-review':'review-needs-verification';
-  rows.push({id:i.id,skill:i.skill,protocol:i.protocol,status,observedOutcome:review.status==='reproduced'?i.outcome.status:null,retentionChecks:retention.valid.length,invalidRetention:retention.invalid,reportedAdherence:i.reviewDay&&i.reviewDay<=day?i.adherence??null:null,delivery});
+  rows.push({id:i.id,skill:i.skill,protocol:i.protocol,status,observedOutcome:review.status==='reproduced'?i.outcome.status:null,retentionChecks:status==='review-reproduced'?retention.valid.length:0,invalidRetention:retention.invalid,reportedAdherence:i.reviewDay&&i.reviewDay<=day?i.adherence??null:null,delivery});
  }
  return rows;
 }
