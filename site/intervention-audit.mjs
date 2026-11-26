@@ -1,5 +1,5 @@
 // Audit completed-session evidence separately from the player's reported adherence.
-import {dayValid} from './engine/context.mjs';
+import {dayValid,dayGap} from './engine/context.mjs';
 import {validObservation,summarise} from './engine/engine.mjs';
 import {evaluation} from './engine/reasoning.mjs';
 import {canonicalRows} from './longitudinal.mjs';
@@ -26,13 +26,15 @@ export function baselineIntegrity(item,baseline,observations,day){
  const expected=new Map(baseline.map(o=>{const x=validObservation(o);return [x.id,JSON.stringify(x)]}));
  const actual=new Map(),conflict=new Set();
  for(const raw of observations){const o=validObservation(raw);if(o.day>day)continue;const value=JSON.stringify(o);if(actual.has(o.id)&&actual.get(o.id)!==value)conflict.add(o.id);actual.set(o.id,value)}
- const valid=expected.size>0&&expected.size===baseline.length&&expected.size===item.baselineIds.length&&new Set(item.baselineIds).size===item.baselineIds.length&&item.baselineIds.every(id=>expected.has(id)&&!conflict.has(id)&&actual.get(id)===expected.get(id));
+ const cutoff=item.proposedDay??item.responseDay;
+ const scopeValid=dayValid(cutoff)&&baseline.every(o=>o.skill===item.skill&&o.context===item.context&&o.protocol===item.protocol&&o.day<cutoff);
+ const valid=scopeValid&&expected.size>0&&expected.size===baseline.length&&expected.size===item.baselineIds.length&&new Set(item.baselineIds).size===item.baselineIds.length&&item.baselineIds.every(id=>expected.has(id)&&!conflict.has(id)&&actual.get(id)===expected.get(id));
  return {status:valid?'intact':'baseline-edited',count:expected.size};
 }
 // Reproduce the recorded numerical review from current authoritative measurements.
 export function reviewReproduction(item,baseline,observations,day){
  if(!item.outcome||!item.reviewDay||item.reviewDay>day)return {status:'not-reviewed'};
- if(!dayValid(item.reviewDay)||!dayValid(item.responseDay)||item.reviewDay<item.responseDay||!Number.isFinite(item.adherence)||item.adherence<0||item.adherence>1||!Array.isArray(item.confounders))return {status:'unverifiable'};
+ if(!dayValid(item.reviewDay)||!dayValid(item.responseDay)||dayGap(item.responseDay,item.reviewDay)<(item.reviewAfterDays??14)||!Number.isFinite(item.adherence)||item.adherence<0||item.adherence>1||!Array.isArray(item.confounders))return {status:'unverifiable'};
  if(baselineIntegrity(item,baseline,observations,day).status!=='intact')return {status:'baseline-edited'};
  const after=canonicalRows(observations,item.reviewDay).filter(o=>o.day>item.responseDay&&o.skill===item.skill&&o.context===item.context&&o.protocol===item.protocol);
  if(!after.length)return {status:'outcome-changed'};
