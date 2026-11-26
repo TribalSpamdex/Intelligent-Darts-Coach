@@ -130,3 +130,29 @@ test('H6: manual observations cannot impersonate authoritative native fixed benc
  const m=newMemory();m.state.observations=[{id:'ordinary',day,skill:'doubles',context:'practice',protocol:'player-reported sample',attempts:1000,hits:500}];
  assert.equal(validateMemory(m).state.observations.length,1);
 });
+
+import {asOfState} from '../site/engine/context.mjs';
+import {beginTrial,addPair,finishTrial,validateTrial} from '../site/engine/experiments.mjs';
+import {currentFacts,setFact} from '../site/engine/engine.mjs';
+test('H4: a completed paired experiment cannot influence a report before actual completion',()=>{
+ let m=newMemory().state;
+ m=beginTrial(m,{id:'replay-trial',skill:'doubles',protocol:'fixed',context:'practice',approach:'routine',baseline:'normal',alternative:'new',start:d(1),firstOrder:'AB'});
+ for(let n=1;n<=6;n++)m=addPair(m,'replay-trial',{day:d(n),order:n%2?'AB':'BA',attempts:30,a:6,b:15,comparable:true,discomfort:false});
+ const finished=finishTrial(m,'replay-trial',false,d(10));
+ assert.equal(validateTrial(finished.trials[0]).finishDay,d(10));
+ assert.deepEqual(asOfState(finished,d(7)).trials,asOfState(m,d(7)).trials);
+ assert.equal(asOfState(finished,d(10)).trials[0].status,'completed');
+ assert.throws(()=>finishTrial(m,'replay-trial',false,d(5)));
+ assert.throws(()=>validateTrial({...finished.trials[0],finishDay:d(5)}));
+ const cancelled=finishTrial(m,'replay-trial',true,d(12));
+ assert.equal(asOfState(cancelled,d(11)).trials[0].status,'active');
+ assert.equal(asOfState(cancelled,d(12)).trials[0].status,'cancelled');
+});
+test('H4: out-of-order fact imports cannot override the latest effective value',()=>{
+ let m=newMemory().state;
+ m=setFact(m,'grip','middle','reported',d(10)+'T08:00:00Z');
+ m=setFact(m,'grip','front','reported',d(2)+'T08:00:00Z');
+ assert.equal(currentFacts(m)[0].value,'middle');
+ assert.equal(currentFacts(asOfState(m,d(5)))[0].value,'front');
+ assert.throws(()=>setFact(m,'grip','rear','reported','invalid'));
+});
