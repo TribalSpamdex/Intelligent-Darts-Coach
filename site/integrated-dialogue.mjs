@@ -1,3 +1,5 @@
+import {longitudinal,profileLines,investigationQueue} from './longitudinal.mjs';
+import {outcomeAudit,outcomeLines} from './intervention-audit.mjs';
 import {reflectionInsights,label as reflectionLabel} from './reflections.mjs';
 import {ask,interpret} from './engine/coach-dialogue.mjs';
 import {projectTargets,summaries,compareTargets,combinedDoubleComparison,personalisedCheckout,targetProfile} from './host-targets.mjs';
@@ -8,10 +10,10 @@ import {nextActions} from './engine/next-actions.mjs';
 import {fullReport} from './engine/executive.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?'];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
-export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[]){
+export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={}){
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
  if(/^(what do you know about me|show (my )?memory|player memory)$/.test(q)){
@@ -28,6 +30,12 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  if(/^(how am i finishing|checkout profile|finishing profile)$/.test(q)){
  const x=gameProfile(host,day,now);
  return reply('checkout-profile',x.checkout.length?[...x.checkout.slice(0,24).map(g=>g.score+' · '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') · '+g.days+' days · '+g.protocol),x.limitation]:['No eligible checkout-score records in the last 84 days.'])
+ }
+ if(/^(how have i progressed this year|long term progress|long-term progress|show my progress history)$/.test(q))return reply('longitudinal',profileLines(longitudinal(state.observations,day)));
+ if(/^(what happened to my interventions|intervention history|did the advice work)$/.test(q))return reply('intervention-audit',outcomeLines(outcomeAudit(host,state,baselines,day)));
+ if(/^(what should i investigate next|next investigation)$/.test(q)){
+ const base=ask(state,text,day),r=reflectionInsights(reflections,host,day),items=investigationQueue(longitudinal(state.observations,day),r.repeated);
+ return reply('next-actions',[...(base.lines??[base.reason]).filter(Boolean),...items.slice(0,3).map(i=>i.kind==='reported'?i.question:JSON.parse(i.scope).join(' · ')+': '+i.question)]);
  }
  const cmp=q.match(/^compare (d(?:[1-9]|1[0-9]|20)) (?:and|with|vs) (d(?:[1-9]|1[0-9]|20))$/);
  if(cmp){const rows=projectTargets(host,day,now,checks).rows,c=combinedDoubleComparison(rows,cmp[1].toUpperCase(),cmp[2].toUpperCase());return reply('target-comparison',[c.first+' vs '+c.second+' · '+c.days+' matched days · '+c.attemptsA+' / '+c.attemptsB+' attempts · '+c.protocol+'.',c.status==='insufficient'?'Insufficient comparable evidence.':c.status==='unclear'?'No consistent advantage established.':targetName(c.status==='first-higher'?c.first:c.second)+' has the observed advantage in fixed practice.',c.limitation])}
