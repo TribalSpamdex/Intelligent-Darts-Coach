@@ -76,3 +76,18 @@ All original acceptance thresholds were met in this direct run. The exact failin
 - H3: skill-specific actual round families are conservatively whitelisted for allocation learning. Single-ring beginner adaptations, missing doubles variant or mismatched receiver skill cannot prove delivered doubles practice. Mixed drills remain valid gameplay but do not establish skill-specific intervention dose. This deliberately sacrifices attribution coverage for specificity; it is not a validated optimal dose rule.
 
 All changes after the 445-test anchor require fresh complete verification. No readiness score or independent audit closure is asserted.
+
+## Green verification anchor and exact independent replay
+
+- SHA `cf6a7d65bc3e3c53b234ed9bc4f53d3216f2247a`, Actions run 45861716442: **447/447 Node tests**, Chromium and WebKit passed. Native configuration audit 259 per engine (518 total), 239 modified configurations per engine across 37 named games. Native scheduling sweep produced three distinct executable preference/plan families from five measured ability profiles while legacy levels were held constant; the three highest profiles chose the same game families, not identical continuous difficulty. Chromium checked all 169 offline cache entries and operated offline; both engines passed H1/H2/M1 probes and storage isolation.
+- Exact original Sol audit generator extracted from the supplied PDF's embedded `independent.mjs`. Direct execution at that SHA reproduced the complete random draw sequence: 100,000 visits, five three-year histories with 699/706/698/680/695 measured days, RNG state 1160098967 before stationary cohorts and 2582045143 after. Independent visit oracle: zero mismatches. Unlike earlier separate-seed calibration, the new result is paired on the exact same original input sequence:
+
+| Stationary history | N | V1.9 audit trend flags | V2.0 direct replay |
+| --- | ---: | ---: | ---: |
+| Independent daily variation | 500 | 12 (2.4%) | 0 (0%) |
+| Serial form AR(.90) | 500 | 131 (26.2%) | 8 (1.6%) |
+
+The relative reduction in the serial cohort is 123/131 (93.9%). These are scenario-specific trend-component flags, not a population error rate or causal benefit. Detection sensitivity remains imperfect, notably for mild true changes. The original generator and all-path oracle are now in `tests/sol-audit-replay.test.mjs`; the new CI suite also checks 190 walk-forward comparisons with canonical fixed-check IDs. Direct replay here consumed the exact three-year generator to establish random sequence identity, not the 190 progression comparisons; those are covered by the new CI test.
+- Knowledge: added McKay et al. 2024, DOI 10.1037/bul0000451, and reciprocal links to prior external-focus and darts-specific review. The conflicting evidence supports individual comparisons rather than a universal external-focus prescription.
+- H2: readiness change now pauses an assessment warm-up in addition to an active training exercise. Isolated browser regression verifies real Bull Accuracy input, blocked resume, safe resumed input, casual game start/input and assessment warm-up/doubles input. Pending new exact-SHA CI.
+- Release gate remains independent re-audit and physical device testing. No published release or original V6.2 modifications.
