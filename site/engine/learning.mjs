@@ -21,7 +21,7 @@ export function retentionReview(memory,id,day){
  if(original.length!==item.baselineIds.length||!original.length||original.some(o=>o.day>item.responseDay||o.skill!==item.skill||o.context!==item.context||o.protocol!==item.protocol))return {status:'baseline-edited'};
  const overlapping=competingAllocation(memory,item,day);
  const within=x=>x.day>=item.responseDay&&x.day<=day;
- const changed=(memory.changes??[]).some(within)||(memory.setups??[]).some(x=>x.day>item.responseDay&&x.day<=day)||(memory.clinic??[]).some(x=>within(x)&&x.pain)||(memory.readiness??[]).some(x=>within(x)&&x.context===item.context&&(x.pain||x.fatigue==='high'||x.pressure==='high'));
+ const changed=(memory.changes??[]).some(within)||(memory.setups??[]).some(x=>x.day>item.responseDay&&x.day<=day)||(memory.clinic??[]).some(x=>within(x)&&x.pain)||(memory.readiness??[]).some(x=>within(x)&&x.context===item.context&&(x.pain||x.fatigue==='high'||x.pressure==='high'))||(memory.trials??[]).some(t=>t.skill===item.skill&&t.start<=day&&(t.finishDay??(t.status==='active'?day:t.pairs?.at(-1)?.day??t.start))>=item.responseDay);
  // Exclude the immediate post-review week. Require genuinely delayed and
  // recent measurements, not merely a delayed request to review old results.
  const retained=memory.observations.filter(o=>o.skill===item.skill&&o.context===item.context&&o.protocol===item.protocol&&dayGap(item.reviewDay,o.day)>=7&&dayGap(o.day,day)>=0&&dayGap(o.day,day)<28);
