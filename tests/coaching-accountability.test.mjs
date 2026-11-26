@@ -100,7 +100,7 @@ function provenAllocation(){
   s.provenanceLocked.exercises[3].id=id+':exercise:3';
   const a=s.activities[0];a.exerciseId=id+':exercise:3';a.at-=offset;a.seconds=900;
   host.sessions.push(s);
-  host.games.push({name:a.name,sessionId:id,exerciseId:a.exerciseId,exerciseIndex:3,day:date,at:a.at-1000,quick:false,extra:false,recovery:false,completion:'natural',thrown:30});
+  host.games.push({name:a.name,sessionId:id,exerciseId:a.exerciseId,exerciseIndex:3,day:date,at:a.at-1000,quick:false,extra:false,recovery:false,completion:'natural',variant:'doubles',thrown:30});
  }
  return host;
 }
@@ -113,6 +113,10 @@ test('H3: actual round evidence is necessary and sufficient for allocation eligi
   h=>{h.sessions[0].completed=false},
   h=>{h.sessions[0].activities[0].seconds=839},
   h=>{h.games[0].thrown=0},
+  h=>{h.games[0].variant='singles'},
+  h=>{delete h.games[0].variant},
+  h=>{h.games[0].trainingRing='S'},
+  h=>{const s=h.sessions[0];s.wholeSessionAudit.idcTransfer.delivery.receiver.name='Scoring Ladder';s.provenanceLocked.exercises[3].name='Scoring Ladder';s.activities[0].name='Scoring Ladder';h.games[0].name='Scoring Ladder'},
   h=>{h.games[0].at=h.sessions[0].activities[0].at+1},
   h=>{h.games[0].at=h.sessions[0].provenanceLocked.at-1},
   h=>{h.games[0].day=ago(-1)},
