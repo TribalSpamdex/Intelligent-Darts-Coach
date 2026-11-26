@@ -1,6 +1,7 @@
 // Audit completed-session evidence separately from the player's reported adherence.
 import {dayValid,dayGap} from './engine/context.mjs';
-import {validObservation,summarise} from './engine/engine.mjs';
+import {validObservation,summarise,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine/engine.mjs';
+import {attributableAllocation} from './coaching-accountability.mjs';
 import {evaluation} from './engine/reasoning.mjs';
 import {retentionReview} from './engine/learning.mjs';
 import {canonicalRows} from './longitudinal.mjs';
@@ -9,7 +10,7 @@ export function interventionDelivery(host,item,day){
  const until=dayValid(item.reviewDay)&&item.reviewDay<day?item.reviewDay:day;
  const seen=new Map(),conflicts=new Set();
  for(const s of host.sessions){
-  if(!s||s.quick!==false||!['number','string'].includes(typeof s.id)||!dayValid(s.date)||s.date<item.responseDay||s.date>until)continue;
+  if(!s||s.quick!==false||s.completed!==true||!['number','string'].includes(typeof s.id)||!dayValid(s.date)||s.date<item.responseDay||s.date>until)continue;
   const k=String(s.id);if(seen.has(k))conflicts.add(k);else seen.set(k,s);
  }
  let sessions=0,planned=0;const days=new Set(),exclusions=[];
@@ -74,9 +75,10 @@ export function outcomeLines(rows){
 // A transient learning view: preserve the stored history, but block automatic repetition
 // when a previous outcome is no longer reproducible. Never turn an invalid negative
 // outcome into a positive recommendation.
-export function verifiedLearningState(state,baselines,day){
+export function verifiedLearningState(state,baselines,day,host=null,now=Date.now()){
  const questionable=[];
  const interventions=state.interventions.map(item=>{
+  item={...item};delete item[ALLOCATION_PROOF];delete item[REVIEW_UNVERIFIED];
   if(!['completed','unsuccessful'].includes(item.status)||!item.reviewDay||item.reviewDay>day)return item;
   const b=Object.hasOwn(baselines,item.id)?baselines[item.id]:[];
   const check=reviewReproduction(item,b,state.observations,day);
@@ -85,12 +87,12 @@ export function verifiedLearningState(state,baselines,day){
    if(retention.invalid){
     questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:'retention-changed'});
     // Invalidate the historical benefit as a reason to repeat the adjustment.
-    return {...item,outcome:{status:'unclear'},retentionHistory:retention.valid};
+    return {...item,[REVIEW_UNVERIFIED]:true,retentionHistory:retention.valid};
    }
-   return {...item,retentionHistory:retention.valid};
+   return {...item,[ALLOCATION_PROOF]:host!==null&&attributableAllocation(host,item,day,now),retentionHistory:retention.valid};
   }
   questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:check.status});
-  return {...item,outcome:{status:'unclear'},retentionHistory:[]};
+  return {...item,[REVIEW_UNVERIFIED]:true,retentionHistory:[]};
  });
  return {state:{...state,interventions},questionable};
 }
