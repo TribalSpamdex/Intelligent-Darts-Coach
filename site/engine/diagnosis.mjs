@@ -91,8 +91,12 @@ export function confirmCurrentDecline(m,issue,day){
  // remains present in both halves of the latest seven measured days.
  const broad=robustTrend(rows,{asOf:day});
  const broadHalves=broad.earlier? [recent.daily.slice(0,3),recent.daily.slice(3)].map(x=>mean(x.map(o=>o.value))-broad.earlier.dayMean):[];
- const sustained=broad.status==='declining'&&broad.change<=-floor&&broadHalves.length===2&&broadHalves.every(x=>x<=-floor);
- return {status:short||persistent||sustained?'confirmed':'not-confirmed',mode:short?'recent':persistent?'persistent':sustained?'sustained-long-window':'none',change,noise,halves,floor,baselineDays:baseline.days,recentDays:recent.days,long,broad:{status:broad.status,change:broad.change??null,halves:broadHalves},reason:'Conservative engineering gate: confirm recent or sustained decline against disjoint earlier measurements; require both latest subperiods to remain low. Not a calibrated statistical test.'};
+ // A broad window can still contain a resolved slump. Two recent seven-day
+ // blocks rising materially above the immediately preceding fortnight
+ // veto a long-window-only prescription, even if the old peak is not restored.
+ const recovering=long!==null&&long.change>=floor&&long.weeks.every(x=>x>=floor*.75);
+ const sustained=!recovering&&broad.status==='declining'&&broad.change<=-floor&&broadHalves.length===2&&broadHalves.every(x=>x<=-floor);
+ return {status:short||persistent||sustained?'confirmed':'not-confirmed',mode:short?'recent':persistent?'persistent':sustained?'sustained-long-window':recovering?'recovering':'none',recovering,change,noise,halves,floor,baselineDays:baseline.days,recentDays:recent.days,long,broad:{status:broad.status,change:broad.change??null,halves:broadHalves},reason:'Conservative engineering gate: confirm recent or sustained decline against disjoint earlier measurements; require both latest subperiods to remain low. Not a calibrated statistical test.'};
 }
 
 export function deepenReport(m,report,day){
