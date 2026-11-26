@@ -4,6 +4,7 @@ import {chooseLearnedMethod} from '../site/personal-programme.mjs';
 import {trainingOutcomes} from '../site/training-outcomes.mjs';
 import {recordSetting} from '../site/challenge-setting.mjs';
 import {newMemory,validateMemory} from '../site/coach-memory.mjs';
+import {makeCheck} from '../site/precision-checks.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10),stamp=(d,m=0)=>Date.parse(d+'T09:00:00Z')+m*60000;
 const normal={name:'Scoring Survival',tier:4,target:60,lives:3},alternative={name:'Scoring Ladder',tier:4,targets:[55,59,63],lives:3};
 function fixture({count=6,age=90,base=60,benefit=7,spacing=7}={}){
@@ -12,7 +13,7 @@ function fixture({count=6,age=90,base=60,benefit=7,spacing=7}={}){
   const from=ago(age-i*spacing),practice=ago(age-i*spacing-1),to=ago(age-i*spacing-3),better=i%4===1||i%4===2,g=better?alternative:normal,setting=recordSetting(g,g).learningSetting,id=i+1,eid=id+':exercise:0',start=stamp(practice);
   host.sessions.push({id,date:practice,start,quick:false,extra:false,completed:true,activities:[{name:g.name,exerciseId:eid,exerciseIndex:0,seconds:600,rounds:3,at:stamp(practice,10)},{name:'Warm-up',exerciseId:id+':exercise:1',exerciseIndex:1,seconds:600,rounds:0,at:stamp(practice,20)}]});
   for(let j=1;j<=3;j++)host.games.push({name:g.name,sessionId:id,exerciseId:eid,exerciseIndex:0,day:practice,at:stamp(practice,j),quick:false,extra:false,recovery:false,completion:'natural',win:j!==3,tierAtStart:4,ruleVersion:null,learningSetting:setting});
-  for(const [d,value,kind] of [[from,base,'b'],[to,base+(better?benefit:0),'a']])memory.state.observations.push({id:kind+i,day:d,skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:value*10});
+  for(const [d,value,kind] of [[from,base,'b'],[to,base+(better?benefit:0),'a']])memory.state.observations.push(makeCheck('scoring',value*10,d));
  }
  return {host,memory};
 }
