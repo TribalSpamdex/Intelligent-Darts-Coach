@@ -161,25 +161,48 @@ export function methodReviews(host,state,day,now=Date.now()){
   const otherPractice=new Set(host.sessions.filter(s=>s&&s.quick===false&&dayValid(s.date)&&s.date>=baselineDays[0]&&s.date<=followupDays[1]&&String(s.id)!==r.id).map(s=>s.date)).size;
   out.push({...result,baselineDays,followupDays,baseline:base,change,outcome:lower?'observed-lower':upper?'observed-higher':'no-clear-change',otherPractice});
  }
+ // Delayed review is separate from the immediate outcome. Reserve every
+ // immediate comparison day first, then use additional disjoint measurements.
+ // Never reward the optional method merely for a short-lived gain.
+ const delayedUsed=new Set(used);
+ for(const r of out){
+  if(r.outcome!=='observed-higher')continue;
+  const key=JSON.stringify([r.skill,r.protocol]),end=r.followupDays[1],scale=r.skill==='scoring'?1:100,floor=r.skill==='scoring'?3:5;
+  const daily=[...(groups.get(key)??new Map())].map(([d,rs])=>({day:d,s:summarise(rs)})).filter(x=>x.s.attempts>=methodMinimum[r.skill]).sort((a,b)=>a.day.localeCompare(b.day));
+  const later=daily.filter(x=>dayGap(end,x.day)>=7&&dayGap(end,x.day)<=21&&!delayedUsed.has(JSON.stringify([key,x.day]))).slice(0,2);
+  r.retention='insufficient-delayed-checks';r.retentionDays=[];
+  if(later.length!==2)continue;
+  const last=later[1].day;
+  if(recordedConfounder(state,r.baselineDays[0],last)||delivery.some(x=>x.id!==r.id&&x.skill===r.skill&&x.day>=r.baselineDays[0]&&x.day<=last)){r.retention='confounded';continue}
+  for(const x of later)delayedUsed.add(JSON.stringify([key,x.day]));
+  r.retentionDays=later.map(x=>x.day);
+  const values=later.map(x=>x.s.value*scale);
+  r.retentionChange=values.reduce((n,x)=>n+x,0)/2-r.baseline;
+  r.retention=Math.min(...values)>=r.baseline+Math.max(floor,r.change*.75)?'gain-still-observed':Math.max(...values)<=r.baseline+floor*.5?'gain-not-maintained':'retention-unclear';
+ }
  return out;
 }
 export function methodReviewGate(rows,day){
  if(!dayValid(day)||!Array.isArray(rows))throw Error('Invalid method review');
  const groups=new Map(),blocked=[];
  for(const r of rows){
-  if(r.outcome!=='observed-lower'||!Array.isArray(r.baselineDays)||r.baselineDays.length!==2||!Array.isArray(r.followupDays)||r.followupDays.length!==2||!r.followupDays.every(dayValid)||!r.baselineDays.every(dayValid)||!dayValid(r.day)||!(r.baselineDays[0]<r.baselineDays[1]&&r.baselineDays[1]<r.day&&r.day<r.followupDays[0]&&r.followupDays[0]<r.followupDays[1])||r.followupDays[1]>day||dayGap(r.followupDays[1],day)>56)continue;
-  const key=JSON.stringify([r.skill,r.protocol,r.alternative]),a=groups.get(key)??[];a.push(r);groups.set(key,a);
+  if(r.status!=='eligible-exposure'||!Array.isArray(r.baselineDays)||r.baselineDays.length!==2||!Array.isArray(r.followupDays)||r.followupDays.length!==2||!r.followupDays.every(dayValid)||!r.baselineDays.every(dayValid)||!dayValid(r.day)||!(r.baselineDays[0]<r.baselineDays[1]&&r.baselineDays[1]<r.day&&r.day<r.followupDays[0]&&r.followupDays[0]<r.followupDays[1]))continue;
+  const lost=r.outcome==='observed-higher'&&r.retention==='gain-not-maintained'&&Array.isArray(r.retentionDays)&&r.retentionDays.length===2&&r.retentionDays.every(dayValid)&&r.retentionDays[0]<r.retentionDays[1]&&dayGap(r.followupDays[1],r.retentionDays[0])>=7&&dayGap(r.followupDays[1],r.retentionDays[1])<=21;
+  if(r.outcome!=='observed-lower'&&!lost)continue;
+  const end=lost?r.retentionDays[1]:r.followupDays[1];
+  if(end>day||dayGap(end,day)>56)continue;
+  const key=JSON.stringify([r.skill,r.protocol,r.alternative]),a=groups.get(key)??[];a.push({...r,end,lost});groups.set(key,a);
  }
  for(const a of groups.values()){
   a.sort((x,y)=>x.day.localeCompare(y.day));
-  const unique=[];for(const r of a)if(!unique.some(x=>x.id===r.id||x.day===r.day||x.followupDays[1]>=r.baselineDays[0]))unique.push(r);
-  if(unique.length>=2){const r=unique.at(-1);blocked.push({skill:r.skill,protocol:r.protocol,alternative:r.alternative,reviews:unique.length,last:r.followupDays[1],reason:'Two separate reviewed selections were followed by clearly lower comparable measurements. Defer this optional method and review conditions; no cause is established.'})}
+  const unique=[];for(const r of a)if(!unique.some(x=>x.id===r.id||x.day===r.day||x.end>=r.baselineDays[0]))unique.push(r);
+  if(unique.length>=2){const r=unique.at(-1);blocked.push({skill:r.skill,protocol:r.protocol,alternative:r.alternative,reviews:unique.length,last:r.end,reason:unique.some(x=>x.lost)?'Two separate reviewed selections showed lower later measurements or gains that were not maintained. Defer this optional method and review conditions; no cause is established.':'Two separate reviewed selections were followed by clearly lower comparable measurements. Defer this optional method and review conditions; no cause is established.'})}
  }
  return blocked;
 }
 export function methodReviewLines(rows,day){
  if(!rows.length)return ['No saved personalised drill selections to review.'];
- return [...rows.slice(-15).flatMap(r=>[r.day+' · '+r.normal+' to '+r.alternative+' · '+r.status.replaceAll('-',' ')+'; '+r.outcome.replaceAll('-',' ')+'.',...(r.seconds!==null?['Matched elapsed activity '+(r.seconds/60).toFixed(1)+' min; exact historical setting '+(r.exactSetting?'observed':'not established')+'.']:[]),...(r.change!==null?['Later fixed checks changed '+(r.change>0?'+':'')+r.change.toFixed(1)+(r.skill==='scoring'?' points.':' percentage points.')+' '+r.otherPractice+' other recorded practice days in the comparison window.']:[])]),...methodReviewGate(rows,day).map(x=>x.alternative+': '+x.reason),...methodFollowupGate(rows,day).map(x=>x.skill+': '+x.reason),'A selected drill, actual exposure and later performance are not the same. These reviews are observational, not controlled tests.'];
+ return [...rows.slice(-15).flatMap(r=>[r.day+' · '+r.normal+' to '+r.alternative+' · '+r.status.replaceAll('-',' ')+'; '+r.outcome.replaceAll('-',' ')+'.',...(r.seconds!==null?['Matched elapsed activity '+(r.seconds/60).toFixed(1)+' min; exact historical setting '+(r.exactSetting?'observed':'not established')+'.']:[]),...(r.change!==null?['Later fixed checks changed '+(r.change>0?'+':'')+r.change.toFixed(1)+(r.skill==='scoring'?' points.':' percentage points.')+' '+r.otherPractice+' other recorded practice days in the comparison window.']:[]),...(r.retention?['Delayed follow-up: '+r.retention.replaceAll('-',' ')+'. '+(r.retentionDays?.length?r.retentionDays.join(' and ')+'. ':'')+'Later practice and conditions may also explain the result.']:[])]),...methodReviewGate(rows,day).map(x=>x.alternative+': '+x.reason),...methodFollowupGate(rows,day).map(x=>x.skill+': '+x.reason),'A selected drill, actual exposure and later performance are not the same. These reviews are observational, not controlled tests.'];
 }
 
 // A new same-skill selection during a pending review can make both
