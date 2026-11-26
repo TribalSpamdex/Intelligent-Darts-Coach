@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deliveryEvidence,coachingAccountability,accountabilityLines,deliveryGate} from '../site/coaching-accountability.mjs';
-import {applyTransfer} from '../site/coach-policy.mjs';
+import {decideTransfer,applyTransfer} from '../site/coach-policy.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),start=now-3600000,ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const item={id:'i',skill:'doubles',context:'practice',protocol:'fixed',status:'accepted',responseDay:ago(14),proposedDay:ago(15),reviewAfterDays:14,baselineIds:['b']};
 function fixture(){
@@ -73,4 +73,16 @@ test('one successful recent measured delivery removes repeated-shortfall gate',(
 test('multiple sessions on the same date are not independent shortfall days',()=>{
  const host=shortfallHistory(),s=host.sessions[1];s.date=day;s.wholeSessionAudit.idcTransfer.day=day;
  assert.equal(deliveryGate(host,item,day,now).defer,false);
+});
+
+test('measured shortfall actually blocks the optional transfer in native policy',()=>{
+ const host=shortfallHistory(),i={...item,status:'accepted'};
+ const report={decision:'balanced',verification:{status:'passed'},active:{mode:'accepted-temporary-focus',intervention:i.id}};
+ const confirmation={decision:'temporary-focus',verification:{status:'passed'},focus:i.skill,focusProtocol:i.protocol,focusContext:i.context};
+ const r=decideTransfer({report,confirmation,memory:{state:{interventions:[i]},events:[]},session:{quick:false,extra:false},queue:[],priorSessions:host.sessions,day});
+ assert.equal(r.status,'unchanged');assert.ok(r.reason.includes('delivery shortfall'));
+});
+test('malformed transfer cannot mutate either clock budget',()=>{
+ const q=[{name:'Scoring',seconds:900,wholeCoach:{}},{name:'Doubles',seconds:NaN,wholeCoach:{}}],d={status:'transferred',from:0,to:1,seconds:300};
+ assert.throws(()=>applyTransfer(q,d),/Invalid allocation/);assert.equal(q[0].seconds,900);assert.ok(Number.isNaN(q[1].seconds));assert.equal(d.delivery,undefined);
 });
