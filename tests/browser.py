@@ -130,7 +130,7 @@ with sync_playwright() as p:
     page.locator('#navTechnique').click()
     assert page.evaluate("""async()=>{const m=await import('./training-ledger.mjs?v=2.0.0-dev');const x=m.trainingLedger(window.IDCTrainingBridge.snapshot(),window.IDCTrainingBridge.day());return x.sessions.length>=1&&x.sessions.some(s=>!s.completed)}""")
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=true')
-    assert page.locator('#idcAutonomyQuestions button').count()==7
+    assert page.locator('#idcAutonomyQuestions button').count()==8
     page.locator('#idcEventForm input[name=name]').fill('Synthetic league')
     event_day=page.evaluate("window.IDCTrainingBridge.day()")
     page.locator('#idcEventForm input[name=day]').fill(event_day)
