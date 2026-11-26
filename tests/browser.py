@@ -8,6 +8,7 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.add_init_script("""if(!localStorage.getItem('dartsCoachV4'))localStorage.setItem('dartsCoachV4','CONTROL-SENTINEL');if(!localStorage.getItem('DCI-independent:foundation:v1'))localStorage.setItem('DCI-independent:foundation:v1','INDEPENDENT-SENTINEL');""")
     page.goto('http://127.0.0.1:8765/index.html')
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     assert 'V2.0.0-dev' in page.title()
     assert page.locator('#home').is_visible()
     assert not page.locator('#idcCoach').is_visible()
@@ -55,6 +56,7 @@ with sync_playwright() as p:
     assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
     assert 'Saved: preferred double' in page.locator('#idcFactStatus').inner_text()
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     assert page.locator('#home').is_visible()
     page.locator('#navTechnique').click()
     page.locator('#idcMemoryPanel > summary').click()
@@ -86,6 +88,13 @@ with sync_playwright() as p:
     page.locator('#idcReview').click()
     assert 'Decision: stop' in page.locator('#idcReport').inner_text()
     assert page.evaluate('window.IDCPolicy.mayStart()') is False
+    # Sol H2: a stop decision must block actual physical entry points.
+    blocked=page.evaluate("""()=>{const notices=[],old=window.alert;window.alert=x=>notices.push(x);try{
+      const before=JSON.stringify(data.activeSession??null);
+      startQuickPlay();beginTraining(true,true);openAssessment(STAGES.find(x=>!stageComplete(x)));
+      return {unchanged:JSON.stringify(data.activeSession??null)===before,assessmentHidden:document.getElementById('assessmentScreen').classList.contains('hidden'),blocked:notices.length};
+    }finally{window.alert=old}}""")
+    assert blocked['unchanged'] and blocked['assessmentHidden'] and blocked['blocked']>=1, blocked
     page.locator('#idcReady input[name=pain]').uncheck()
     page.locator('#idcReady button').click()
     assert page.evaluate('window.IDCPolicy.mayStart()') is True
@@ -136,6 +145,7 @@ with sync_playwright() as p:
     page.locator('#idcBrief button').filter(has_text='Enable personalised drill choice').click()
     assert page.evaluate("window.IDCPolicy.methodEnabled()") is True
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()
     assert page.evaluate("window.IDCPolicy.methodEnabled()") is True
     page.locator('#idcBrief button').filter(has_text='Disable personalised drill choice').click()
@@ -216,6 +226,7 @@ with sync_playwright() as p:
         assert card['x']+card['width']<=width+1
     page.set_viewport_size({"width":390,"height":844})
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()
     assert page.evaluate('window.IDCTrainingBridge.memory().state.legs.length')==1
     assert page.evaluate('window.IDCTrainingBridge.memory().state.throws.length')==20
@@ -226,6 +237,7 @@ with sync_playwright() as p:
         assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev2');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning','session-learning','trial-planning'])if(!await c.match('./'+n+'.mjs?v=2.0.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
         ctx.set_offline(True)
         page.reload()
+        page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
         page.locator('#navTechnique').click()
         page.locator('#idcExample').click()
         assert 'temporary-focus' in page.locator('#idcReport').inner_text()
@@ -265,6 +277,7 @@ with sync_playwright() as p:
     assert '64.8' in page.locator('#idcMilestoneResult').inner_text()
     assert 'Awaiting evidence' in page.locator('#idcMilestoneResult').inner_text()
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()
     assert page.evaluate("window.IDCTrainingBridge.memory().state.observations.filter(o=>o.protocol==='IDC precision fixed scoring').length")==1
     page.locator('#idcPrecisionCheckPanel').evaluate('(e)=>e.open=true')
@@ -364,6 +377,28 @@ with sync_playwright() as p:
     assert audit['captured']>=20, audit
     assert audit['modified']>=70 and audit['names']>=20, audit
     print('Native precision construction audit:',audit)
+    # Sol H1: a second document must not overwrite a successfully saved profile.
+    before=page.evaluate("localStorage.getItem(KEY)")
+    other=ctx.new_page()
+    other.goto('http://127.0.0.1:8765/index.html')
+    other.wait_for_function("typeof idcWriter!=='undefined' && idcWriter!=='pending'")
+    assert other.evaluate("idcWriter")=='readonly'
+    other.evaluate("""()=>{data.idcCoachMemory=null;save(false)}""")
+    assert page.evaluate("localStorage.getItem(KEY)")==before
+    other.close()
+    # Sol M1: destructive storage recovery simulation in an isolated profile.
+    recovery=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    rp=recovery.new_page()
+    rp.goto('http://127.0.0.1:8765/index.html')
+    rp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    rp.evaluate("""()=>{data.__solRecoveryMarker='deleted';save(false);checkpointData();const old=localStorage.getItem(CHECKPOINT_KEY);
+       delete data.__solRecoveryMarker;save(false);localStorage.setItem(CHECKPOINT_KEY,old);localStorage.setItem(KEY,'broken-primary');}""")
+    rp.reload()
+    rp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert rp.evaluate("idcRecoveryBlocked && !data.__solRecoveryMarker")
+    assert rp.evaluate("localStorage.getItem(KEY)")=='broken-primary'
+    recovery.close()
+    print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
     browser.close()
     print('IDC browser smoke and storage isolation passed')
