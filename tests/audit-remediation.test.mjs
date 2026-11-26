@@ -99,3 +99,25 @@ test('Sol M7: bounded paraphrases route to read-only coaching queries',()=>{
  }
  assert.equal(interpret('Delete all my practice data',day).kind,'unsupported');
 });
+
+test('Sol M7: natural checkout paraphrases route to the same verified finish as the canonical command',()=>{
+ const state=newMemory().state,host={sessions:[],games:[],bigSingles:[]};
+ const ask=q=>integratedAsk(host,state,q,day,now);
+ const canonical=ask('Checkout 81 with 2 darts');
+ for(const q of ['I have 81 left and two darts in hand. What should I throw?','I have got 81 points remaining with two darts left','Check out 81 with two darts','How can I take out 81 in 2 darts']){
+  const response=ask(q);assert.equal(response.type,'checkout',q);assert.deepEqual(response.lines,canonical.lines,q);
+ }
+ assert.equal(ask('I have 1 left and two darts in hand. What should I throw?').kind,'unsupported');
+ assert.equal(ask('I have 81 left and 4 darts in hand. What should I throw?').kind,'unsupported');
+});
+test('Sol M7: spoken doubles comparison asks for independent days and does not change the player profile',()=>{
+ const state=newMemory().state,host={sessions:[],games:[]},before=JSON.stringify(state);
+ const result=integratedAsk(host,state,'100 doubles attempts each period; earlier 35/100, recently 20/100; equipment and technique unchanged.',day,now);
+ assert.equal(result.type,'reported-comparison');assert.ok(result.lines.some(x=>x.includes('-15.0 percentage points')));
+ assert.ok(result.lines.some(x=>x.includes('separate practice days')));
+ assert.ok(result.lines.some(x=>x.includes('unchanged equipment and technique')));
+ assert.equal(JSON.stringify(state),before);
+ const invalid=integratedAsk(host,state,'doubles earlier 101/100, recently 20/100',day,now);
+ assert.ok(invalid.lines[0].includes('inconsistent'));
+ assert.equal(JSON.stringify(state),before);
+});
