@@ -76,8 +76,13 @@ export function confirmedAbility(rows,max){
 }
 const continuous=(ability,lower,width)=>ability===null?0:Math.max(0,Math.min(3,4*(ability-lower)/width));
 function model(rows,day,max,lower,width){
- const ability=confirmedAbility(rows,max);
- return {confirmedAbility:ability,challenge:continuous(ability,lower,width),evidence:rows.map(r=>({protocol:r.protocol,days:r.days,attempts:r.attempts,weeks:r.weeks,median28:r.value,median7:r.form.short.median,form:r.form.status,stability:r.stability.status}))};
+ const ability=confirmedAbility(rows,max),challenge=continuous(ability,lower,width);
+ // Temporary conservative cap from independently repeated recent form.
+ // Never escalates difficulty, replaces the long-term estimate, or
+ // changes a current round. A single bad day is insufficient.
+ const below=rows.filter(r=>r.form.status==='below-usual');
+ const recentCap=below.length?Math.min(challenge,...below.map(r=>continuous(Math.max(0,r.form.short.median-r.margin),lower,width))):challenge;
+ return {confirmedAbility:ability,challenge,recentCap,temporaryFormCap:recentCap<challenge-1e-8,evidence:rows.map(r=>({protocol:r.protocol,days:r.days,attempts:r.attempts,weeks:r.weeks,median28:r.value,median7:r.form.short.median,form:r.form.status,stability:r.stability.status}))};
 }
 export function precisionDecisions(observations,day,tiers){
  const rows=progressEvidence(observations,day),out={};

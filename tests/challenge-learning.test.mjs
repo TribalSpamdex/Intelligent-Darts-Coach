@@ -86,3 +86,23 @@ test('new learning scopes reject missing, impossible or wrong-ring target sequen
   {name:'Golf Five',tier:4,par:12,ring:'T',holes:[20,16,8,4,2]}
  ])assert.equal(settingSnapshot(g,g),null,g.name);
 });
+
+test('four additional exact bull and checkout training settings preserve fixed start and goal',()=>{
+ for(const g of [
+  {name:'Bull Bank',tier:4,dartsLeft:15,goal:125},
+  {name:'Bull Blackjack',tier:4,allowed:19,goal:150},
+  {name:'101 Sprint',tier:4,target:101,allowed:5},
+  {name:'170 Challenge',tier:4,remaining:170,maxVisits:3}
+ ]){
+  const d={bull:{tier:4,quarter:2},checkout:{tier:4,quarter:2}},r=recordSetting(g,precisionRound(g,d,{eligible:true}));
+  assert.ok(validSetting(r.learningSetting),g.name);
+  assert.ok(r.learningSetting.quarter>0,g.name);
+  assert.notEqual(settingKey(r.learningSetting),settingKey(recordSetting(g,g).learningSetting));
+ }
+ for(const g of [
+  {name:'Bull Bank',tier:4,dartsLeft:3,goal:250},
+  {name:'Bull Blackjack',tier:4,allowed:19,goal:151},
+  {name:'101 Sprint',tier:4,target:100,allowed:5},
+  {name:'170 Challenge',tier:4,remaining:100,maxVisits:3}
+ ])assert.equal(settingSnapshot(g,g),null,g.name);
+});
