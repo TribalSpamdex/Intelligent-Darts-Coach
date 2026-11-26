@@ -2,7 +2,7 @@ import {canonicalRows,scopeKey} from './longitudinal.mjs';
 import {dayGap} from './engine/context.mjs';
 import {summarise} from './engine/engine.mjs';
 import {distribution} from './statistics.mjs';
-import {measurementBand,tierRange,SKILL_THRESHOLDS} from './progression-bands.mjs';
+import {measurementBand,tierRange,SKILL_THRESHOLDS,bandEdges} from './progression-bands.mjs';
 const isScore=s=>['scoring','firstNine'].includes(s);
 const scale=s=>isScore(s)?1:100;
 export function progressEvidence(observations,day){
@@ -22,13 +22,13 @@ export function progressEvidence(observations,day){
  const first=daily.slice(0,Math.floor(daily.length/2)),last=daily.slice(Math.floor(daily.length/2));
  const confirm=boundary=>adequate&&first.length>=4&&last.length>=4&&[first,last].every(g=>g.filter(o=>o.value>=boundary+margin).length>=Math.ceil(.75*g.length));
  let achieved=null;
- if(band&&adequate){const edges=Array.from({length:band.index+1},(_,i)=>i);for(let i=edges.length-1;i>=0;i--){const candidate=i===band.index?band.lower:measurementBand(skill,isScore(skill)?(i===0?0:20+(i-1)*5):i*2.5).lower;if(candidate===0||confirm(candidate)){achieved=candidate;break}}}
+ if(band&&adequate){const edges=bandEdges(skill).filter(x=>x<=value);for(let i=edges.length-1;i>=0;i--){const candidate=edges[i];if(candidate===0||confirm(candidate)){achieved=candidate;break}}}
  return {skill,context,protocol,days:d.n,weeks,attempts:b?.attempts??0,value,band,prior:old,change:old===null||value===null?null:value-old,confirmedMilestone:achieved,adequate,daily,confirm,margin,last:rows.at(-1).day};
  }).sort((a,b)=>a.skill.localeCompare(b.skill)||a.protocol.localeCompare(b.protocol)||a.context.localeCompare(b.context));
 }
 // Only identical fixed practice protocols can justify a harder half. Any
 // adequately sampled contradictory protocol vetoes the change.
-const fixed=(skill,p)=>p.startsWith('IDC V6.2 assessment ')||skill==='scoring'&&p==='IDC V6.2 Scoring Challenge fixed 30 darts'||skill==='bull'&&p==='IDC V6.2 Bull Accuracy any bull 30'||p==='IDC precision fixed '+skill;
+const fixed=(skill,p)=>({scoring:'IDC V6.2 assessment scoring 60 darts',doubles:'IDC V6.2 assessment D1-D20 fixed 60',checkout:'IDC V6.2 assessment fixed 12 three-dart visits',bull:'IDC V6.2 assessment any bull 30'}[skill]===p)||skill==='scoring'&&p==='IDC V6.2 Scoring Challenge fixed 30 darts'||skill==='bull'&&p==='IDC V6.2 Bull Accuracy any bull 30'||p==='IDC precision fixed '+skill;
 export function precisionDecisions(observations,day,tiers){
  const rows=progressEvidence(observations,day),out={};
  for(const skill of Object.keys(SKILL_THRESHOLDS)){
