@@ -75,3 +75,14 @@ test('additional ring-based drills capture exact routes and separate ring skills
   assert.notEqual(settingKey(r.learningSetting),settingKey(recordSetting(g,g).learningSetting));
  }
 });
+
+test('new learning scopes reject missing, impossible or wrong-ring target sequences',()=>{
+ for(const g of [
+  {name:'Double Double',tier:4,allowed:12,targets:[20,16]},
+  {name:'Outside Doubles',tier:4,allowed:22,targets:[20,25],lives:5},
+  {name:'Number Lock',tier:4,allowedMisses:9,ring:'D',targets:[20,20,8]},
+  {name:'Number Lock',tier:4,allowedMisses:9,ring:'T',targets:[20,16,25]},
+  {name:'Golf Five',tier:4,par:12,ring:'S',holes:[20,16,8,4,0]},
+  {name:'Golf Five',tier:4,par:12,ring:'T',holes:[20,16,8,4,2]}
+ ])assert.equal(settingSnapshot(g,g),null,g.name);
+});
