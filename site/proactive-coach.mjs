@@ -36,6 +36,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
   const supported=report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id;
   return supported?response('active','Continue the agreed training adjustment','Keep the rest of practice stable and review on the agreed date.',{intervention:open.id}):response('intervention-review','Check the existing adjustment','The current independent recommendation does not confirm continued allocation. Keep practice balanced and review the evidence before repeating the change.',{intervention:open.id});
  }
+ if(report?.verification?.status!=='passed')return response('balanced','Coaching verification incomplete','Review the coaching evidence before adopting any new adjustment.');
  const due=agenda.actions.find(a=>a.kind==='review-goal');
  if(due)return response('goal','A measured goal is due for review',due.reason+' '+due.next);
  if(report?.verification?.status==='passed'&&report.decision==='temporary-focus')return response('focus','Review a supported training focus','The independent engine has confirmed a change worth investigating. Review the evidence before making an optional adjustment.');

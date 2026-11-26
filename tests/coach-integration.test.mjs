@@ -73,3 +73,16 @@ test('native allocator fails closed with malformed timed budget or another escal
  assert.equal(decideTransfer({...x,queue:[x.queue[0],x.queue[0],...x.queue.slice(1)]}).status,'unchanged');
  assert.equal(decideTransfer({...x,legacyPolicy:{categories:{...x.legacyPolicy.categories,doubles:{learning:{permissionToEscalate:true}}}}}).status,'unchanged');
 });
+
+test('malformed or ambiguous intervention backup cannot activate or overwrite valid consent',()=>{
+ const h=fixture(),m=accepted(h),i=m.state.interventions[0],before=JSON.stringify(m);
+ for(const patch of [{proposedDay:'2026-02-30'},{responseDay:'2026-13-01'},{baselineIds:[i.baselineIds[0],i.baselineIds[0]]},{protocol:' '},{status:'completed',reviewDay:'2026-11-14',adherence:1,outcome:{status:'observed-improvement'}},{status:'declined',cancelledDay:'2026-11-14'}]){
+  const bad={...m,state:{...m.state,interventions:[{...i,...patch}]}};
+  assert.throws(()=>validateMemory(bad));assert.throws(()=>assess(h,bad,day,now));
+ }
+ for(const other of [{...i},{...i,id:'second'}]){
+  const bad={...m,state:{...m.state,interventions:[i,other]},baselines:{...m.baselines,[other.id]:m.baselines[i.id]}};
+  assert.throws(()=>validateMemory(bad));
+ }
+ assert.equal(JSON.stringify(m),before);assert.deepEqual(validateMemory(JSON.parse(before)),m);
+});

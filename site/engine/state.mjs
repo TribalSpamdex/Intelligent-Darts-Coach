@@ -14,7 +14,15 @@ export function validateState(raw){
  const s=validMemory(raw),throws=s.throws??[];
  if(!Array.isArray(throws)||throws.length>100000)throw Error('Invalid throw history');
  const ids=new Set();s.throws=throws.map(o=>{const t=validThrow(o);if(ids.has(t.id))throw Error('Duplicate throw');ids.add(t.id);return t});
- for(const i of s.interventions){if(!Array.isArray(i.baselineIds)||i.baselineIds.length>50000||!i.baselineIds.every(x=>typeof x==='string')||typeof i.protocol!=='string'||!['practice','competition'].includes(i.context)||!/^\d{4}-\d{2}-\d{2}$/.test(i.proposedDay)||i.reviewAfterDays!==14||i.maximumDays!==21)throw Error('Invalid intervention record');if(i.status!=='proposed'&&(!i.responseDay||i.responseDay<i.proposedDay))throw Error('Invalid intervention response');}
+ const interventionIds=new Set();
+ for(const i of s.interventions){
+  if(!i.id.trim()||i.id.length>100||interventionIds.has(i.id)||!Array.isArray(i.baselineIds)||i.baselineIds.length>50000||new Set(i.baselineIds).size!==i.baselineIds.length||!i.baselineIds.every(x=>typeof x==='string'&&x.length>0&&x.length<=100)||typeof i.protocol!=='string'||!i.protocol.trim()||i.protocol.length>100||!['practice','competition'].includes(i.context)||!dayValid(i.proposedDay)||i.reviewAfterDays!==14||i.maximumDays!==21)throw Error('Invalid intervention record');
+  interventionIds.add(i.id);
+  if(i.status==='proposed'&&i.responseDay!=null||i.status!=='proposed'&&(!dayValid(i.responseDay)||i.responseDay<i.proposedDay))throw Error('Invalid intervention response');
+  if(['completed','unsuccessful'].includes(i.status)&&(!dayValid(i.reviewDay)||i.reviewDay<i.responseDay||!i.outcome||!Number.isFinite(i.adherence)||i.adherence<0||i.adherence>1))throw Error('Invalid intervention review');
+  if(i.cancelledDay!=null&&(!dayValid(i.cancelledDay)||i.status!=='declined'||i.cancelledDay<i.responseDay))throw Error('Invalid cancellation');
+ }
+ if(s.interventions.filter(i=>['proposed','accepted'].includes(i.status)).length>1)throw Error('Multiple open interventions');
  for(const [key,validator,id] of [['readiness',validateReadiness,x=>x.day+'/'+x.context],['difficulty',validateDifficulty,x=>x.id]]){const rows=s[key]??[];if(!Array.isArray(rows)||rows.length>50000)throw Error('Invalid '+key+' history');const unique=new Set();s[key]=rows.map(raw=>{const o=validator(raw),k=id(o);if(unique.has(k))throw Error('Duplicate '+key+' record');unique.add(k);return o})}
  for(const e of s.exposure)if(!dayValid(e.day))throw Error('Invalid exposure date');
  for(const [key,validator] of [['answers',validateAnswer],['changes',validateChange],['trials',validateTrial],['sessions',validateSession],['goals',validateGoal],['clinic',validateClinic],['setups',validateSetup],['followups',validateFollowup],['legs',o=>analyseLeg(o).leg]]){const rows=s[key]??[];if(!Array.isArray(rows)||rows.length>10000)throw Error('Invalid '+key+' history');const ids=new Set();s[key]=rows.map(raw=>{const o=validator(raw);if(key!=='answers'){if(ids.has(o.id))throw Error('Duplicate '+key+' identity');ids.add(o.id)}return o})}

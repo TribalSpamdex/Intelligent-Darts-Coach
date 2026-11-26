@@ -123,3 +123,5 @@ Personalised competition preparation uses fresh measured same-rule actual-leg st
 Independent allocation now validates a unique accepted intervention and its active date window, competing native complement, valid native timed budgets, and a distinct donor/receiver category at the final mutation boundary. Replaying a transfer is rejected before any clock mutation. Newly created scheduled sessions explicitly record quick:false.
 
 Method-dose activation is restricted to single-session matched episodes on both arms; an aggregate multi-session dose does not justify a single exercise. End-to-end synthetic native history regression now exercises the full exposure → episode → comparison → choice chain, including backup round-trip, corrections and beginner-to-elite benchmark ranges.
+
+Malformed or ambiguous coaching memory now fails closed: validated backups reject duplicate/multiple open interventions and invalid chronology or baseline identity; normal session readiness does not silently bypass corrupt independent memory or an unverified report. The user can still inspect or restore data; no automatic deletion occurs.

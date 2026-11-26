@@ -89,6 +89,8 @@ with sync_playwright() as p:
     page.locator('#idcReady input[name=pain]').uncheck()
     page.locator('#idcReady button').click()
     assert page.evaluate('window.IDCPolicy.mayStart()') is True
+    assert page.evaluate("""()=>{const old=data.idcCoachMemory;try{data.idcCoachMemory={format:'invalid'};return window.IDCPolicy.mayStart()===false}finally{data.idcCoachMemory=old}}""")
+    assert page.evaluate('window.IDCPolicy.mayStart()') is True
     page.locator('#idcSetup input[name=name]').fill('Test setup')
     page.locator("#idcSetup input[name='setup:weight']").fill('24g')
     page.locator('#idcSetup button').click()
