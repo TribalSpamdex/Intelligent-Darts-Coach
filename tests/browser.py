@@ -129,6 +129,15 @@ with sync_playwright() as p:
     page.evaluate("finishView()")
     page.locator('#navTechnique').click()
     assert page.evaluate("""async()=>{const m=await import('./training-ledger.mjs?v=2.0.0-dev');const x=m.trainingLedger(window.IDCTrainingBridge.snapshot(),window.IDCTrainingBridge.day());return x.sessions.length>=1&&x.sessions.some(s=>!s.completed)}""")
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is False
+    page.once('dialog',lambda d:d.accept())
+    page.locator('#idcBrief button').filter(has_text='Enable personalised drill choice').click()
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is True
+    page.reload()
+    page.locator('#navTechnique').click()
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is True
+    page.locator('#idcBrief button').filter(has_text='Disable personalised drill choice').click()
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is False
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=true')
     assert page.locator('#idcAutonomyQuestions button').count()==8
     page.locator('#idcEventForm input[name=name]').fill('Synthetic league')
@@ -211,8 +220,8 @@ with sync_playwright() as p:
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev1');return !!(await c.match('./context-profile.mjs?v=2.0.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=2.0.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=2.0.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=2.0.0-dev'))&&!!(await c.match('./precision-games.mjs?v=2.0.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=2.0.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=2.0.0-dev'))}""")
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev1');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning','session-learning','trial-planning'])if(!await c.match('./'+n+'.mjs?v=2.0.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev2');return !!(await c.match('./context-profile.mjs?v=2.0.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=2.0.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=2.0.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=2.0.0-dev'))&&!!(await c.match('./precision-games.mjs?v=2.0.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=2.0.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=2.0.0-dev'))}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev2');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning','session-learning','trial-planning'])if(!await c.match('./'+n+'.mjs?v=2.0.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
         ctx.set_offline(True)
         page.reload()
         page.locator('#navTechnique').click()
