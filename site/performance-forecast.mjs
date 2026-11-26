@@ -17,8 +17,8 @@ function predict(history,skill,name){
  return base;
 }
 export function measuredBlocks(rows,day,skill){
- // Exclude the ongoing seven-day window. Fixed calendar boundaries relative
- // to the review date; missing/inadequate blocks break chronological runs.
+ // Nonoverlapping trailing seven-day blocks ending on the review date.
+ // Missing or inadequate blocks break chronological runs.
  const groups=new Map();
  for(const o of rows){
   const age=dayGap(o.day,day),n=Math.floor(age/7);
