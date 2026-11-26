@@ -1,3 +1,4 @@
+import {progressionAnswer,PROGRESSION_QUESTIONS} from './progression-dialogue.mjs';
 import {statisticsAnswer,STAT_QUESTIONS} from './statistics-dialogue.mjs';
 import {contextLines,techniqueLines} from './context-profile.mjs';
 import {longitudinal,profileLines,investigationQueue} from './longitudinal.mjs';
@@ -12,12 +13,13 @@ import {nextActions} from './engine/next-actions.mjs';
 import {fullReport} from './engine/executive.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?',...STAT_QUESTIONS];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
 export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={}){
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
+ const progression=progressionAnswer(host,state,q,day);if(progression)return progression;
  const statistical=statisticsAnswer(host,state,q,day,now,checks);if(statistical)return statistical;
  if(/^(what do you know about me|show (my )?memory|player memory)$/.test(q)){
  const lines=[state.observations.length+' eligible performance measurements; '+host.sessions.filter(s=>s?.quick===false).length+' saved scheduled-training session records. No inferred player facts.'];
