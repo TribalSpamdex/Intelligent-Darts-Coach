@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {deliveryEvidence,coachingAccountability,accountabilityLines} from '../site/coaching-accountability.mjs';
+import {deliveryEvidence,coachingAccountability,accountabilityLines,deliveryGate} from '../site/coaching-accountability.mjs';
 import {applyTransfer} from '../site/coach-policy.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),start=now-3600000,ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const item={id:'i',skill:'doubles',context:'practice',protocol:'fixed',status:'accepted',responseDay:ago(14),proposedDay:ago(15),reviewAfterDays:14,baselineIds:['b']};
@@ -50,4 +50,27 @@ test('accountability separates baseline integrity and due review from delivery',
  let r=coachingAccountability(host,state,{i:[b]},day,now);assert.equal(r[0].status,'review-due');assert.equal(r[0].observedOutcome,null);
  assert.ok(accountabilityLines(r).at(-1).includes('no causal success rate'));
  r=coachingAccountability(host,{...state,observations:[]},{i:[b]},day,now);assert.equal(r[0].status,'baseline-edited');
+});
+
+function shortfallHistory(){
+ const sessions=[];
+ for(const [i,n] of [0,2,4].entries()){
+  const {s}=fixture(),id=i+1,date=ago(n);
+  s.id=id;s.date=date;s.start-=n*86400000;s.wholeSessionAudit.idcTransfer.day=date;s.provenanceLocked.at-=n*86400000;
+  s.provenanceLocked.exercises[3].id=id+':exercise:3';s.activities[0].exerciseId=id+':exercise:3';s.activities[0].at-=n*86400000;s.activities[0].seconds=700;
+  sessions.push(s);
+ }
+ return {sessions};
+}
+test('three separate measured delivery shortfalls defer repeated adjustment; unknown records do not',()=>{
+ const host=shortfallHistory();assert.equal(deliveryGate(host,item,day,now).defer,true);
+ host.sessions[1].activities=[];assert.equal(deliveryGate(host,item,day,now).defer,false);
+});
+test('one successful recent measured delivery removes repeated-shortfall gate',()=>{
+ const host=shortfallHistory();host.sessions[2].activities[0].seconds=900;
+ assert.equal(deliveryGate(host,item,day,now).defer,false);
+});
+test('multiple sessions on the same date are not independent shortfall days',()=>{
+ const host=shortfallHistory(),s=host.sessions[1];s.date=day;s.wholeSessionAudit.idcTransfer.day=day;
+ assert.equal(deliveryGate(host,item,day,now).defer,false);
 });
