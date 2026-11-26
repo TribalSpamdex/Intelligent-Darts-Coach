@@ -1,6 +1,6 @@
 // Reconstruct delivered training adjustments from locked native plans and
 // matched completed activities. Planned extra minutes are NOT actual throws.
-import {dayValid,dayGap} from './engine/context.mjs';
+import {dayValid,dayGap,asOfState} from './engine/context.mjs';
 import {baselineIntegrity,reviewReproduction,verifiedRetention} from './intervention-audit.mjs';
 import {extractLearningExposure} from './challenge-exposure.mjs';
 import {validSetting,settingKey} from './challenge-setting.mjs';
@@ -54,6 +54,7 @@ export function attributableAllocation(host,item,day,now=Date.now()){
  return days.size>=3;
 }
 export function coachingAccountability(host,state,baselines,day,now=Date.now()){
+ state=asOfState(state,day);
  const rows=[];
  for(const i of state.interventions??[]){
   if(!dayValid(i.responseDay)||i.responseDay>day||i.status==='declined')continue;
