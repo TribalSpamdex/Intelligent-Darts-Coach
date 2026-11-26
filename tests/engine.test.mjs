@@ -126,3 +126,13 @@ test('isolated integration demonstration connects host evidence to verified coac
 
 import {parseHostExport,previewHostExport} from '../site/engine/host-adapter.mjs';
 test('portable host export preview never mutates state and validates its envelope',()=>{const m=newPlayer(),day='2026-01-15',raw=JSON.stringify({format:'DCI-benchmark-events',version:1,source:'training-app',events:[{eventId:'12345678-1234-1234-1234-123456789012',day,skill:'doubles',context:'practice',protocol:'D1-D20 fixed',attempts:60,hits:20}]});const preview=previewHostExport(m,raw,day);assert.equal(preview.imported,1);assert.equal(m.observations.length,0);assert.equal(preview.scopes.length,1);assert.equal(parseHostExport(raw).source,'training-app');assert.throws(()=>parseHostExport('[]'));assert.throws(()=>parseHostExport(raw.replace('"version":1','"version":2')));assert.throws(()=>parseHostExport(raw.replace('"hits":20','"hits":70')));assert.throws(()=>parseHostExport(raw.replace('"source":"training-app"','"source":"training-app","unsafe":true')));});
+
+test('M3: exact recovered-slump history must not receive long-window-only additional practice',()=>{
+ const counts=[[29,40],[30,46],[42,56],[30,49],[20,30],[30,42],[35,56],[29,48],[25,46],[30,44],[32,45],[26,47],[28,41],[18,33],[28,60],[22,43],[13,53],[18,41],[19,36],[23,49],[24,45],[24,53],[23,50],[19,50],[18,37],[20,50],[25,55],[25,47],[33,53],[24,42],[29,39],[27,48],[14,36],[38,60],[17,42],[30,56],[15,31],[18,40],[24,44],[18,35],[27,47],[29,52]];
+ const m=emptyMemory();m.observations=counts.map(([hits,attempts],i)=>obs(i,'singles',hits,'practice','fixed',attempts));
+ const report=deep(m,day(42));
+ assert.equal(report.decision,'investigate');
+ assert.equal(report.issues[0].confirmation.recovering,true);
+ assert.equal(report.issues[0].confirmation.status,'not-confirmed');
+ assert.equal(report.issues[0].confirmation.mode,'recovering');
+});
