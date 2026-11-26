@@ -20,11 +20,30 @@ const targetName=s=>s==='50'?'Bullseye':s;
 export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
+// Verbal figures remain supplied information, never silently logged practice.
+export function reportedComparison(q){
+ const skills=[['doubles',/\bdoubles?\b/],['bull',/\bbull(?:seye)?\b/],['trebles',/\btrebles?\b/],['singles',/\bsingles?\b/],['checkout',/\bcheckouts?\b/]].filter(([,re])=>re.test(q));
+ if(skills.length!==1)return null;
+ const a=q.match(/\b(?:earlier|previously|before|last week|last month)\s*[:=]?\s*(?:i (?:hit|got)\s+)?(\d{1,6})\s*(?:\/|out of)\s*(\d{1,6})\b/);
+ const b=q.match(/\b(?:recently|now|currently|this week|this month)\s*[:=]?\s*(?:i (?:hit|got)\s+)?(\d{1,6})\s*(?:\/|out of)\s*(\d{1,6})\b/);
+ if(!a||!b)return null;
+ const [h1,n1,h2,n2]=[a[1],a[2],b[1],b[2]].map(Number);
+ if(n1<=0||n2<=0||h1>n1||h2>n2||n1>100000||n2>100000)return reply('reported-comparison',['The reported hit counts and attempts are inconsistent. Check the two figures before comparing them. Nothing has been saved.']);
+ const p1=100*h1/n1,p2=100*h2/n2,change=p2-p1;
+ return reply('reported-comparison',[
+  skills[0]+': earlier '+h1+'/'+n1+' ('+p1.toFixed(1)+'%); recent '+h2+'/'+n2+' ('+p2.toFixed(1)+'%). Change '+(change>0?'+':'')+change.toFixed(1)+' percentage points.',
+  'This is a reported comparison, not a recorded independent-day trend. Attempts within a session can be correlated.',
+  'How many separate practice days did each period cover? Were the target sequence, rules and practice or match context identical?',
+  /equipment and technique unchanged|same equipment and technique/.test(q)?'You reported unchanged equipment and technique. That reduces one possible explanation but does not establish the cause.':'Did equipment, technique, fatigue, or practice conditions change?',
+  'Repeat the same measured check on separate days before changing your training or throw. No player data or training allocation has been changed.'
+ ]);
+}
 export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={},events=[]){
  state=asOfState(state,day);
  host={...host,sessions:(host.sessions??[]).filter(s=>s?.date<=day),games:(host.games??[]).filter(g=>g?.day<=day)};
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
+ const comparison=reportedComparison(q);if(comparison)return comparison;
  const autonomy=autonomyAnswer(host,state,q,day,now,reflections,baselines,events);if(autonomy)return autonomy;
  const tactical=tacticalAnswer(state,q,day);if(tactical)return tactical;
  const intelligence=intelligenceAnswer(host,state,q,day,now,reflections);if(intelligence)return intelligence;
