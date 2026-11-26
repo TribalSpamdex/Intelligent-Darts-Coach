@@ -1,3 +1,4 @@
+import {deliveryGate} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes} from './training-outcomes.mjs';
 import {eventContext} from './competition-calendar.mjs';
@@ -33,7 +34,7 @@ export function planPreview(host,state,report,events,day,now=Date.now()){
  // Preview only. Use an accepted focus, not a descriptive association or
  // forecast, and only while the existing engine independently supports it.
  let focus=null;
- if(event.phase!=='near-event'&&open&&core.has(open.skill)&&open.context==='practice'&&report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id&&dayGap(open.responseDay,day)>=0&&dayGap(open.responseDay,day)<open.reviewAfterDays){
+ if(event.phase!=='near-event'&&open&&dayValid(open.responseDay)&&!deliveryGate(host,open,day,now).defer&&core.has(open.skill)&&open.context==='practice'&&report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id&&dayGap(open.responseDay,day)>=0&&dayGap(open.responseDay,day)<open.reviewAfterDays){
   const to=rows.find(x=>x.skill===open.skill),from=rows.filter(x=>x.skill!==open.skill&&x.minutes>=10&&core.has(x.skill)).sort((a,b)=>b.minutes-a.minutes||a.skill.localeCompare(b.skill))[0];
   if(to&&from){to.minutes+=5;from.minutes-=5;to.reason='Accepted focus preview; native allocation safeguards still decide actual session.';focus=open.skill}
  }
