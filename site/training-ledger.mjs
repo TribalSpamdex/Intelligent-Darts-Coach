@@ -70,17 +70,26 @@ export function trainingLedger(host,day,now=Date.now()){
   if(duplicate.has(sid)){rejected.duplicate++;blockedDays.add(s.date);continue}
   if(!positiveTime(s.start,now)||typeof s.extra!=='boolean'||typeof s.completed!=='boolean'||!Array.isArray(s.activities)){rejected.session++;blockedDays.add(s.date);continue}
   const acts=[...s.activities,...(s.interruptedExercise?[{...s.interruptedExercise,interrupted:true}]:[])],indexes=new Set(),ids=new Set();
-  if(acts.length>100||acts.some(a=>!a||!text(a.name)||!duration(a.seconds)||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||indexes.has(a.exerciseIndex)||(indexes.add(a.exerciseIndex),false)||id(a.exerciseId)&&(ids.has(String(a.exerciseId))||(ids.add(String(a.exerciseId)),false))||!positiveTime(a.at,now)||a.at<s.start)||acts.reduce((n,a)=>n+a.seconds,0)>7200){rejected.activity++;blockedDays.add(s.date);continue}
+  let invalid=acts.length>100;
+  for(const a of acts){
+   if(!a||!text(a.name)||!duration(a.seconds)||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||indexes.has(a.exerciseIndex)||id(a.exerciseId)&&ids.has(String(a.exerciseId))||!a.interrupted&&(!positiveTime(a.at,now)||a.at<s.start)||a.interrupted&&a.partialResultAt!=null&&(!positiveTime(a.partialResultAt,now)||a.partialResultAt<s.start)){invalid=true;break}
+   indexes.add(a.exerciseIndex);if(id(a.exerciseId))ids.add(String(a.exerciseId));
+  }
+  if(invalid||acts.reduce((n,a)=>n+a.seconds,0)>7200){rejected.activity++;blockedDays.add(s.date);continue}
   if(!s.completed||s.interruptedExercise)blockedDays.add(s.date);
   sessionRows.push({sessionId:s.id,day:s.date,extra:s.extra,completed:s.completed,seconds:acts.reduce((n,a)=>n+a.seconds,0)});
   for(const a of acts){
    if(!a.seconds)continue;
+   if(a.interrupted){
+    rows.push({day:s.date,sessionId:s.id,exerciseId:a.exerciseId??null,index:a.exerciseIndex,name:a.name,seconds:a.seconds,plannedSeconds:null,extra:s.extra,sessionCompleted:false,interrupted:true,skill:null,kind:'interrupted',roundCoverage:false,rounds:null});
+    continue;
+   }
    const linked=(groups.get(sid)??[]).filter(x=>x.g.exerciseIndex===a.exerciseIndex||id(a.exerciseId)&&x.g.exerciseId===a.exerciseId);
    const valid=id(a.exerciseId)&&linked.every(x=>!x.conflict&&validRound(x.g,s,a,now));
    const natural=valid?linked.filter(x=>x.g.completion==='natural').length:0;
    const roundCoverage=valid&&Number.isInteger(a.rounds)&&a.rounds>=0&&a.rounds===natural;
-   if(linked.length&&(!valid||!roundCoverage)){rejected.round++;blockedDays.add(s.date)}
-   const cls=a.interrupted?{skill:null,kind:'interrupted'}:classify(a.name,valid&&roundCoverage?linked.map(x=>x.g):[]);
+   if((linked.length||Number.isInteger(a.rounds)&&a.rounds>0)&&(!valid||!roundCoverage)){rejected.round++;blockedDays.add(s.date)}
+   const cls=classify(a.name,valid&&roundCoverage?linked.map(x=>x.g):[]);
    const classified=cls.skill!==null&&(!linked.length||valid&&roundCoverage);
    rows.push({day:s.date,sessionId:s.id,exerciseId:a.exerciseId??null,index:a.exerciseIndex,name:a.name,seconds:a.seconds,plannedSeconds:duration(a.plannedSeconds)?a.plannedSeconds:null,extra:s.extra,sessionCompleted:s.completed,interrupted:!!a.interrupted,skill:classified?cls.skill:null,kind:classified?cls.kind:cls.skill?'unverified-records':cls.kind,roundCoverage,rounds:roundCoverage?natural:null});
   }
