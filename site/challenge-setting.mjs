@@ -15,7 +15,11 @@ const rules=Object.freeze({
  'Double Double':{skill:'doubles',field:'allowed',keys:['targets','beginner']},
  'Outside Doubles':{skill:'doubles',field:'allowed',keys:['targets','lives','beginner']},
  'Number Lock':{skill:'doubles',field:'allowedMisses',keys:['ring','targets','beginner']},
- 'Golf Five':{skill:'doubles',field:'par',keys:['ring','holes','beginner']}
+ 'Golf Five':{skill:'doubles',field:'par',keys:['ring','holes','beginner']},
+ 'Bull Bank':{skill:'bull',field:'dartsLeft',keys:['goal','beginner']},
+ 'Bull Blackjack':{skill:'bull',field:'allowed',keys:['goal','beginner']},
+ '101 Sprint':{skill:'checkout',field:'allowed',keys:['target','beginner']},
+ '170 Challenge':{skill:'checkout',field:'maxVisits',keys:['remaining','beginner']}
 });
 export const LEARNING_GAMES=Object.freeze(Object.keys(rules));
 const scalar=v=>Number.isSafeInteger(v)&&v>=0&&v<=1000;
@@ -38,6 +42,9 @@ export function learningBasis(game){
   if(game.ring==='T'&&game.name==='Number Lock')return 'trebles';
   if(game.ring!=='D')return null;
  }
+ if(['Bull Bank','Bull Blackjack'].includes(game.name)&&(!Number.isInteger(game.goal)||game.goal<25||game.goal>250||game.goal%25!==0))return null;
+ if(game.name==='101 Sprint'&&game.target!==101)return null;
+ if(game.name==='170 Challenge'&&game.remaining!==170)return null;
  if(game.name==='Focused Checkouts'&&!game.config?.balanced)return null;
  return spec.skill;
 }
@@ -56,6 +63,7 @@ export function settingSnapshot(base,played){
 export function validSetting(s){
  if(!s||s.version!==1||!Object.hasOwn(rules,s.name)||!Number.isInteger(s.tier)||s.tier<1||s.tier>7||!Number.isFinite(s.quarter)||s.quarter<0||s.quarter>3||s.field!==rules[s.name].field||!(s.rule===null||typeof s.rule==='string'&&s.rule.length<=80)||!validBaseBudget(s.name,s.field,s.before)||!validBaseBudget(s.name,s.field,s.after)||!s.variant||Array.isArray(s.variant)||!plain(s.variant)||Object.keys(s.variant).some(k=>!rules[s.name].keys.includes(k)))return false;
  const base={name:s.name,tier:s.tier,...s.variant,[s.field]:s.before};if(learningBasis(base)!==s.skill)return false;
+ if(['Bull Bank','Bull Blackjack'].includes(s.name)&&(s.before<Math.ceil(s.variant.goal/50)||s.after<Math.ceil(s.variant.goal/50)))return false;
  if(s.quarter===0)return same(s.before,s.after);
  const basis=['singles','trebles'].includes(s.skill)?s.skill:undefined,skill=rules[s.name].skill==='trebles'?'scoring':rules[s.name].skill;
  return validPrecisionRecord({name:s.name,tierAtStart:s.tier,challengeTuning:'precision',precision:{version:Number.isInteger(s.quarter)?2:3,skill,tier:s.tier,field:s.field,before:s.before,after:s.after,quarter:s.quarter,...(basis?{basis}:{})}});
