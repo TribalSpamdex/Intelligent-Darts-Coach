@@ -19,7 +19,7 @@ function recordedConfounder(state,from,to){
  (state.clinic??[]).some(r=>within(r.day,from,to)&&r.pain)||
  (state.setups??[]).some(r=>within(r.day,from,to))||
  (state.changes??[]).some(r=>within(r.day,from,to))||
- (state.interventions??[]).some(r=>r.responseDay&&r.responseDay<=to&&r.responseDay>=from||r.responseDay&&r.responseDay<from&&['accepted','active'].includes(r.status));
+ (state.interventions??[]).some(r=>dayValid(r.responseDay)&&r.responseDay<=to&&(['accepted','active'].includes(r.status)||['completed','unsuccessful'].includes(r.status)&&dayValid(r.reviewDay)&&r.reviewDay>=from));
 }
 export function learningEpisodes(host,state,day,now=Date.now()){
  const exposure=extractLearningExposure(host,day,now),observations=canonicalRows(state.observations??[],day);
@@ -47,7 +47,8 @@ export function learningEpisodes(host,state,day,now=Date.now()){
  const first=chosen[0],seconds=chosen.reduce((n,x)=>n+x.seconds,0),otherSeconds=chosen.reduce((n,x)=>n+x.otherSeconds,0);
  // Match the remainder of the training plan by game names and total time.
  const otherGames=[...new Set(chosen.flatMap(x=>x.other.map(a=>a[0])))].sort();
- out.push({skill,protocol,setting:first.setting,key:baseKey(first.setting),from:a.day,to:b.day,gap,baseline:a.value,after:b.value,delta:b.value-a.value,attempts:[a.attempts,b.attempts],measurementIds:[...a.ids,...b.ids],sessions:chosen.length,seconds,otherSeconds,otherGames,endpointPractice,dominance:Math.min(...chosen.map(x=>x.dominance)),rounds:chosen.reduce((n,x)=>n+x.rounds,0)});
+ const otherDose=Object.fromEntries(otherGames.map(name=>[name,chosen.flatMap(x=>x.other).filter(a=>a[0]===name).reduce((n,a)=>n+a[1],0)]));
+ out.push({skill,protocol,setting:first.setting,key:baseKey(first.setting),from:a.day,to:b.day,gap,baseline:a.value,after:b.value,delta:b.value-a.value,attempts:[a.attempts,b.attempts],measurementIds:[...a.ids,...b.ids],sessions:chosen.length,seconds,otherSeconds,otherGames,otherDose,endpointPractice,dominance:Math.min(...chosen.map(x=>x.dominance)),rounds:chosen.reduce((n,x)=>n+x.rounds,0)});
  i+=2;
  }
  }
