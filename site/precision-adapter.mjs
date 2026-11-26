@@ -13,7 +13,7 @@ export function snapshotPrecision(host,state,day,tiers,assessmentDay=null,now=Da
 }
 export function applyPrecision(game,profile,games,day,opts={}){
  if(!SUPPORTED_GAMES.includes(game?.name)||!profile)return game;
- const options=precisionOptions(games,game.name,day,game.tier);
+ const options=precisionOptions(games,game.name,day,game.tier,opts.now??Date.now());
  return precisionRound(game,profile.decisions,{...options,eligible:opts.eligible===true,safety:profile.safety||opts.safety,probe:options.probe||opts.probe,cooldown:options.cooldown||opts.cooldown});
 }
 export function createPrecisionAdapter(getData){
@@ -28,7 +28,7 @@ export function createPrecisionAdapter(getData){
     // Frozen profile within an exercise. A new exercise or restored page
     // recomputes from the saved authoritative history, not from partial darts.
     if(!cache||cache.key!==key)cache={key,profile:snapshotPrecision(d.host,d.state,d.day,context.tiers,context.assessmentDay,d.now)};
-    return applyPrecision(game,cache.profile,d.host.games,d.day,context);
+    return applyPrecision(game,cache.profile,d.host.games,d.day,{...context,now:d.now});
    }catch{return game}
   },
   invalidate(){cache=null}
