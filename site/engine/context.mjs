@@ -66,6 +66,29 @@ export function robustTrend(obs,{asOf=null}={}){
  const signs=y.map(v=>v-mean(x));const consistent=signs.filter(v=>Math.sign(v)===Math.sign(change)).length>=3;
  return {...base,change,noise,consistent,blocks:[x.length,y.length],status:consistent&&Math.abs(change)>=Math.max(floor,noise)?change>0?'improving':'declining':'unclear'};
 }
+// Advisory screen, deliberately separate from the confirmed-decline gate.
+// Weekly summaries reduce the influence of clusters of adjacent darts.
+// A warning is a request to repeat a familiar measurement, never permission
+// to transfer time, raise difficulty, diagnose mechanics or change equipment.
+export function earlyWarning(obs,{asOf}={}){
+ if(!dayValid(asOf))throw Error('Invalid warning date');
+ const rows=obs.filter(o=>dayValid(o.day)&&dayGap(o.day,asOf)>=0&&dayGap(o.day,asOf)<56);
+ if(!rows.length)return {status:'insufficient'};
+ if(new Set(rows.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
+ const floor=['scoring','firstNine'].includes(rows[0].skill)?3:.05;
+ const blocks=Array.from({length:8},(_,i)=>summarise(rows.filter(o=>Math.floor(dayGap(o.day,asOf)/7)===i)));
+ const adequate=b=>b&&b.days>=3&&b.attempts>=24;
+ const earlier=blocks.slice(4).filter(adequate),recent=blocks.slice(0,4).filter(adequate);
+ const base={earlierWeeks:earlier.length,recentWeeks:recent.length,method:'Advisory weekly contrast with current-form and recovery guards; not a calibrated probability.'};
+ if(earlier.length<3||recent.length<3||!adequate(blocks[0])||!adequate(blocks[1])||dayGap(blocks[0].daily.at(-1).day,asOf)>3)return {...base,status:'insufficient'};
+ const a=earlier.map(b=>b.dayMean),b=recent.map(b=>b.dayMean),reference=mean(a),current=mean(b),change=current-reference;
+ const margin=2*Math.sqrt(sd(a)**2/a.length+sd(b)**2/b.length);
+ const supportingWeeks=b.filter(x=>x-reference<=-floor*.5).length;
+ const latestTwo=blocks.slice(0,2).map(w=>w.dayMean-reference);
+ const latestDays=blocks[0].daily.slice(-3).map(d=>d.value),latestChange=mean(latestDays)-reference;
+ const warning=change<=-Math.max(floor,margin)&&supportingWeeks>=3&&latestTwo.every(x=>x<=-floor*.75)&&latestChange<=-floor*.5;
+ return {...base,status:warning?'watch':'no-warning',change,reference,current,margin,supportingWeeks,latestTwo,latestChange,limitation:'Screening only. Repeat the same familiar benchmark within normal practice; no automatic intervention.'};
+}
 export function exposureSummary(memory,day,window=28){
  const rows=memory.exposure.filter(e=>dayGap(e.day,day)>=0&&dayGap(e.day,day)<window),total=rows.reduce((n,e)=>n+e.minutes,0),days=new Set(rows.map(e=>e.day)).size;
  return {days,total,skills:Object.fromEntries(SKILLS.map(skill=>[skill,rows.filter(e=>e.skill===skill).reduce((n,e)=>n+e.minutes,0)])),adequacy:days>=7&&total>=180?'exploratory':'insufficient'};
