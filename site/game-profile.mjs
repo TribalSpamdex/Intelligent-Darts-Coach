@@ -17,12 +17,19 @@ export function gameProfile(host,day,now=Date.now()){
  }
  for(const g of host.games){
  if(!g||g.quick!==false||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!within(g.day))continue;
- if(g.name==='Checkout Climb'&&Array.isArray(g.attemptLog)&&g.attemptLog.length>0&&g.attemptLog.length===g.success+g.fail&&g.attemptLog.every(x=>Number.isInteger(x.finish)&&x.finish>=2&&x.finish<=170&&typeof x.success==='boolean'&&x.allowance===3&&[1,2,3].includes(x.dartsUsed)&&(x.success||x.dartsUsed===3)&&(!x.success||routes(x.finish,x.dartsUsed).length>0))&&g.attemptLog.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:'Checkout Climb (adaptive)',rows:g.attemptLog.map(x=>({score:x.finish,success:x.success,allowance:x.allowance,used:x.dartsUsed}))});
+ if(g.name==='Checkout Climb'&&Array.isArray(g.attemptLog)&&g.attemptLog.length>0&&g.attemptLog.length===g.success+g.fail){
+ const rows=g.attemptLog.map(x=>{
+ if(x&&Number.isInteger(x.target)&&(x.hit===0||x.hit===1))return {score:x.target,success:x.hit===1,allowance:3,used:x.hit===0?3:null};
+ if(x&&Number.isInteger(x.finish)&&typeof x.success==='boolean'&&x.allowance===3&&[1,2,3].includes(x.dartsUsed))return {score:x.finish,success:x.success,allowance:3,used:x.dartsUsed};
+ return null;
+ });
+ if(rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(routes(x.score,x.used??3).length>0):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:'Checkout Climb (adaptive)',rows});
+ }
  if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+g.at,{day:g.day,protocol:'Scoring Challenge fixed 30',scores:[...g.scores]});
  }
  const byFinish=new Map(),scoring=[];
- for(const r of map.values()){if(r.scores){scoring.push(r);continue}for(const o of r.rows){const key=JSON.stringify([r.protocol,o.score]),g=byFinish.get(key)??{protocol:r.protocol,score:o.score,attempts:0,hits:0,days:new Set(),used:0};g.attempts++;g.hits+=Number(o.success);g.used+=o.success?o.used:0;g.days.add(r.day);byFinish.set(key,g)}}
- const checkout=[...byFinish.values()].map(g=>({...g,days:g.days.size,rate:g.hits/g.attempts,meanDartsOnSuccess:g.hits?g.used/g.hits:null})).sort((a,b)=>a.protocol.localeCompare(b.protocol)||a.score-b.score);
+ for(const r of map.values()){if(r.scores){scoring.push(r);continue}for(const o of r.rows){const key=JSON.stringify([r.protocol,o.score]),g=byFinish.get(key)??{protocol:r.protocol,score:o.score,attempts:0,hits:0,days:new Set(),used:0,knownSuccessDarts:0};g.attempts++;g.hits+=Number(o.success);if(o.success&&o.used!==null){g.used+=o.used;g.knownSuccessDarts++}g.days.add(r.day);byFinish.set(key,g)}}
+ const checkout=[...byFinish.values()].map(g=>({...g,days:g.days.size,rate:g.hits/g.attempts,meanDartsOnSuccess:g.hits&&g.knownSuccessDarts===g.hits?g.used/g.hits:null})).sort((a,b)=>a.protocol.localeCompare(b.protocol)||a.score-b.score);
  const visits=scoring.flatMap(x=>x.scores),daily=new Map();for(const r of scoring){const v=daily.get(r.day)??[];v.push(...r.scores);daily.set(r.day,v)}
  const dayMeans=[...daily.values()].map(mean);
  return {checkout,scoring:{visits:visits.length,days:daily.size,average:mean(visits),visitSD:sd(visits),daySD:sd(dayMeans),hundreds:visits.filter(v=>v>=100).length,lowVisits:visits.filter(v=>v<40).length,maximums:visits.filter(v=>v===180).length},conflicts:bad.size,limitation:'Practice-only descriptive results; adaptive checkout selection and incomplete history may bias comparisons. Visit totals do not identify aiming targets.'};
