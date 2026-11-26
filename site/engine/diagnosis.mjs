@@ -1,5 +1,5 @@
 import {SKILLS,summarise,mean,sd,plan,serialMargin} from './engine.mjs';
-import {dayValid,dayGap} from './context.mjs';
+import {dayValid,dayGap,robustTrend} from './context.mjs';
 import {targetSummaries} from './target-evidence.mjs';
 export const CHANGE_FIELDS=['equipment','technique','routine','practice schedule','environment','injury or discomfort'];
 export const QUESTIONS=[
@@ -86,7 +86,13 @@ export function confirmCurrentDecline(m,issue,day){
  persistent=weeks.every(x=>x<=-floor)&&delta<=-Math.max(floor,margin)&&halves.every((_,i)=>mean(recent.daily.slice(i===0?0:3,i===0?3:7).map(o=>o.value))-longBase.dayMean<=-floor*.75);
  long={change:delta,noise:margin,weeks,baselineDays:longBase.days,recentDays:longRecent.days};
  }
- return {status:short||persistent?'confirmed':'not-confirmed',mode:short?'recent':persistent?'persistent':'none',change,noise,halves,floor,baselineDays:baseline.days,recentDays:recent.days,long,reason:'Conservative engineering gate: current decline must be confirmed across recent subperiods or two consecutive seven-day blocks against an earlier baseline. Not a calibrated statistical test.'};
+ // Once an established decline has lasted a month, two adjacent short
+ // windows can both be low. Check that the independent long-window signal
+ // remains present in both halves of the latest seven measured days.
+ const broad=robustTrend(rows,{asOf:day});
+ const broadHalves=broad.earlier? [recent.daily.slice(0,3),recent.daily.slice(3)].map(x=>mean(x.map(o=>o.value))-broad.earlier.dayMean):[];
+ const sustained=broad.status==='declining'&&broad.change<=-floor&&broadHalves.length===2&&broadHalves.every(x=>x<=-floor);
+ return {status:short||persistent||sustained?'confirmed':'not-confirmed',mode:short?'recent':persistent?'persistent':sustained?'sustained-long-window':'none',change,noise,halves,floor,baselineDays:baseline.days,recentDays:recent.days,long,broad:{status:broad.status,change:broad.change??null,halves:broadHalves},reason:'Conservative engineering gate: confirm recent or sustained decline against disjoint earlier measurements; require both latest subperiods to remain low. Not a calibrated statistical test.'};
 }
 
 export function deepenReport(m,report,day){
