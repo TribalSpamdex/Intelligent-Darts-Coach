@@ -28,7 +28,9 @@ The original Home and About guide remain in place; the former Technique navigati
 
 ## V1.3.0 development in progress
 - Separate comparable benchmark histories for 7, 28, 84 and 365 calendar days. Missing days are not misses; pooled rates and daily means stay distinct. Recent trend uses the existing conservative weekly-block method.
-- Optional exercise follow-up prompts refer only to recurring reported concerns on at least two earlier days with matching saved exercise identity. These are not mechanical diagnoses.
-- Intervention audit distinguishes completed-session allocation logs from actual adherence and flags missing/corrected baseline evidence; it is advisory and does not yet invalidate every historical engine learning record.
+- Optional exercise follow-up prompts refer only to recurring reported concerns on at least two earlier days with matching saved exercise identity. Two subsequent comfortable days suppress the recurring prompt. These are not mechanical diagnoses.
+- Readiness questions use matched weeks within identical skill/context/protocol scopes. Technical observations remain separated by condition and preserve contrary observations. These are descriptive reports, not diagnostic or automatic equipment changes.
+- Refresh synchronization protects freshly rendered Coach answers from delayed invalidation. Browser regression checks cover this and the new dialogue.
+- Intervention audit separates logged allocation from actual adherence. Historical numerical reviews are reproduced against current authoritative records, with scope/date and baseline integrity checks. Unreproducible outcomes are downgraded to unclear only in the transient coaching decision view; originals remain in backup. The integrated review, dialogue, and proposal/acceptance gates use that view. Stored retention records are not independently reproduced yet.
 - Offline module cache includes the unversioned URLs used by module imports. The physical iPhone and browser offline behaviour still require verification.
 - No changes to game rules, session allocation policy, original V6.2 or the independent engine's pinned source.
