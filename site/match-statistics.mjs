@@ -30,3 +30,19 @@ export function matchLines(profiles){
  if(!profiles.length)return ['No manually logged actual legs in the last 365 days.'];
  return [...profiles.slice(0,20).flatMap(p=>[p.start+' · '+(p.doubleIn?'double-in':'straight-in')+' · '+p.context,...p.windows.flatMap(w=>[w.days+' days: '+w.legs+' completed legs ('+w.wins+' won, '+w.losses+' lost), '+w.abandoned+' abandoned; '+w.measuredDays+' measured days.','Three-dart average '+num(w.average)+'; first nine '+num(w.firstNine)+' ('+w.firstNineLegs+' eligible legs); winning-leg median darts '+num(w.winningDarts.median)+'; busts '+w.busts+'.','Checkout visits '+w.checkoutWins+'/'+w.checkoutVisits+' ('+pct(w.checkoutVisitRate)+'); explicit finishing-double attempts '+w.finishHits+'/'+w.finishAttempts+' ('+pct(w.finishingDoubleRate)+'), '+w.fullyAimedLegs+' fully aimed legs.'])]),'Credited score after bust rollback divided by actual darts. First nine requires nine darts in first three visits. Abandoned legs excluded from performance. Unknown aims are never assumed to be double attempts; opponents and match strength are not modelled.'];
 }
+
+export function actualLegObservations(legs,day){
+ if(!dayValid(day)||!Array.isArray(legs))throw Error('Invalid review date or leg history');
+ const seen=new Set(),out=[];
+ for(const raw of legs){
+ const a=analyseLeg(raw),x=a.leg;if(seen.has(x.id))throw Error('Duplicate leg record');seen.add(x.id);
+ if(dayGap(x.day,day)<0||dayGap(x.day,day)>=365||x.result==='abandoned')continue;
+ const base={day:x.day,context:x.context,protocol:'Leg log '+x.start+(x.doubleIn?' double-in':' straight-in')+' (actual darts)'};
+ const put=(skill,attempts,hits)=>{if(attempts)out.push({...base,id:'leg:'+x.id+':'+skill,skill,attempts,hits})};
+ put('scoring',a.thrown,a.points);
+ if(a.firstNineDarts===9)put('firstNine',9,a.firstNinePoints);
+ put('checkout',a.checkoutVisits,a.checkoutWins);
+ if(a.unknownIntent===0)put('doubles',a.finishAttempts,a.finishHits);
+ }
+ return out;
+}
