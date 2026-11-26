@@ -1,11 +1,12 @@
+import {validPrecisionRecord,SUPPORTED_GAMES} from './precision-games.mjs';
 import {dayGap,dayValid} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
 export function precisionAudit(games,day){
  if(!dayValid(day)||!Array.isArray(games))throw Error('Invalid precision audit');
  const seen=new Map(),conflicts=new Set();
  for(const g of games){
- if(!g||g.quick!==false||g.extra||g.recovery||g.completion!=='natural'||typeof g.win!=='boolean'||!dayValid(g.day)||g.day>day||dayGap(g.day,day)>=84||!Number.isFinite(g.at)||!Number.isInteger(g.tierAtStart)||g.tierAtStart<1||g.tierAtStart>7)continue;
- const mode=g.challengeTuning==='precision'&&g.precision?.version===1?'precision':!g.challengeTuning?'standard':null;if(!mode)continue;
+ if(!g||!SUPPORTED_GAMES.includes(g.name)||g.quick!==false||g.extra||g.recovery||g.completion!=='natural'||typeof g.win!=='boolean'||!dayValid(g.day)||g.day>day||dayGap(g.day,day)>=84||!Number.isFinite(g.at)||!Number.isInteger(g.tierAtStart)||g.tierAtStart<1||g.tierAtStart>7)continue;
+ const mode=validPrecisionRecord(g)?'precision':!g.challengeTuning?'standard':null;if(!mode)continue;
  const key=JSON.stringify([g.name,g.at]),record={name:g.name,day:g.day,tier:g.tierAtStart,mode,win:g.win,rule:g.ruleVersion??null,config:mode==='precision'?g.precision:null};
  if(seen.has(key)&&JSON.stringify(seen.get(key))!==JSON.stringify(record))conflicts.add(key);else seen.set(key,record);
  }
@@ -15,5 +16,5 @@ export function precisionAudit(games,day){
 }
 export function precisionAuditLines(rows){
  if(!rows.length)return ['No completed eligible challenge rounds recorded.'];
- return [...rows.slice(0,40).map(r=>r.name+' · '+(r.mode==='precision'?'personalised challenge':'standard challenge')+' · '+r.wins+'/'+r.rounds+' rounds; '+r.days+' measured days; median daily success '+(r.daily.median*100).toFixed(1)+'%.'),'Different rules and difficulty configurations remain separate. Round success is not a benchmark accuracy or proof of improvement.'];
+ return [...rows.slice(0,40).map(r=>r.name+' · '+(r.mode==='precision'?'personalised challenge':'standard challenge')+' · '+r.wins+'/'+r.rounds+' successful rounds; '+r.days+' measured days; median daily success '+(r.daily.median*100).toFixed(1)+'%.'),'Different rules and difficulty configurations remain separate. Round success is not a benchmark accuracy or proof of improvement.'];
 }
