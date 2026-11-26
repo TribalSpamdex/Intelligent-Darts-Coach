@@ -8,7 +8,7 @@ import {challengeLearning,learnedCap,learningLines,compareSettings} from '../sit
 import {applyPrecision,snapshotPrecision} from '../site/precision-adapter.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const base={name:'Scoring Survival',tier:4,target:60,lives:3,ruleVersion:'test-rule'};
-const decisions=q=>({scoring:{tier:4,quarter:q}});
+const decisions=q=>({scoring:{tier:4,quarter:Math.floor(q),...(Number.isInteger(q)?{}:{challenge:q})}});
 const played=(q,g=base)=>recordSetting(g,precisionRound(g,decisions(q),{eligible:true}));
 const stamp=(d,mins=0)=>Date.parse(d+'T09:00:00Z')+mins*60000;
 const observation=(day,value,id,extra={})=>({id,day,skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:value*10,...extra});
@@ -45,3 +45,33 @@ test('one-year walk-forward simulation never uses future benchmarks or old expir
 test('matched differences reject large training-volume discrepancies or a changed supporting drill',()=>{const {host,state}=fixture();for(const s of host.sessions.filter((_,i)=>i%4===1||i%4===2))s.activities[1].seconds=1800;const r=challengeLearning(host,state,day,now);assert.equal(r.comparisons[0].pairs,0);assert.equal(learnedCap(base,r).maxQuarter,3)});
 test('skill-specific evidence cannot transfer a scoring preference to another game or benchmark',()=>{const {host,state}=fixture();const r=challengeLearning(host,state,day,now);assert.equal(learnedCap({...base,name:'Scoring Ladder',targets:[60,70,80,90]},r).maxQuarter,3);const a=state.observations.map(o=>({...o,skill:'doubles',attempts:60,hits:30,protocol:'IDC precision fixed doubles'}));assert.equal(challengeLearning(host,{...state,observations:a},day,now).episodes.length,0)});
 test('learning metadata is not fabricated on past or ineligible rounds',()=>{const {host}=fixture();host.games.forEach(g=>delete g.learningSetting);assert.equal(extractLearningExposure(host,day,now).exposures.length,0);assert.equal(applyPrecision(base,{decisions:decisions(3)},[],day,{eligible:false,now}),base);const standard=applyPrecision(base,{decisions:decisions(3)},[],day,{eligible:false,capture:true,now});assert.equal(standard.target,60);assert.equal(standard.learningSetting.quarter,0)});
+
+test('fractional settings survive exact exposure reconstruction and learned caps',()=>{
+ const low=1+1/3,high=2+2/3,{host,state}=fixture({low,high});
+ assert.equal(host.games[0].precision.version,3);
+ assert.ok(validSetting(host.games[0].learningSetting));
+ const report=challengeLearning(host,state,day,now);
+ assert.equal(report.exposures,8);
+ assert.equal(report.comparisons[0].status,'lower-favoured');
+ assert.equal(learnedCap(base,report).maxQuarter,low);
+ const g=applyPrecision(base,{decisions:{scoring:{tier:4,quarter:3,challenge:3}},learning:report},[],day,{eligible:true,now});
+ assert.equal(g.target,63);
+ assert.equal(g.learningSetting.quarter,low);
+ host.games[0].learningSetting.after++;
+ assert.equal(extractLearningExposure(host,day,now).exposures.length,7);
+});
+test('additional ring-based drills capture exact routes and separate ring skills',()=>{
+ for(const g of [
+ {name:'Double Double',tier:4,allowed:12,targets:[20,16,8,4]},
+ {name:'Outside Doubles',tier:4,allowed:22,targets:[20,16,8],lives:5},
+ {name:'Number Lock',tier:4,allowedMisses:9,ring:'D',targets:[20,16,8]},
+ {name:'Number Lock',tier:4,allowedMisses:9,ring:'T',targets:[20,16,8]},
+ {name:'Golf Five',tier:4,par:12,ring:'S',holes:[20,16,8,4,2]}
+ ]){
+  const d={doubles:{tier:4,quarter:3},singles:{quarter:3},trebles:{quarter:3}};
+  const r=recordSetting(g,precisionRound(g,d,{eligible:true}));
+  assert.ok(validSetting(r.learningSetting),g.name);
+  assert.equal(r.learningSetting.skill,g.ring==='S'?'singles':g.ring==='T'?'trebles':'doubles');
+  assert.notEqual(settingKey(r.learningSetting),settingKey(recordSetting(g,g).learningSetting));
+ }
+});
