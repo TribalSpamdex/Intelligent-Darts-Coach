@@ -8,7 +8,7 @@ import {coachingAccountability,accountabilityLines,methodReviews,methodReviewLin
 import {recoveryPlan,recoveryLines} from './development-review.mjs';
 export const AUTONOMY_QUESTIONS=Object.freeze(['What is my next coaching priority?','What performance range is realistic?','How do I learn best?','Preview my next session','Plan my next four weeks','How should I prepare for competition?','How effective has my coaching been?','How accurate are your predictions?','How should I recover from a slump?','Plan my next three months']);
 export function reviewForAutonomy(state,baselines,day){
- const report=fullReport(verifiedLearningState(state,baselines,day).state,day);
+ const report=fullReport(verifiedLearningState(state,baselines,day,host,now).state,day);
  const i=(state.interventions??[]).find(x=>x.status==='accepted'&&x.id===report.active?.intervention);
  if(i&&baselineIntegrity(i,baselines[i.id]??[],state.observations,day).status!=='intact')return {...report,active:{mode:'baseline-edited',intervention:i.id}};
  return report;
