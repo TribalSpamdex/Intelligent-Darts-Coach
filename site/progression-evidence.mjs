@@ -18,9 +18,8 @@ export function progressEvidence(observations,day){
  const value=d.median,band=value===null?null:measurementBand(skill,value);
  const old=a&&a.days>=8&&a.attempts>=minAttempts&&new Set(a.daily.map(o=>Math.floor(dayGap(o.day,day)/7))).size>=3?distribution(a.daily.map(o=>o.value*scale(skill))).median:null;
  const margin=isScore(skill)?2:1.25;
- const supports=boundary=>daily.filter(o=>o.value>=boundary+margin).length;
  const first=daily.slice(0,Math.floor(daily.length/2)),last=daily.slice(Math.floor(daily.length/2));
- const confirm=boundary=>adequate&&first.length>=4&&last.length>=4&&[first,last].every(g=>g.filter(o=>o.value>=boundary+margin).length>=Math.ceil(.75*g.length));
+ const confirm=boundary=>adequate&&first.length>=4&&last.length>=4&&[first,last].every(g=>g.filter(o=>o.value>=Math.min(isScore(skill)?180:100,boundary+margin)).length>=Math.ceil(.75*g.length));
  let achieved=null;
  if(band&&adequate){const edges=bandEdges(skill).filter(x=>x<=value);for(let i=edges.length-1;i>=0;i--){const candidate=edges[i];if(candidate===0||confirm(candidate)){achieved=candidate;break}}}
  return {skill,context,protocol,days:d.n,weeks,attempts:b?.attempts??0,value,band,prior:old,change:old===null||value===null?null:value-old,confirmedMilestone:achieved,adequate,daily,confirm,margin,last:rows.at(-1).day};
