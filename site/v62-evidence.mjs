@@ -36,12 +36,17 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
   if(b.at!=null&&(!Number.isFinite(b.at)||b.at>now)){skip(source,'invalid timestamp');continue}
   if(typeof b.sessionId!=='string'&&typeof b.sessionId!=='number'){skip(source,'missing native training session identity');continue}
   const sessions=host.sessions.filter(s=>s?.id===b.sessionId);if(sessions.length!==1||sessions[0].quick!==false){skip(source,'unconfirmed non-quick session');continue}
+  const session=sessions[0];
+  // Native daily singles are attributed to the session start date, even
+  // when the final dart is recorded after midnight. Reject contradictory
+  // dates and timestamps instead of moving later evidence into an earlier day.
+  if(session.date!==b.day||!Number.isFinite(session.start)||session.start<=0||session.start>now||localDay(session.start)!==b.day||(b.at!=null&&b.at<session.start)){skip(source,'daily benchmark chronology mismatch');continue}
   add(source,b.day,'singles','daily large singles 60',60,b.hits);
  }
  for(const g of host.games){
   if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;
   const source='game:'+g.at+':'+g.name,day=g.day;
-  if(g.completion!=='natural'||g.benchmark!==true||g.quick!==false||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)){skip(source,'not a comparable fixed training game');continue}
+  if(g.completion!=='natural'||g.benchmark!==true||g.quick!==false||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)||localDay(g.at)!==day){skip(source,'not a comparable fixed training game');continue}
   if(g.name==='Scoring Challenge'&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((s,n)=>s+n,0)===g.points)add(source,day,'scoring','Scoring Challenge fixed 30 darts',30,g.points);
   else if(g.name==='Bull Accuracy'&&g.thrown===30&&count(g.outer,30)&&count(g.inner,30)&&g.outer+g.inner<=30&&count(g.misses,30)&&g.outer+g.inner+g.misses===30)add(source,day,'bull','Bull Accuracy any bull 30',30,g.outer+g.inner);
   else skip(source,'invalid game counts');
