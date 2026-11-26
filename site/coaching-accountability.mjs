@@ -45,3 +45,17 @@ export function accountabilityLines(rows){
  if(!rows.length)return ['No accepted intervention history to audit.'];
  return [...rows.slice(-20).flatMap(r=>[r.skill+' · '+r.protocol+' · '+r.status.replaceAll('-',' ')+'. '+(r.observedOutcome??'No reproduced outcome')+'.','Reconstructed allocation '+(r.delivery.plannedSeconds/60).toFixed(1)+' min; matched elapsed activity above original budget '+(r.delivery.observedBeyondOriginal/60).toFixed(1)+' min across '+r.delivery.matched+' activities. '+r.delivery.unverified+' unverified transfers.','Reported adherence '+(r.reportedAdherence===null?'not recorded':(100*r.reportedAdherence).toFixed(0)+'%')+'; '+r.retentionChecks+' reproduced retention checks, '+r.invalidRetention+' invalid checks.']), 'Reproduced results remain observational. Delivery, adherence, and outcome are different kinds of evidence; no causal success rate is asserted.'];
 }
+
+export function deliveryGate(host,item,day,now=Date.now()){
+ const evidence=deliveryEvidence(host,item,day,now),byDay=new Map();
+ for(const r of evidence.rows){
+  if(r.status!=='matched-activity'||dayGap(r.day,day)>=14)continue;
+  const previous=byDay.get(r.day)??0;byDay.set(r.day,Math.max(previous,r.observedBeyondOriginal));
+ }
+ const recent=[...byDay].sort(([a],[b])=>b.localeCompare(a)).slice(0,3);
+ // Only three distinct recent measured days with confirmed incomplete
+ // delivery can defer a repeat. Unknown records and legacy transfers are
+ // not evidence of a shortfall. One bad or interrupted day is insufficient.
+ const defer=recent.length===3&&dayGap(recent[0][0],day)<=7&&recent.every(([,seconds])=>seconds<150);
+ return {defer,measuredDays:recent.length,recent,reason:defer?'Three recent distinct days had less than half the additional elapsed allocation delivered; review the adjustment before repeating it.':'No repeated measured delivery shortfall established.'};
+}
