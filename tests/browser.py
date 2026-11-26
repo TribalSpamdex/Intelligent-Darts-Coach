@@ -190,6 +190,7 @@ with sync_playwright() as p:
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
         assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.9.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.9.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.9.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.9.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.9.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=1.9.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=1.9.0-dev'))}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning'])if(!await c.match('./'+n+'.mjs?v=1.9.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
         ctx.set_offline(True)
         page.reload()
         page.locator('#navTechnique').click()
@@ -202,7 +203,9 @@ with sync_playwright() as p:
         page.locator('#idcAsk').click()
         assert 'Not enough comparable recent evidence' in page.locator('#idcAnswer').inner_text()
         assert 'doubles' in page.locator('#idcAnswer').inner_text()
-        for question, expected in [('How much have I actually trained?', 'Unlogged practice is unknown'), ('Which drills help me improve?', 'eligible exercise exposures'), ('Does longer practice help me?', 'eligible exercise exposures'), ('Have my gains lasted?', 'delayed follow-ups'), ('Where do I lose performance in legs?', 'actual completed straight-in legs'), ('How does practice transfer to competition?', 'actual practice and competition'), ('Model checkout 81 with 2 darts', 'Standard legal route'), ('Recovery from 81 after S19', 'Remaining score 62')]:
+        page.locator('#idcReview').click()
+        assert 'Current development priorities' in page.locator('#idcReport').inner_text()
+        for question, expected in [('How much have I actually trained?', 'Unlogged practice is unknown'), ('Which drills help me improve?', 'eligible exercise exposures'), ('Does longer practice help me?', 'eligible exercise exposures'), ('Have my gains lasted?', 'delayed follow-ups'), ('Where do I lose performance in legs?', '101 straight-in'), ('How does practice transfer to competition?', 'actual practice and competition'), ('Model checkout 81 with 2 darts', 'Standard legal route'), ('Recovery from 81 after S19', 'Remaining score 62')]:
             page.locator('#idcQuestion').fill(question)
             page.locator('#idcAsk').click()
             assert expected.lower() in page.locator('#idcAnswer').inner_text().lower(), question
