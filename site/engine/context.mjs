@@ -22,7 +22,9 @@ export function asOfState(m,day){
  if(Array.isArray(m.goals))x.goals=m.goals.filter(g=>g.start<=day).map(g=>g.closedDay&&g.closedDay>day?{...g,status:'active',closedDay:undefined}:g);
  if(Array.isArray(m.trials))x.trials=m.trials.filter(t=>t.start<=day).map(t=>{
   const pairs=t.pairs.filter(p=>p.day<=day),future=t.pairs.length!==pairs.length||t.finishDay&&t.finishDay>day;
-  return {...t,pairs,status:future?'active':t.status};
+  const result={...t,pairs,status:future?'active':t.status};
+  if(future)delete result.finishDay;
+  return result;
  });
  return x;
 }
