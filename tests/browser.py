@@ -409,6 +409,36 @@ with sync_playwright() as p:
     assert audit['captured']>=20, audit
     assert audit['modified']>=70 and audit['names']>=20, audit
     print('Native precision construction audit:',audit)
+    # H2: actual mid-session changes, resume, assessment input and recreational
+    # input must obey a saved stop, not just the training start button.
+    safety=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    sp=safety.new_page()
+    sp.goto('http://127.0.0.1:8765/index.html')
+    sp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
+    gates=sp.evaluate("""async()=>{const {changeMemory}=await import('./coach-memory.mjs?v=2.0.0-dev'),bridge=window.IDCTrainingBridge,old=window.alert;
+      window.alert=()=>{};try{
+       const setPain=pain=>{const raw=bridge.memory(),day=bridge.day(),next=changeMemory(bridge.snapshot(),raw,day,'readiness',{day,context:'practice',fatigue:'normal',pressure:'normal',confidence:'normal',pain,note:''});bridge.writeMemory(next,JSON.stringify(raw))};
+       document.getElementById('quickStartAverage').value='q60';startQuickFromAverage();
+       quickChoice='Bull Accuracy';document.getElementById('quickDuration').value='300';startQuickPlay();playExercise();
+       if(session()?.phase!=='playing'||session().pausedAt)throw Error('Could not start control round');
+       bullDart(50);if(activeGame.thrown!==1||activeGame.inner!==1)throw Error('Control dart not recorded');
+       setPain(true);const paused=!!session().pausedAt;const before=JSON.stringify(activeGame);
+       bullDart(50);pauseSession();bullDart(25);
+       const blocked=paused&&!!session().pausedAt&&before===JSON.stringify(activeGame);
+       setPain(false);pauseSession();bullDart(25);const resumed=!session().pausedAt&&activeGame.thrown===2&&activeGame.outer===1;
+       finishSession(false);show('quick');casualGames.start('301',1);casualGames.dart(20,3);
+       const casual=JSON.stringify(casualGames.inspect());setPain(true);casualGames.dart(20,3);casualGames.start('501',1);
+       const casualBlocked=casual===JSON.stringify(casualGames.inspect());
+       casualGames.clear();setPain(false);
+       data.assessment=newAssessment();openAssessment(STAGES[0]);const warmStarted=!!assessmentWarmup().startedAt;
+       setPain(true);resumeAssessmentWarmup();const warmBlocked=warmStarted&&!assessmentWarmup().startedAt;
+       activeStage='doubles';const doubles=JSON.stringify(data.assessment.doubles);assessmentDouble(true);
+       const assessmentBlocked=doubles===JSON.stringify(data.assessment.doubles);
+       return {blocked,resumed,casualBlocked,warmBlocked,assessmentBlocked};
+      }finally{window.alert=old}}""")
+    assert all(gates.values()), gates
+    safety.close()
+    print('Physical readiness mid-session and resume audit:',gates)
     # Sol H1: a second document must not overwrite a successfully saved profile.
     before=page.evaluate("localStorage.getItem(KEY)")
     other=ctx.new_page()
