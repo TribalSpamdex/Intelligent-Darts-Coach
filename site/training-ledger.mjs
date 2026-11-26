@@ -46,13 +46,13 @@ function validRound(g,s,a,now){
 }
 export function trainingLedger(host,day,now=Date.now()){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(host?.sessions)||!Array.isArray(host?.games))throw Error('Invalid training ledger');
- const sessions=new Map(),duplicate=new Set(),rounds=new Map(),roundConflicts=new Set();
+ const sessions=new Map(),duplicate=new Set(),duplicateDays=new Set(),rounds=new Map(),roundConflicts=new Set();
  const rejected={session:0,duplicate:0,activity:0,round:0};
  for(const s of host.sessions){
   if(!s||s.quick!==false||!dayValid(s.date)||s.date>day||dayGap(s.date,day)>=365)continue;
   if(!id(s.id)){rejected.session++;continue}
   const k=String(s.id);
-  if(sessions.has(k))duplicate.add(k);else sessions.set(k,s);
+  if(sessions.has(k)){duplicate.add(k);duplicateDays.add(s.date);duplicateDays.add(sessions.get(k).date)}else sessions.set(k,s);
  }
  const groups=new Map();
  for(const g of host.games){
@@ -65,10 +65,10 @@ export function trainingLedger(host,day,now=Date.now()){
   const sid=String(g.sessionId),a=groups.get(sid)??[];
   a.push({g,conflict:roundConflicts.has(k)});groups.set(sid,a);
  }
- const rows=[],sessionRows=[],blockedDays=new Set();
+ const rows=[],sessionRows=[],blockedDays=new Set(duplicateDays);
  for(const [sid,s] of sessions){
   if(duplicate.has(sid)){rejected.duplicate++;blockedDays.add(s.date);continue}
-  if(!positiveTime(s.start,now)||typeof s.extra!=='boolean'||typeof s.completed!=='boolean'||!Array.isArray(s.activities)){rejected.session++;blockedDays.add(s.date);continue}
+  if(!positiveTime(s.start,now)||typeof s.extra!=='boolean'||typeof s.completed!=='boolean'||!Array.isArray(s.activities)||s.completed&&s.interruptedExercise||s.activities.some(a=>a?.interrupted)){rejected.session++;blockedDays.add(s.date);continue}
   const acts=[...s.activities,...(s.interruptedExercise?[{...s.interruptedExercise,interrupted:true}]:[])],indexes=new Set(),ids=new Set();
   let invalid=acts.length>100;
   for(const a of acts){
