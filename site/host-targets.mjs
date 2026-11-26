@@ -2,12 +2,13 @@
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
 import {advice} from './engine/tactics.mjs';
+import {checkProtocol,projectChecks} from './target-checks.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 const targetOK=x=>typeof x==='string'&&/^(?:[SDT](?:[1-9]|1[0-9]|20)|50|25)$/.test(x);
 const localDay=t=>{const d=new Date(t);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const count=(x,n)=>Number.isInteger(x)&&x>=0&&x<=n;
 const fixed='Fixed doubles assessment';
-export function projectTargets(host,day,now=Date.now()){
+export function projectTargets(host,day,now=Date.now(),checks=[]){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(host.games)||!Array.isArray(host.sessions))throw Error('Invalid target evidence input');
  const groups=new Map(),conflicts=new Set();
  const eligible=d=>dayValid(d)&&dayGap(d,day)>=0&&dayGap(d,day)<84;
@@ -35,7 +36,7 @@ export function projectTargets(host,day,now=Date.now()){
  for(const x of g.targetLog){const t=ring+x.target,v=bins.get(t)??row(g.day,g.name+' · tier '+(g.tierAtStart??'unspecified'),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
  record('game:'+g.at+':'+g.name,[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
- return {rows:[...groups.values()].flat(),conflicts:conflicts.size,windowDays:84,limitation:'Hit/miss records identify the intended target only. Miss landing segments and scoring points are unknown.'};
+ return {rows:[...groups.values()].flat().concat(projectChecks(checks,day)),conflicts:conflicts.size,windowDays:84,limitation:'Hit/miss records identify the intended target only. Miss landing segments and scoring points are unknown.'};
 }
 function daily(rows,target,protocol){const m=new Map();for(const o of rows.filter(x=>x.target===target&&x.protocol===protocol)){const g=m.get(o.day)??{attempts:0,hits:0};g.attempts+=o.attempts;g.hits+=o.hits;m.set(o.day,g)}return m}
 export function summaries(rows){const keys=[...new Set(rows.map(x=>JSON.stringify([x.protocol,x.target])))];return keys.map(k=>{const [protocol,target]=JSON.parse(k),days=daily(rows,target,protocol),v=[...days.values()],attempts=v.reduce((n,x)=>n+x.attempts,0),hits=v.reduce((n,x)=>n+x.hits,0);return {protocol,target,attempts,hits,days:days.size,rate:hits/attempts,dayMean:mean(v.map(x=>x.hits/x.attempts)),status:days.size>=7&&attempts>=30?'exploratory':'limited'}}).sort((a,b)=>a.protocol.localeCompare(b.protocol)||a.target.localeCompare(b.target,undefined,{numeric:true}))}
@@ -48,12 +49,18 @@ export function compareTargets(rows,first,second,protocol=fixed){
  const status=n<7||attemptsA<30||attemptsB<30?'insufficient':consistent&&Math.abs(delta)>=Math.max(.12,noise)?delta>0?'first-higher':'second-higher':'unclear';
  return {first,second,protocol,days:n,attemptsA,attemptsB,delta,noise,status,limitation:'Exploratory same-day comparison, not a calibrated statistical test or proof of a technical fault.'};
 }
+export function combinedDoubleComparison(rows,first,second){
+ const standard=compareTargets(rows,first,second),paired=compareTargets(rows,first,second,checkProtocol(first,second));
+ const decisive=c=>['first-higher','second-higher'].includes(c.status);
+ if(decisive(standard)&&decisive(paired)&&standard.status!==paired.status)return {...standard,status:'unclear',limitation:'Fixed assessment and paired practice evidence disagree; no preference change.',sources:[standard,paired]};
+ return {...(decisive(standard)?standard:decisive(paired)?paired:standard.status==='insufficient'?paired:standard),sources:[standard,paired]};
+}
 export function personalisedCheckout(memory,rows,score,darts){
  const base=advice(memory,{score,darts});
  if(base.status!=='finish-available')return {...base,personalisation:'No legal finish; use setup options.',comparison:null};
  const routes=rankedRoutes(score,darts,{},preferredDoubles(memory)),standard=routes[0],length=standard.path.length,finish=standard.path.at(-1);
  const same=routes.filter(x=>x.path.length===length),candidates=[...new Set(same.map(x=>x.path.at(-1)))].filter(t=>t!==finish);
- const comparisons=candidates.map(t=>compareTargets(rows,t,finish));
+ const comparisons=candidates.map(t=>/^D/.test(t)&&/^D/.test(finish)?combinedDoubleComparison(rows,t,finish):compareTargets(rows,t,finish));
  const winning=comparisons.filter(c=>c.status==='first-higher').sort((a,b)=>b.delta-a.delta||a.first.localeCompare(b.first));
  let chosen=standard,comparison=null;
  if(winning.length){comparison=winning[0];chosen=same.find(x=>x.path.at(-1)===comparison.first)}
