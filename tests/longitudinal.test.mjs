@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {canonicalRows,longitudinal,investigationQueue,profileLines} from '../site/longitudinal.mjs';
-import {interventionDelivery,baselineIntegrity,outcomeAudit,outcomeLines,reviewReproduction,verifiedLearningState} from '../site/intervention-audit.mjs';
+import {interventionDelivery,baselineIntegrity,outcomeAudit,outcomeLines,reviewReproduction,verifiedLearningState,verifiedRetention} from '../site/intervention-audit.mjs';
 import {contextualQuestions} from '../site/contextual-questions.mjs';
 import {saveReflection} from '../site/reflections.mjs';
 import {newMemory,assemble} from '../site/coach-memory.mjs';
@@ -71,7 +71,7 @@ test('invalid historical outcomes are downgraded in transient view only',()=>{
  assert.equal(v.state.interventions[0].outcome.status,'unclear');
  assert.deepEqual(v.state.interventions[0].retentionHistory,[]);
  assert.equal(JSON.stringify(state),snapshot);
- const valid=verifiedLearningState({...state,observations:[...before,...after]},{focus:before},day);
+ const valid=verifiedLearningState({...state,interventions:[{...i,retentionHistory:[]}],observations:[...before,...after]},{focus:before},day);
  assert.equal(valid.questionable.length,0);assert.equal(valid.state.interventions[0].outcome.status,'observed-improvement');
 });
 test('two later comfortable days retire a recurring prompt, but a new report can reopen it',()=>{
@@ -92,4 +92,18 @@ test('baseline evidence cannot come from another task, competition context or af
 test('outcomes cannot be reproduced before minimum agreed review interval',()=>{
  const i={...item,reviewDay:ago(1),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}};
  assert.equal(reviewReproduction(i,[row(20)],[row(20)],day).status,'unverifiable');
+});
+
+test('retention audit reproduces delayed benefit and invalidates corrected follow-up',()=>{
+ const before=Array.from({length:7},(_,i)=>row(40+i));
+ const after=Array.from({length:7},(_,i)=>row(22+i,{hits:30}));
+ const delayed=Array.from({length:7},(_,i)=>row(2+i,{hits:30}));
+ const i={...item,responseDay:ago(36),reviewDay:ago(18),status:'completed',baselineIds:before.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0},retentionHistory:[{reviewDay:day,status:'observed-retention',delta:.2,noise:0}]};
+ const state={interventions:[i],observations:[...before,...after,...delayed]};
+ assert.equal(verifiedRetention(state,i,before,day).valid.length,1);
+ const edited={...state,observations:[...before,...after,...delayed.slice(1)]};
+ assert.equal(verifiedRetention(edited,i,before,day).invalid,1);
+ assert.equal(verifiedLearningState(edited,{focus:before},day).questionable[0].reason,'retention-changed');
+ assert.equal(verifiedLearningState(state,{focus:before},day).questionable.length,0);
+ assert.equal(i.retentionHistory.length,1);
 });
