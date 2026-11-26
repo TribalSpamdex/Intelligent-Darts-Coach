@@ -1,3 +1,4 @@
+import {contextLines,techniqueLines} from './context-profile.mjs';
 import {longitudinal,profileLines,investigationQueue} from './longitudinal.mjs';
 import {outcomeAudit,outcomeLines,verifiedLearningState} from './intervention-audit.mjs';
 import {reflectionInsights,label as reflectionLabel} from './reflections.mjs';
@@ -10,7 +11,7 @@ import {nextActions} from './engine/next-actions.mjs';
 import {fullReport} from './engine/executive.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?'];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
 export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={}){
@@ -37,6 +38,8 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  const base=ask(verifiedLearningState(state,baselines,day).state,text,day),r=reflectionInsights(reflections,host,day),items=investigationQueue(longitudinal(state.observations,day),r.repeated);
  return reply('next-actions',[...(base.lines??[base.reason]).filter(Boolean),...items.slice(0,3).map(i=>i.kind==='reported'?i.question:JSON.parse(i.scope).join(' · ')+': '+i.question)]);
  }
+ if(/^(does fatigue affect my darts|how do my practice conditions affect performance|readiness profile)$/.test(q))return reply('context-profile',contextLines(state,day));
+ if(/^(what have we observed about my technique|technical observations|technique profile)$/.test(q))return reply('technique-profile',techniqueLines(state,day));
  const cmp=q.match(/^compare (d(?:[1-9]|1[0-9]|20)) (?:and|with|vs) (d(?:[1-9]|1[0-9]|20))$/);
  if(cmp){const rows=projectTargets(host,day,now,checks).rows,c=combinedDoubleComparison(rows,cmp[1].toUpperCase(),cmp[2].toUpperCase());return reply('target-comparison',[c.first+' vs '+c.second+' · '+c.days+' matched days · '+c.attemptsA+' / '+c.attemptsB+' attempts · '+c.protocol+'.',c.status==='insufficient'?'Insufficient comparable evidence.':c.status==='unclear'?'No consistent advantage established.':targetName(c.status==='first-higher'?c.first:c.second)+' has the observed advantage in fixed practice.',c.limitation])}
  const single=q.match(/^(?:how good am i at|accuracy on|show) ([dst](?:[1-9]|1[0-9]|20))$/);
