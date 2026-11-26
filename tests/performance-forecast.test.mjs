@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {performanceForecasts,forecastBlocks,measuredBlocks,forecastLines} from '../site/performance-forecast.mjs';
+import {performanceForecasts,forecastBlocks,measuredBlocks,forecastLines,backtestBlocks,forecastValidation} from '../site/performance-forecast.mjs';
 const day='2026-11-26',ago=n=>new Date(Date.parse(day)-n*86400000).toISOString().slice(0,10);
 function fixture(skill='scoring',context='practice',protocol='fixed',fn=()=>60){
  const rows=[];
@@ -55,4 +55,15 @@ test('weekly measurement uses actual daily means and never treats missing days a
  const rows=fixture().filter(o=>o.day===day||o.day===ago(2));
  const blocks=measuredBlocks(rows,day,'scoring');
  assert.equal(blocks.at(-1).days,2);assert.equal(blocks.at(-1).attempts,120);assert.equal(blocks.at(-1).value,60);assert.equal(blocks.at(-2).value,null);
+});
+
+test('walk-forward validation predicts each block using only earlier information',()=>{
+ const blocks=Array.from({length:30},(_,i)=>({value:50+i%7,start:ago(30-i),end:ago(30-i)}));
+ const a=backtestBlocks(blocks,'scoring');assert.equal(a.n,14);
+ const b=backtestBlocks(blocks.map((x,i)=>i===29?{...x,value:150}:x),'scoring');
+ assert.deepEqual(a.results.slice(0,-1),b.results.slice(0,-1));assert.equal(a.results.at(-1).point,b.results.at(-1).point);
+ assert.notEqual(a.mae,b.mae);
+});
+test('stable model is not credited with superiority to a stable naive baseline',()=>{
+ const r=forecastValidation(fixture(),day)[0];assert.equal(r.n,16);assert.equal(r.mae,0);assert.equal(r.naiveMAE,0);assert.equal(r.status,'similar-historical-error');assert.equal(r.rangeCoverage,1);
 });
