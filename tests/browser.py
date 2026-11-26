@@ -94,7 +94,10 @@ with sync_playwright() as p:
       startQuickPlay();beginTraining(true,true);openAssessment(STAGES.find(x=>!stageComplete(x)));
       return {unchanged:JSON.stringify(data.activeSession??null)===before,assessmentHidden:document.getElementById('assessmentScreen').classList.contains('hidden'),blocked:notices.length};
     }finally{window.alert=old}}""")
-    assert blocked['unchanged'] and blocked['assessmentHidden'] and blocked['blocked']>=1, blocked
+    assert blocked['unchanged'] and blocked['assessmentHidden'] and blocked['blocked']==3, blocked
+    # Re-enter Coach explicitly after probing native entry points; readiness is
+    # edited using the visible form rather than a synthetic memory mutation.
+    page.locator('#navTechnique').click()
     page.locator('#idcReady input[name=pain]').uncheck()
     page.locator('#idcReady button').click()
     assert page.evaluate('window.IDCPolicy.mayStart()') is True
