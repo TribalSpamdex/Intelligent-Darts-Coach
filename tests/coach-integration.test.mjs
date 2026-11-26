@@ -51,3 +51,25 @@ test('retention preview and explicit save round-trip through real coach memory',
  assert.equal(previewRetention(h,edited,'reviewed',day,now).status,'review-needs-verification');
  assert.throws(()=>changeMemory(h,edited,day,'retention',{id:'reviewed'},now));
 });
+
+test('allocation cannot be made after review deadline, from future consent, or with ambiguous accepted history',()=>{
+ const x=allocation(),i=x.memory.state.interventions[0];
+ for(const patch of [{responseDay:'2026-11-16'},{responseDay:'2026-11-01',proposedDay:'2026-11-01'},{responseDay:'not a day'},{proposedDay:'2026-11-16'}]){
+  const memory={...x.memory,state:{...x.memory.state,interventions:[{...i,...patch}]}};
+  assert.equal(decideTransfer({...x,memory}).status,'unchanged');
+ }
+ assert.equal(decideTransfer({...x,memory:{...x.memory,state:{...x.memory.state,interventions:[i,{...i,id:'duplicate'}]}}}).status,'unchanged');
+ assert.equal(decideTransfer({...x,session:{...x.session,coachComplement:{to:'Bull Streak'}}}).status,'unchanged');
+});
+test('mutation boundary rejects same-skill, wrong receiver, invalid mode and replay atomically',()=>{
+ for(const change of [q=>q[0].wholeCoach.category='doubles',q=>q[1].wholeCoach.category='bull',q=>q[0].mode='benchmark',q=>q[1].name=q[0].name]){
+  const x=allocation(),d=decideTransfer(x);change(x.queue);const before=JSON.stringify(x.queue);assert.throws(()=>applyTransfer(x.queue,d),/Invalid allocation/);assert.equal(JSON.stringify(x.queue),before);
+ }
+ const x=allocation(),d=decideTransfer(x);assert.equal(applyTransfer(x.queue,d),true);const after=JSON.stringify(x.queue);assert.throws(()=>applyTransfer(x.queue,d),/Invalid allocation/);assert.equal(JSON.stringify(x.queue),after);
+});
+test('native allocator fails closed with malformed timed budget or another escalation',()=>{
+ const x=allocation();
+ for(const seconds of [NaN,299,7201,300.5]){const queue=x.queue.map(e=>({...e}));queue[0].seconds=seconds;assert.equal(decideTransfer({...x,queue}).status,'unchanged')}
+ assert.equal(decideTransfer({...x,queue:[x.queue[0],x.queue[0],...x.queue.slice(1)]}).status,'unchanged');
+ assert.equal(decideTransfer({...x,legacyPolicy:{categories:{...x.legacyPolicy.categories,doubles:{learning:{permissionToEscalate:true}}}}}).status,'unchanged');
+});

@@ -5,7 +5,7 @@ import {decideTransfer,applyTransfer} from '../site/coach-policy.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),start=now-3600000,ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const item={id:'i',skill:'doubles',context:'practice',protocol:'fixed',status:'accepted',responseDay:ago(14),proposedDay:ago(15),reviewAfterDays:14,baselineIds:['b']};
 function fixture(){
- const queue=[{name:'Scoring Challenge',seconds:900,wholeCoach:{plannedMinutes:15}},{name:'Doubles Survival',seconds:600,wholeCoach:{plannedMinutes:10}}];
+ const queue=[{name:'Scoring Challenge',mode:'timed',seconds:900,wholeCoach:{category:'scoring',plannedMinutes:15}},{name:'Doubles Survival',mode:'timed',seconds:600,wholeCoach:{category:'doubles',plannedMinutes:10}}];
  const decision={status:'transferred',skill:'doubles',intervention:'i',from:0,to:1,seconds:300,day};
  assert.equal(applyTransfer(queue,decision),true);
  decision.delivery.receiverIndex=3;
