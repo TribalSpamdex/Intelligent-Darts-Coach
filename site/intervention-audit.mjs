@@ -1,5 +1,5 @@
 // Audit completed-session evidence separately from the player's reported adherence.
-import {dayValid,dayGap} from './engine/context.mjs';
+import {dayValid,dayGap,asOfState} from './engine/context.mjs';
 import {validObservation,summarise,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine/engine.mjs';
 import {attributableAllocation} from './coaching-accountability.mjs';
 import {evaluation} from './engine/reasoning.mjs';
@@ -60,6 +60,7 @@ export function verifiedRetention(state,item,baseline,day){
  return {valid,invalid:invalid.length};
 }
 export function outcomeAudit(host,state,baselines,day){
+ state=asOfState(state,day);
  return state.interventions.filter(i=>i.responseDay&&i.responseDay<=day&&i.status!=='declined').map(item=>{
   const integrity=baselineIntegrity(item,baselines[item.id]??[],state.observations,day),delivery=interventionDelivery(host,item,day);
   const reproduction=reviewReproduction(item,baselines[item.id]??[],state.observations,day);
