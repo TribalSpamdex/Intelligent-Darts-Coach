@@ -39,7 +39,7 @@ export function assemble(host,raw,day,now=Date.now()){
  return {memory,state,evidence,edited,practice};
 }
 export function assess(host,raw,day,now=Date.now()){
- const x=assemble(host,raw,day,now),learning=verifiedLearningState(x.state,x.memory.baselines,day),report=fullReport(learning.state,day);
+ const x=assemble(host,raw,day,now),learning=verifiedLearningState(x.state,x.memory.baselines,day,host,now),report=fullReport(learning.state,day);
  if(x.edited.includes(report.active.intervention)){report.active={mode:'baseline-edited',plan:plan(),intervention:report.active.intervention}}
  const active=x.state.interventions.find(i=>i.status==='accepted'&&i.id===report.active.intervention);
  // The engine intentionally suppresses new proposals while an intervention is accepted.
@@ -83,7 +83,7 @@ export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  if(type==='respond'&&payload.decision==='accepted'&&x.edited.includes(payload.id))throw Error('Baseline was corrected; decline and reassess');
  if(!['fact','readiness','answer','propose','respond'].includes(type))throw Error('Unsupported memory command');
  if(type==='propose'||type==='respond'&&payload.decision==='accepted'){
- const safe=verifiedLearningState(x.state,m.baselines,day),next=command(safe.state,{version:1,type,day,payload},{confirmed:true}).state;
+ const safe=verifiedLearningState(x.state,m.baselines,day,host,now),next=command(safe.state,{version:1,type,day,payload},{confirmed:true}).state;
  // Only the current proposal/response may be committed; never rewrite historic outcomes.
  const originals=new Map(x.state.interventions.filter(i=>['completed','unsuccessful'].includes(i.status)).map(i=>[i.id,i]));
  state={...next,interventions:next.interventions.map(i=>originals.get(i.id)??i)};
