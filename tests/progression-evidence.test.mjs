@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {progressEvidence,precisionDecisions} from '../site/progression-evidence.mjs';
-import {progressHighlights,milestoneCards} from '../site/progression-dialogue.mjs';
+import {progressEvidence,precisionDecisions,abilityProfiles,abilityProfileLines} from '../site/progression-evidence.mjs';
+import {progressHighlights,milestoneCards,progressionAnswer} from '../site/progression-dialogue.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10),ages=[0,1,7,8,14,15,21,22];
 const row=(n,v=72,extra={})=>({id:'r'+n,day:ago(n),skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:v*10,...extra});
 const sample=(v=72,extra={})=>ages.map(n=>row(n,v,extra));
@@ -22,3 +22,91 @@ test('contradictory protocols cap the subdivision at the highest boundary both s
 test('fine visible milestone is a measured boundary, not a promotion from a single point',()=>{assert.equal(progressEvidence(sample(39.5),day)[0].confirmedMilestone,37.5);assert.equal(progressEvidence(sample(38),day)[0].confirmedMilestone,35);assert.equal(progressEvidence(sample(39.5).slice(0,1),day)[0].confirmedMilestone,null)});
 
 test('large-single and treble challenge gates use real ring-specific independent evidence',()=>{const a=ages.map(n=>row(n,0,{id:'s'+n,skill:'singles',protocol:'IDC V6.2 daily large singles 60',attempts:60,hits:51}));const b=ages.map(n=>row(n,0,{id:'t'+n,skill:'trebles',protocol:'IDC precision fixed trebles',attempts:60,hits:15}));const r=precisionDecisions([...a,...b],day,{scoring:7,doubles:7});assert.equal(r.singles.quarter,3);assert.equal(r.trebles.quarter,2);assert.equal(r.scoring.quarter,0);assert.equal(r.doubles.quarter,0);assert.equal(precisionDecisions(sample(180),day,{scoring:1}).trebles.quarter,0)});
+
+test('continuous ability preserves fractional evidence and never invents evidence from an unmeasured skill',()=>{
+ const a=decision(sample(71.4)),b=decision(sample(72.2));
+ assert.ok(Math.abs(a.confirmedAbility-69.4)<1e-7);
+ assert.ok(Math.abs(b.confirmedAbility-70.2)<1e-7);
+ assert.ok(a.challenge<b.challenge);
+ assert.equal(a.quarter,b.quarter);
+ const r=precisionDecisions(sample(72),day,{scoring:4,doubles:4});
+ assert.equal(r.doubles.confirmedAbility,null);
+ assert.equal(r.doubles.challenge,0);
+ assert.equal(r.scoring.evidence[0].days,8);
+ assert.equal(r.scoring.evidence[0].attempts,240);
+});
+test('continuous ability uses the weakest adequate protocol and recomputes after a correction',()=>{
+ const a=sample(80),b=ages.map(n=>row(n,66,{id:'b'+n,protocol:'IDC V6.2 Scoring Challenge fixed 30 darts'}));
+ const p=decision([...a,...b]);assert.ok(Math.abs(p.confirmedAbility-64)<1e-7);
+ assert.ok(p.challenge<2);
+ assert.equal(decision(a.slice(0,7)).challenge,0);
+ const bad={...a[0],hits:20};
+ assert.equal(decision([...a,bad]).challenge,0);
+});
+test('continuous confirmed challenge is bounded and monotonic across all scoring ability ranges',()=>{
+ for(let t=1;t<=7;t++){
+ let previous=0;
+ for(let v=0;v<=180;v+=.5){
+  const d=decision(sample(v),t);
+  assert.ok(d.challenge>=previous-1e-8&&d.challenge>=0&&d.challenge<=3);
+  assert.equal(Math.floor(d.challenge+1e-8),d.quarter);
+  previous=d.challenge;
+ }
+ }
+});
+
+test('short-term form uses disjoint days and actual measurement volume',()=>{
+ const baseline=[7,9,14,16,21,23].map(n=>row(n,60));
+ for(const [v,status] of [[70,'above-usual'],[50,'below-usual'],[61,'no-clear-shift']]){
+  const recent=[0,2,4].map(n=>row(n,v));
+  const form=progressEvidence([...baseline,...recent],day)[0].form;
+  assert.equal(form.status,status);
+  assert.equal(form.short.days,3);
+  assert.equal(form.short.attempts,90);
+  assert.equal(form.usual.days,6);
+  assert.equal(form.usual.attempts,180);
+  assert.equal(form.change,v-60);
+ }
+ assert.equal(progressEvidence([...baseline,row(0,100)],day)[0].form.status,'insufficient');
+});
+test('three disjoint adequately sampled periods distinguish stable, changing and variable measurements',()=>{
+ const make=values=>values.flatMap((v,i)=>ages.map((n,j)=>row(n+28*i,typeof v==='function'?v(j):v)));
+ for(const [values,status] of [[[60,60,60],'stable-measurements'],[[70,65,60],'changing'],[[j=>j%2?50:70,60,60],'variable']]){
+  const r=progressEvidence(make(values),day)[0].stability;
+  assert.equal(r.status,status);
+  assert.ok(r.periods.every(p=>p.days===8&&p.attempts===240));
+  assert.equal(new Set(r.periods.flatMap(p=>p.daily.map(x=>x.day))).size,24);
+ }
+ assert.equal(progressEvidence(make([60,60]),day)[0].stability.status,'insufficient');
+});
+test('ability report retains denominators and fixed protocols, with no gameplay tier exposure',()=>{
+ const obs=[...sample(72),...ages.map(n=>row(n,100,{protocol:'adaptive game',id:'ignored'+n}))];
+ const p=abilityProfiles(obs,day);
+ assert.equal(p.length,6);
+ assert.equal(p.find(r=>r.skill==='scoring').protocols.length,1);
+ assert.equal(p.find(r=>r.skill==='doubles').confirmed,null);
+ const lines=abilityProfileLines(p);
+ assert.ok(lines.some(s=>s.includes('240 attempts')));
+ assert.ok(lines.every(s=>!s.includes('tier')));
+ assert.equal(progressionAnswer({}, {observations:obs},'my ability profile',day).type,'ability-profile');
+});
+
+test('one-year walk-forward six-skill calibration never consumes future observations or conflates skills',()=>{
+ const history=[],skills=['scoring','doubles','checkout','bull','singles','trebles'];
+ for(let n=365;n>=0;n--)for(let k=0;k<skills.length;k++){
+  if((n+k)%3!==0||(n+2*k)%17===0)continue;
+  const skill=skills[k],attempts=skill==='scoring'?30:skill==='checkout'?12:60;
+  const hits=skill==='scoring'?Math.min(1800,500+Math.floor((365-n)/3)*2):Math.min(attempts,Math.floor(attempts*(.15+.1*k+(365-n)/365*.08)));
+  history.push({id:skill+'-'+n,day:ago(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
+ }
+ const tiers={scoring:4,doubles:5,checkout:5,bull:5};
+ for(let age=365;age>=0;age-=7){
+  const date=ago(age),known=history.filter(o=>o.day<=date),p=precisionDecisions(history,date,tiers);
+  assert.deepEqual(p,precisionDecisions(known,date,tiers));
+  for(const k of skills){
+   assert.ok(p[k].challenge>=0&&p[k].challenge<=3);
+   assert.ok(p[k].confirmedAbility===null||p[k].confirmedAbility>=0&&p[k].confirmedAbility<=(k==='scoring'?180:100));
+   assert.ok(p[k].evidence.every(e=>e.days>=8&&e.weeks>=3&&e.protocol==='IDC precision fixed '+k));
+  }
+ }
+});

@@ -8,7 +8,7 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.add_init_script("""if(!localStorage.getItem('dartsCoachV4'))localStorage.setItem('dartsCoachV4','CONTROL-SENTINEL');if(!localStorage.getItem('DCI-independent:foundation:v1'))localStorage.setItem('DCI-independent:foundation:v1','INDEPENDENT-SENTINEL');""")
     page.goto('http://127.0.0.1:8765/index.html')
-    assert 'V1.7.0-dev' in page.title()
+    assert 'V1.8.0-dev' in page.title()
     assert page.locator('#home').is_visible()
     assert not page.locator('#idcCoach').is_visible()
     assert page.locator('.homeWelcome').is_visible()
@@ -189,7 +189,7 @@ with sync_playwright() as p:
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.7.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.7.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.7.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.7.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.7.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.7.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=1.7.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=1.7.0-dev'))}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.8.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.8.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.8.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.8.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.8.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.8.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=1.8.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=1.8.0-dev'))}""")
         ctx.set_offline(True)
         page.reload()
         page.locator('#navTechnique').click()
@@ -198,6 +198,10 @@ with sync_playwright() as p:
         page.locator('#idcQuestion').fill('How have I progressed this year?')
         page.locator('#idcAsk').click()
         assert 'No comparable measurements recorded yet' in page.locator('#idcAnswer').inner_text()
+        page.locator('#idcQuestion').fill('My ability profile')
+        page.locator('#idcAsk').click()
+        assert 'Not enough comparable recent evidence' in page.locator('#idcAnswer').inner_text()
+        assert 'doubles' in page.locator('#idcAnswer').inner_text()
     page.locator('#idcStatsPanel').evaluate('(e)=>e.open=true')
     page.locator('#idcStatsType').select_option('Actual match statistics')
     page.locator('#idcStatsReview').click()
@@ -238,7 +242,7 @@ with sync_playwright() as p:
     audit=page.evaluate("""async()=>{
       const original=clone(data),oldGame=activeGame,oldUndo=undoSnapshot,oldTab=currentTab;
       try{
-       const mod=await import('./precision-games.mjs?v=1.7.0-dev'),learn=await import('./challenge-setting.mjs?v=1.7.0-dev');
+       const mod=await import('./precision-games.mjs?v=1.8.0-dev'),learn=await import('./challenge-setting.mjs?v=1.8.0-dev');
        const day=n=>dateKey(Date.now()-n*DAY_MS),now=Date.now();
        data.assessment.completedAt=now-35*DAY_MS;
        data.idcCoachMemory.state.observations=[];
@@ -265,7 +269,7 @@ with sync_playwright() as p:
        window.IDCPrecision.invalidate();const g=buildGame('Scoring Survival');
        if(g.target!==68||g.precision?.quarter!==3)throw Error('Actual round did not use confirmed quarter');
        if(g.learningSetting?.before!==60||g.learningSetting?.after!==68||g.learningSetting?.quarter!==3)throw Error('Native learning configuration not captured');
-       const observed=[];for(const [value,target,quarter] of [[61,60,0],[66,62,1],[70,65,2],[75,68,3]]){for(const o of data.idcCoachMemory.state.observations)if(o.skill==='scoring')o.hits=value*10;window.IDCPrecision.invalidate();const v=buildGame('Scoring Survival');if(v.target!==target||(v.precision?.quarter??0)!==quarter||v.learningSetting?.after!==target||v.learningSetting?.quarter!==quarter)throw Error('Real scoring quarter '+quarter+' expected '+target+' got '+v.target);observed.push(v.target)}
+       const observed=[];for(const [value,target,quarter] of [[61,60,0],[64,61,.5],[66,62,1],[68,63,1+1/3],[70,65,2],[72,67,2+2/3],[75,68,3]]){for(const o of data.idcCoachMemory.state.observations)if(o.skill==='scoring')o.hits=value*10;window.IDCPrecision.invalidate();const v=buildGame('Scoring Survival');if(v.target!==target||(v.precision?.quarter??0)!==quarter||v.learningSetting?.after!==target||v.learningSetting?.quarter!==quarter)throw Error('Real scoring quarter '+quarter+' expected '+target+' got '+v.target);observed.push(v.target)}
        const e=gameResult(g,'natural');data.games=[e];
        if(skillSamples().scoring.length!==0||completedRows('scoring').length!==0)throw Error('Modified round polluted benchmark evidence');
        data.activeSession.quick=true;const q=buildGame('Scoring Survival');if(q.precision||q.learningSetting)throw Error('Quick Play altered or counted as learning exposure');
@@ -277,7 +281,7 @@ with sync_playwright() as p:
        return {captured,observed,tested:results.length,modified:results.filter(x=>x.modified).length,names:new Set(results.filter(x=>x.modified).map(x=>x.name)).size};
       }finally{data=original;activeGame=oldGame;undoSnapshot=oldUndo;currentTab=oldTab;window.IDCPrecision.invalidate();save(false)}
     }""")
-    assert audit['observed']==[60,62,65,68], audit
+    assert audit['observed']==[60,61,62,63,65,67,68], audit
     assert audit['tested']==259, audit
     assert audit['captured']>=20, audit
     assert audit['modified']>=70 and audit['names']>=20, audit

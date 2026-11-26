@@ -31,7 +31,7 @@ test('three independently failed precision days pause the adjustment and expire 
 test('tampered precision provenance fails the audit and rule configurations do not pool',()=>{const a=record(0),b=record(1),c=record(2,0,{challengeTuning:null,precision:null,win:true}),bad={...record(3),precision:{...a.precision,after:180}};assert.equal(validPrecisionRecord(bad),false);const rows=precisionAudit([a,b,c,bad,a],day);assert.equal(rows.length,2);assert.equal(rows.find(r=>r.mode==='precision').rounds,2);assert.equal(rows.find(r=>r.mode==='standard').wins,1);assert.equal(precisionAudit([a,{...a,win:true}],day).length,0)});
 const host={games:[],sessions:[],assessmentHistory:[],bigSingles:[]},obs=[0,1,7,8,14,15,21,22].map(n=>({id:'r'+n,day:ago(n),skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:720}));
 test('adapter respects calibration date, fatigue, pain and missing evidence',()=>{const state={observations:obs,readiness:[],clinic:[]};assert.equal(snapshotPrecision(host,state,day,tiers,null,now).decisions.scoring.half,'upper');assert.equal(snapshotPrecision(host,state,day,tiers,ago(3),now).decisions.scoring.half,'foundation');const x=snapshotPrecision(host,{...state,readiness:[{day,fatigue:'high'}]},day,tiers,null,now);assert.equal(x.safety,true);assert.equal(applyPrecision(base('Scoring Survival'),x,[],day,{eligible:true,now}).target,60);assert.equal(snapshotPrecision(host,{...state,clinic:[{day:ago(2),pain:true}]},day,tiers,null,now).safety,true)});
-test('adapter recomputes after exercise changes or explicit invalidation and fails closed',()=>{let state={observations:obs},games=[];const adapter=createPrecisionAdapter(()=>({host:{...host,games},state,day,now})),ctx={eligible:true,sessionId:'s',exerciseIndex:0,tiers};assert.equal(adapter.adjust(base('Scoring Survival'),ctx).target,65);state={observations:[]};assert.equal(adapter.adjust(base('Scoring Survival'),ctx).target,65);assert.equal(adapter.adjust(base('Scoring Survival'),{...ctx,exerciseIndex:1}).target,60);state={observations:obs};adapter.invalidate();assert.equal(adapter.adjust(base('Scoring Survival'),ctx).target,65);assert.equal(createPrecisionAdapter(()=>{throw Error('broken')}).adjust(base('Scoring Survival'),ctx).target,60)});
+test('adapter recomputes after exercise changes or explicit invalidation and fails closed',()=>{let state={observations:obs},games=[];const adapter=createPrecisionAdapter(()=>({host:{...host,games},state,day,now})),ctx={eligible:true,sessionId:'s',exerciseIndex:0,tiers};assert.equal(adapter.adjust(base('Scoring Survival'),ctx).target,67);state={observations:[]};assert.equal(adapter.adjust(base('Scoring Survival'),ctx).target,67);assert.equal(adapter.adjust(base('Scoring Survival'),{...ctx,exerciseIndex:1}).target,60);state={observations:obs};adapter.invalidate();assert.equal(adapter.adjust(base('Scoring Survival'),ctx).target,67);assert.equal(createPrecisionAdapter(()=>{throw Error('broken')}).adjust(base('Scoring Survival'),ctx).target,60)});
 
 const quarters=q=>Object.fromEntries(Object.keys(tiers).map(k=>[k,{tier:4,quarter:q}]).concat([['singles',{quarter:q}],['trebles',{quarter:q}]]));
 test('all supported game configurations support monotone whole-number adjustments or a legal floor',()=>{for(const name of SUPPORTED_GAMES){const g=base(name,['Bull Survival','Bull Streak'].includes(name)?{target:'25/50'}:{});const a=[0,1,2,3].map(q=>precisionRound(g,quarters(q),{eligible:true}));assert.equal(a[0],g);for(let q=1;q<4;q++){const r=a[q];assert.notEqual(r,g,name+' '+q);assert.equal(r.precision.version,2);assert.ok(r.precision.quarter>=1&&r.precision.quarter<=q,name);assert.ok(validPrecisionRecord({...r,tierAtStart:4}),name);const prev=a[q-1],field=r.precision.field;const v=Array.isArray(r[field])?r[field]:[r[field]],p=Array.isArray(prev[field])?prev[field]:[prev[field]];const direction=Math.sign(quarterDelta(r.precision.after instanceof Array?5:r.precision.after-r.precision.before,1));assert.ok(v.every((x,i)=>Number.isInteger(x)&&(direction>0?x>=p[i]:x<=p[i])),name)}}});
@@ -45,3 +45,63 @@ test('mixed configurations, duplicates and mixed-result days never fake three ma
 test('historical one-step records and new quarter settings remain independently valid',()=>{const a=record(0),b=qrecord(1,1),c=qrecord(2,3);assert.ok([a,b,c].every(validPrecisionRecord));assert.equal(precisionAudit([a,b,c],day).length,3);assert.equal(validPrecisionRecord({...c,precision:{...c.precision,quarter:2}}),false);assert.equal(precisionRound(base('Scoring Survival'),{scoring:{tier:4,quarter:8,half:'upper'}},{eligible:true}).target,60)});
 
 test('Double Duel rival uses legal fixed intervals and never makes perfect play unwinnable',()=>{const g=base('Double Duel',{tier:7,opponentEvery:6}),d={doubles:{tier:7,quarter:0},singles:{quarter:3}};assert.equal(precisionRound(g,d,{eligible:true}).opponentEvery,3);assert.equal(precisionRound(g,{...d,singles:{quarter:0}},{eligible:true}),g);const a=[0,1,2,3].map(q=>precisionRound(g,{...d,singles:{quarter:q}},{eligible:true}).opponentEvery);assert.deepEqual(a,[6,5,4,3]);const x=precisionRound(base('Double Duel'),quarters(3),{eligible:true});assert.equal(x.opponentEvery,2);assert.equal(x.precision.quarter,1);assert.ok(validPrecisionRecord({...x,tierAtStart:4}));assert.equal(validPrecisionRecord({...x,tierAtStart:4,precision:{...x.precision,version:1}}),false);for(const n of [2,3,4,5,6])assert.ok(Math.floor(4/n)<4)});
+
+test('continuous scoring settings use real intermediate points with exact provenance',()=>{
+ const g=base('Scoring Survival'),d=q=>({scoring:{tier:4,quarter:Math.floor(q+1e-8),challenge:q}});
+ const levels=[0,.5,1,1+1/3,1+2/3,2,2+1/3,2+2/3,3];
+ assert.deepEqual(levels.map(q=>precisionRound(g,d(q),{eligible:true}).target),[60,61,62,63,64,65,66,67,68]);
+ for(const q of levels.slice(1)){
+  const r=precisionRound(g,d(q),{eligible:true});
+  assert.equal(r.precision.version,Number.isInteger(q)?2:3);
+  assert.ok(validPrecisionRecord({...r,tierAtStart:4}));
+  assert.equal(validPrecisionRecord({...r,tierAtStart:4,precision:{...r.precision,after:r.target+1}}),false);
+ }
+ assert.equal(precisionRound(g,d(3),{eligible:true,maxQuarter:1+1/3}).target,63);
+ assert.equal(precisionRound(g,d(3),{eligible:true,probe:true}).target,60);
+});
+test('fractional three-day failure cooldown steps back to previous real setting',()=>{
+ const g=base('Scoring Survival'),d={scoring:{tier:4,quarter:2,challenge:2+2/3}};
+ const r=precisionRound(g,d,{eligible:true});
+ const history=[0,1,2].map(n=>({...record(n),precision:r.precision}));
+ const cap=precisionOptions(history,g.name,day,4,now,g);
+ assert.equal(cap.maxQuarter,2+1/3);
+ assert.equal(precisionRound(g,d,{eligible:true,maxQuarter:cap.maxQuarter}).target,66);
+});
+test('continuous measured profiles retain all 37 integer game configurations and safety constraints',()=>{
+ for(const name of SUPPORTED_GAMES){
+  const g=base(name,['Bull Survival','Bull Streak'].includes(name)?{target:'25/50'}:{});
+  const runs=Array.from({length:301},(_,i)=>{
+   const v=i/100,d=Object.fromEntries(Object.entries(quarters(Math.floor(v))).map(([k,x])=>[k,{...x,challenge:v}]));
+   const r=precisionRound(g,d,{eligible:true});
+   assert.ok(r===g||validPrecisionRecord({...r,tierAtStart:4}),name);
+   assert.equal(precisionRound(g,d,{eligible:true,safety:true}),g);
+   return r;
+  });
+  const field=runs.find(r=>r.precision)?.precision.field;
+  if(!field)continue;
+  for(let i=1;i<runs.length;i++){
+   const prev=runs[i-1][field],next=runs[i][field],end=runs.at(-1)[field],start=g[field];
+   const a=Array.isArray(prev)?prev:[prev],b=Array.isArray(next)?next:[next],z=Array.isArray(end)?end:[end],s=Array.isArray(start)?start:[start];
+   assert.ok(b.every((v,j)=>Number.isInteger(v)&&(z[j]>=s[j]?v>=a[j]:v<=a[j])),name);
+  }
+ }
+});
+
+test('Jackpot never reduces the allowance below an exact finish with unique targets',()=>{
+ for(const [goal,ring,allowed,expected] of [[102,'D',5,4],[92,'D',5,3],[72,'D',4,2],[36,'S',4,2],[26,'S',4,2]]){
+  const g=base('Double Jackpot',{goal,ring,allowed});
+  const r=precisionRound(g,quarters(3),{eligible:true});
+  assert.equal(r.allowed,expected);
+  assert.ok(validPrecisionRecord({...r,tierAtStart:4}));
+ }
+ const impossible=base('Double Jackpot',{goal:99,ring:'D',allowed:8});
+ assert.equal(precisionRound(impossible,quarters(3),{eligible:true}),impossible);
+});
+test('double Switchback cannot inherit a scoring-only challenge',()=>{
+ const g=base('Switchback',{ring:'D'});
+ assert.equal(precisionRound(g,{...quarters(3),doubles:{tier:4,quarter:0}},{eligible:true}),g);
+ const r=precisionRound(g,quarters(3),{eligible:true});
+ assert.equal(r.precision.basis,'doubles');
+ assert.ok(validPrecisionRecord({...r,tierAtStart:4}));
+ assert.equal(validPrecisionRecord({...r,tierAtStart:4,name:'Scoring Survival'}),false);
+});
