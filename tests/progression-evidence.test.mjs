@@ -80,7 +80,7 @@ test('three disjoint adequately sampled periods distinguish stable, changing and
  assert.equal(progressEvidence(make([60,60]),day)[0].stability.status,'insufficient');
 });
 test('ability report retains denominators and fixed protocols, with no gameplay tier exposure',()=>{
- const obs=[...sample(72),...sample(100,{protocol:'adaptive game',id:'ignored'})];
+ const obs=[...sample(72),...ages.map(n=>row(n,100,{protocol:'adaptive game',id:'ignored'+n}))];
  const p=abilityProfiles(obs,day);
  assert.equal(p.length,6);
  assert.equal(p.find(r=>r.skill==='scoring').protocols.length,1);
@@ -89,4 +89,24 @@ test('ability report retains denominators and fixed protocols, with no gameplay 
  assert.ok(lines.some(s=>s.includes('240 attempts')));
  assert.ok(lines.every(s=>!s.includes('tier')));
  assert.equal(progressionAnswer({}, {observations:obs},'my ability profile',day).type,'ability-profile');
+});
+
+test('one-year walk-forward six-skill calibration never consumes future observations or conflates skills',()=>{
+ const history=[],skills=['scoring','doubles','checkout','bull','singles','trebles'];
+ for(let n=365;n>=0;n--)for(let k=0;k<skills.length;k++){
+  if((n+k)%3!==0||(n+2*k)%17===0)continue;
+  const skill=skills[k],attempts=skill==='scoring'?30:skill==='checkout'?12:60;
+  const hits=skill==='scoring'?Math.min(1800,500+Math.floor((365-n)/3)*2):Math.min(attempts,Math.floor(attempts*(.15+.1*k+(365-n)/365*.08)));
+  history.push({id:skill+'-'+n,day:ago(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
+ }
+ const tiers={scoring:4,doubles:5,checkout:5,bull:5};
+ for(let age=365;age>=0;age-=7){
+  const date=ago(age),known=history.filter(o=>o.day<=date),p=precisionDecisions(history,date,tiers);
+  assert.deepEqual(p,precisionDecisions(known,date,tiers));
+  for(const k of skills){
+   assert.ok(p[k].challenge>=0&&p[k].challenge<=3);
+   assert.ok(p[k].confirmedAbility===null||p[k].confirmedAbility>=0&&p[k].confirmedAbility<=(k==='scoring'?180:100));
+   assert.ok(p[k].evidence.every(e=>e.days>=8&&e.weeks>=3&&e.protocol==='IDC precision fixed '+k));
+  }
+ }
 });
