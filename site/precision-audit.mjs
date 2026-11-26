@@ -14,7 +14,7 @@ export function precisionAudit(games,day){
  for(const [id,r] of seen){if(conflicts.has(id))continue;const key=JSON.stringify([r.name,r.tier,r.rule,r.mode,r.config]),x=groups.get(key)??{...r,days:new Map()};const d=x.days.get(r.day)??[0,0];d[0]+=Number(r.win);d[1]++;x.days.set(r.day,d);groups.set(key,x)}
  return [...groups.values()].map(x=>{const {days,win,day,...rest}=x,v=[...days.values()];return {...rest,days:days.size,rounds:v.reduce((n,r)=>n+r[1],0),wins:v.reduce((n,r)=>n+r[0],0),daily:distribution(v.map(r=>r[0]/r[1]))}}).sort((a,b)=>a.name.localeCompare(b.name)||a.mode.localeCompare(b.mode));
 }
-const names={lives:'Lives',allowed:'Dart allowance',allowedMisses:'Miss allowance',dartsLeft:'Dart budget',maxDarts:'Dart limit',maxVisits:'Visit limit',target:'Scoring target',targets:'Scoring ladder',goal:'Target score',roundPointGoal:'Point target',failedVisitLimit:'Failed visit allowance',maxCalls:'Call limit',par:'Par',tolerance:'Score tolerance'};
+const names={lives:'Lives',allowed:'Dart allowance',allowedMisses:'Miss allowance',dartsLeft:'Dart budget',maxDarts:'Dart limit',maxVisits:'Visit limit',target:'Scoring target',targets:'Scoring ladder',goal:'Target score',roundPointGoal:'Point target',failedVisitLimit:'Failed visit allowance',maxCalls:'Call limit',par:'Par',tolerance:'Score tolerance',opponentEvery:'Darts between rival points'};
 const value=v=>Array.isArray(v)?v.join(' / '):String(v);
 export function precisionAuditLines(rows){
  if(!rows.length)return ['No completed eligible challenge rounds recorded.'];
