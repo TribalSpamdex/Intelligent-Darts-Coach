@@ -51,7 +51,25 @@ export function serialMargin(a,b,multiplier=2.5){
  const effective=n=>Math.max(1,Math.ceil(n/5));
  return multiplier*Math.sqrt(a.daySD**2/effective(a.days)+b.daySD**2/effective(b.days));
 }
-function compare(obs){const sorted=[...obs].sort((a,b)=>a.day.localeCompare(b.day)),days=[...new Set(sorted.map(o=>o.day))];const a=summarise(sorted.filter(o=>days.slice(0,-7).includes(o.day))),b=summarise(sorted.filter(o=>days.slice(-7).includes(o.day)));if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {status:"insufficient",earlier:a,recent:b};const change=b.dayMean-a.dayMean;const floor=["scoring","firstNine"].includes(obs[0].skill)?3:0.05;const noise=serialMargin(a,b);return {status:Math.abs(change)>=Math.max(floor,noise)?change>0?"improving":"declining":"unclear",earlier:a,recent:b,change,noise,method:"Exploratory daily comparison with conservative dependence allowance; not a significance test."}}
+function compare(obs){
+ const sorted=[...obs].sort((a,b)=>a.day.localeCompare(b.day)),days=[...new Set(sorted.map(o=>o.day))];
+ const a=summarise(sorted.filter(o=>days.slice(0,-7).includes(o.day))),b=summarise(sorted.filter(o=>days.slice(-7).includes(o.day)));
+ if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {status:"insufficient",earlier:a,recent:b};
+ const change=b.dayMean-a.dayMean,scoring=["scoring","firstNine"].includes(obs[0].skill),floor=scoring?3:.05,noise=serialMargin(a,b);
+ const status=Math.abs(change)>=Math.max(floor,noise)?change>0?"improving":"declining":"unclear";
+ // The last seven days can already belong to a sustained lower plateau.
+ // Also compare disjoint fourteen-measurement blocks when both are complete.
+ // A recovering recent week cannot be classified by an older decline.
+ if(status==="unclear"&&days.length>=28&&Date.parse(days.at(-1))-Date.parse(days.at(-14))<=35*86400000){
+  const old=new Set(days.slice(-28,-14)),recent=new Set(days.slice(-14));
+  const u=summarise(sorted.filter(o=>old.has(o.day))),v=summarise(sorted.filter(o=>recent.has(o.day)));
+  const delta=v.dayMean-u.dayMean,margin=serialMargin(u,v),threshold=scoring?5:.08;
+  const halves=[v.daily.slice(0,7),v.daily.slice(7)].map(x=>mean(x.map(d=>d.value))-u.dayMean);
+  if(u.attempts>=60&&v.attempts>=60&&Math.abs(delta)>=Math.max(threshold,margin)&&halves.every(h=>Math.sign(delta)*h>=threshold))
+   return {status:delta>0?"improving":"declining",earlier:u,recent:v,change:delta,noise:margin,method:"Sustained contrast between distinct fourteen-measurement blocks; not a significance test."};
+ }
+ return {status,earlier:a,recent:b,change,noise,method:"Exploratory daily comparison with conservative dependence allowance; not a significance test."};
+}
 
 function assessments(s){const groups=new Map();for(const o of s.observations){const k=JSON.stringify([o.skill,o.context,o.protocol]);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)}return [...groups.values()].map(obs=>({skill:obs[0].skill,context:obs[0].context,protocol:obs[0].protocol,summary:summarise(obs),trend:compare(obs)}))}
 
