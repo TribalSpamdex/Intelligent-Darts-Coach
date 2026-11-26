@@ -91,7 +91,12 @@ export function developmentAgenda(host,state,day,{now=Date.now(),report=null,pro
  }
  // One most useful item per scope and kind; do not overload the player
  // with multiple competing changes. A goal may still have its own review.
- const seen=new Set(),ranked=actions.sort((a,b)=>b.rank-a.rank||String(a.skill).localeCompare(String(b.skill))||String(a.protocol).localeCompare(String(b.protocol))||a.kind.localeCompare(b.kind)).filter(a=>{const k=JSON.stringify([a.kind,a.skill,a.protocol]);if(seen.has(k))return false;seen.add(k);return true});
+ // Screening several skills increases the chance of at least one false
+ // alert. Keep the full measured screens in the development profile, but
+ // surface at most one advisory watch in the action agenda. Stronger issues,
+ // reviews and wellbeing retain their existing precedence.
+ let watchSeen=false;
+ const seen=new Set(),ranked=actions.sort((a,b)=>b.rank-a.rank||String(a.skill).localeCompare(String(b.skill))||String(a.protocol).localeCompare(String(b.protocol))||a.kind.localeCompare(b.kind)).filter(a=>{const k=JSON.stringify([a.kind,a.skill,a.protocol]);if(seen.has(k)||a.kind==='early-watch'&&watchSeen)return false;seen.add(k);if(a.kind==='early-watch')watchSeen=true;return true});
  const lead=ranked.find(x=>['review-intervention','active-intervention','confirmed-focus'].includes(x.kind));
  return {wellbeing:null,actions:ranked,goals,lead:lead??ranked[0]??null,limitation:'Advisory engineering priorities, not calibrated probabilities. Existing approved session policy remains authoritative; no new automatic allocation.'};
 }
