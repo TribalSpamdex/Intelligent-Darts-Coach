@@ -1,3 +1,4 @@
+import {deliveryGate} from './coaching-accountability.mjs';
 import {eventContext} from './competition-calendar.mjs';
 // Final clock-budget transfer only; no game replacement, no additional minutes.
 const skills=['scoring','doubles','checkout','bull'];
@@ -9,6 +10,7 @@ export function decideTransfer({report,confirmation,edited=[],memory,session,que
  if(report.active?.mode!=='accepted-temporary-focus')return no('No accepted independent focus');
  const i=memory.state.interventions.find(o=>o.id===report.active.intervention&&o.status==='accepted');
  if(!i||edited.includes(i.id)||!skills.includes(i.skill)||i.context!=='practice')return no('Unsupported or corrected intervention baseline');
+ if(deliveryGate({sessions:priorSessions},i,day).defer)return no('Repeated measured delivery shortfall; review existing adjustment');
  if(!confirmation||confirmation.verification?.status!=='passed'||confirmation.decision!=='temporary-focus'||confirmation.focus!==i.skill||confirmation.focusProtocol!==i.protocol||confirmation.focusContext!==i.context)return no('Current measurements no longer support the same focus');
  if(!session||session.quick||session.extra||session.allocated||session.unifiedAudit?.exploration?.trial||queue.some(e=>e.name==='Target Mastery'||e.dc47TrialId))return no('Preserve existing special session or trial');
  if(session.coachDayIntent?.focus||legacyTransfer?.status==='transferred'||legacyTransfer?.status!=='no-transfer')return no('Existing coaching adjustment takes priority');
