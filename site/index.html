@@ -1405,7 +1405,7 @@ function dc68EvidenceCounts(g,legacyNumbers=false){
   (!Object.prototype.hasOwnProperty.call(g,'misses')||Number.isInteger(g.misses)&&g.misses>=0&&g.misses+g.outer+g.inner===30);
  return false;
 }
-function skillSamples(){const quickContext=dc63QuickEvidence();const result={scoring:[],doubles:[],checkout:[],bull:[]};for(const g of data.games){if(!dc68EvidenceCounts(g))continue;const time=gameTime(g);if(!time||time>Date.now()||g.completion==="manual")continue;
+function skillSamples(){const quickContext=dc63QuickEvidence();const result={scoring:[],doubles:[],checkout:[],bull:[]};for(const g of data.games){if(g.challengeTuning==='precision'||!dc68EvidenceCounts(g))continue;const time=gameTime(g);if(!time||time>Date.now()||g.completion==="manual")continue;
   if(!quickEvidenceEligible(g,quickContext))continue;
 if(g.benchmark===false&&!(["Scoring Survival","Scoring Ladder","Outside Doubles","Double Double"].includes(g.name)&&g.completion==="natural"))continue;
  if(g.name==="Scoring Challenge"&&Number.isInteger(g.visits)&&g.visits===10&&Number.isInteger(g.points)&&g.points>=0&&g.points<=1800)result.scoring.push({time,points:num(g.points),volume:num(g.visits),id:time,source:g.name+(Number.isFinite(g.tier)?':tier'+g.tier:'')+(typeof g.variant==='string'?':'+g.variant:''),quick:!!g.quick,weight:quickWeight(g,quickContext)});
@@ -4550,6 +4550,7 @@ function dc3MatchAllowance(start){
    const band=String(p.averageBand||'');
    const provisional={under30:69,'30':51,'40':41,'50':34,'60':28,'70':25,'80':22,'90':20,'100':19};
    if(Object.prototype.hasOwnProperty.call(provisional,band))return provisional[band];
+   const fine=window.IDCPrecision?.calibrationBand(band);if(fine)return fine.allowance501;
   }
  }
  return clamp(allowed,start===301?12:18,start===301?75:105);
@@ -4766,7 +4767,7 @@ function applyRoundBalance(g){
 }
 function dcRC2ExpectedRules(name,tier){
  if(name==='Double Double')return 'rc2-four-doubles';
- const novice=tier===7||tier===6&&data.assessment?.quickStart&&['30','under30'].includes(data.assessment.quickBand);
+ const novice=tier===7||tier===6&&data.assessment?.quickStart&&(window.IDCPrecision?.isFoundationAverage(data.assessment.quickBand)??['30','under30'].includes(data.assessment.quickBand));
  const changed=['Treble Hunt','Doubles Streak','Number Lock','Shanghai Combo','Bull Streak','Bull Survival','Bull Bank','Bull Blackjack','Outside Doubles','Double Bull Bridge','101 Sprint','Double-In 201','Last Dart Rescue','Last Dart Standing','Checkout Poker','Cricket Countdown','Pressure Cricket','Switchback','Dartboard Bingo','Risk or Reward','Scoring Survival','Scoring Ladder','First Nine Siege','Focused Checkouts','High-Low'];
  if(name==='High-Low'||name==='Split the Difference')return 'visit-control-v1';
  if(!novice&&(['Bull Blackjack','Checkout Poker','Outside Doubles'].includes(name)||
@@ -4779,7 +4780,7 @@ function dcRC2ExpectedRules(name,tier){
 }
 function dcRC2Beginner(g){
  const tier=Number(g.tier)||dc9GameTier(g.name);
- const manualNovice=data.assessment?.quickStart&&['30','under30'].includes(data.assessment.quickBand);
+ const manualNovice=data.assessment?.quickStart&&(window.IDCPrecision?.isFoundationAverage(data.assessment.quickBand)??['30','under30'].includes(data.assessment.quickBand));
  if(tier<7&&!(tier===6&&manualNovice))return g;
  g.beginner=true;const protocol=dcRC2ExpectedRules(g.name,tier);if(protocol)g.ruleVersion=protocol;
  // Both beginner levels use the same generous foundations. Progression occurs
@@ -5043,7 +5044,15 @@ function buildGame(name,previous=null){const g=name==="Focused Checkouts"?focuse
  if(name==="Double Duel"){
   const tier=pressureTier("doubles");Object.assign(g,{tier,target:20,player:0,opponent:0,turn:0,thrown:0,matchDone:false});
  }
- return dc20AttachForecast(dc80Block(dcRC2Beginner(dc19ApplyTuning(dc12ApplyRecovery(applyRoundBalance(g)))),previous))}
+ const standard=dc80Block(dcRC2Beginner(dc19ApplyTuning(dc12ApplyRecovery(applyRoundBalance(g)))),previous);
+ const ss=session(),tier=Number(standard.tier)||dc9GameTier(name);
+ if(window.IDCPrecision&&ss&&!ss.quick&&!ss.extra&&!standard.recovery&&!standard.challengeTuning&&!DC10_MEASUREMENT_GAMES.has(name)&&window.IDCPrecision.supported(name)){
+  if(!Number.isInteger(standard.tier))standard.tier=tier;
+  const recovery=dc12RecoveryState(name),legacy=dc19Decision(name);
+  const context={eligible:!recovery.earned&&!['probe','adjustment-cooldown'].includes(legacy.reason)&&!currentExercise()?.dc47TrialId&&currentExercise()?.name!=='Target Mastery',sessionId:ss.id,exerciseIndex:ss.index,tiers:Object.fromEntries(SKILLS.map(k=>[k,pressureTier(k)])),assessmentDay:assessmentDate(data.assessment)>0?dateKey(assessmentDate(data.assessment)):null};
+  return dc20AttachForecast(window.IDCPrecision.adjust(standard,context));
+ }
+ return dc20AttachForecast(standard)}
 
 function shanghaiDart(hit){if(typeof hit!=="boolean")return;
  const s=session(),g=activeGame;if(!s||s.pausedAt||s.phase!=="playing"||!g||g.name!=="Shanghai Combo")return;
@@ -5429,7 +5438,8 @@ function gameResult(g,completion){const e={practiceBlock:g.practiceBlock?clone(g
  }
  if(g.name==="Scoring Challenge"){e.win=null;e.loss=null;}
  if(g.recovery&&completion==="natural")e.result="RECOVERY · "+e.result;
- if(g.challengeTuning&&completion==="natural")e.result=(g.challengeTuning==="stretch"?"STRETCH":"STEPPING STONE")+" · "+e.result;
+ if(g.precision&&g.challengeTuning==='precision'){e.precision=clone(g.precision);e.benchmark=false;}
+ if(g.challengeTuning&&g.challengeTuning!=='precision'&&completion==="natural")e.result=(g.challengeTuning==="stretch"?"STRETCH":"STEPPING STONE")+" · "+e.result;
  if(completion!=="natural"){e.win=null;e.loss=null;e.benchmark=false;e.result="INCOMPLETE · "+e.result.replace(/^(WIN|LOSE) · /, "")}
  if(g.priorFirstCheckout===0&&firstClimbCheckout(g)){
   e.firstCheckoutScore=firstClimbCheckout(g);
@@ -6300,7 +6310,7 @@ function setHand(hand){if(!["left","right"].includes(hand))return;data.throwingH
 async function shareDartsApp(){const url="https://tribalspamdex.github.io/Intelligent-Darts-Coach/";try{if(navigator.share){await navigator.share({title:"Darts Coach",text:"Personalised darts training",url});return}}catch(e){if(e.name==="AbortError")return}try{await navigator.clipboard.writeText(url);alert("App link copied to clipboard.")}catch(e){prompt("Copy this app link:",url)}}
 function completedRows(skill){
  const quickContext=dc63QuickEvidence(),out=[];
- for(const g of data.games){if(!dc68EvidenceCounts(g,true))continue;if(g.benchmark===false||g.completion==="manual"||g.completion==="partial"||g.completion==="timed")continue;
+ for(const g of data.games){if(g.challengeTuning==='precision'||!dc68EvidenceCounts(g,true))continue;if(g.benchmark===false||g.completion==="manual"||g.completion==="partial"||g.completion==="timed")continue;
   if(!quickEvidenceEligible(g,quickContext))continue;
   const time=gameTime(g);if(!time||time>Date.now())continue;
   if(skill==="scoring"&&g.name==="Scoring Challenge"&&num(g.visits)===10)out.push({time,volume:10,value:num(g.points)/10});
@@ -8200,5 +8210,5 @@ window.casualGames=(()=>{
 casualGames.render();
 </script><script>
 function idcBoundary(){if(currentTab!=="train")return null;const s=session();if(s&&s.phase==="complete"&&!s.quick){const a=s.completed.find(x=>x.exerciseIndex===s.index);if(a)return {kind:"exercise",sessionId:String(s.id),index:s.index,name:a.name,at:a.at,day:dateKey(s.start),quick:false}}if(!s&&!$("sessionFinished").classList.contains("hidden")){const x=data.sessions.at(-1);if(x&&!x.quick)return {kind:"session",sessionId:String(x.id),index:null,name:"Training session",at:Math.max(x.start,...(x.activities||[]).map(a=>Number(a.at)||0)),day:x.date,quick:false}}return null}
-window.IDCTrainingBridge=Object.freeze({boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");if(session()&&!(reflectionBoundary&&session().phase==="complete"))throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error("Unable to save coaching memory")}return true},active:()=>!!session(),legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});
+window.IDCTrainingBridge=Object.freeze({installCalibration:choices=>{for(const b of choices){QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};}for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of choices){const option=document.createElement('option');option.value=b.key;option.textContent=b.label;node.append(option)}if(QUICK_START_BANDS[old])node.value=old==='under30'?'p25':old;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");if(session()&&!(reflectionBoundary&&session().phase==="complete"))throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error("Unable to save coaching memory")}return true},active:()=>!!session(),legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});
 </script><script type="importmap">{"imports":{"./engine/clinic.mjs":"./engine/clinic.mjs?v=1.4.0-dev","./engine/coach-api.mjs":"./engine/coach-api.mjs?v=1.4.0-dev","./engine/coach-dialogue.mjs":"./engine/coach-dialogue.mjs?v=1.4.0-dev","./engine/context.mjs":"./engine/context.mjs?v=1.4.0-dev","./engine/diagnosis.mjs":"./engine/diagnosis.mjs?v=1.4.0-dev","./engine/engine.mjs":"./engine/engine.mjs?v=1.4.0-dev","./engine/equipment-profile.mjs":"./engine/equipment-profile.mjs?v=1.4.0-dev","./engine/executive.mjs":"./engine/executive.mjs?v=1.4.0-dev","./engine/experiments.mjs":"./engine/experiments.mjs?v=1.4.0-dev","./engine/explanation.mjs":"./engine/explanation.mjs?v=1.4.0-dev","./engine/followup.mjs":"./engine/followup.mjs?v=1.4.0-dev","./engine/goals.mjs":"./engine/goals.mjs?v=1.4.0-dev","./engine/host-adapter.mjs":"./engine/host-adapter.mjs?v=1.4.0-dev","./engine/interventions.mjs":"./engine/interventions.mjs?v=1.4.0-dev","./engine/knowledge.mjs":"./engine/knowledge.mjs?v=1.4.0-dev","./engine/learning.mjs":"./engine/learning.mjs?v=1.4.0-dev","./engine/match.mjs":"./engine/match.mjs?v=1.4.0-dev","./engine/next-actions.mjs":"./engine/next-actions.mjs?v=1.4.0-dev","./engine/player-intelligence.mjs":"./engine/player-intelligence.mjs?v=1.4.0-dev","./engine/reasoning.mjs":"./engine/reasoning.mjs?v=1.4.0-dev","./engine/scenarios.mjs":"./engine/scenarios.mjs?v=1.4.0-dev","./engine/session-intelligence.mjs":"./engine/session-intelligence.mjs?v=1.4.0-dev","./engine/state.mjs":"./engine/state.mjs?v=1.4.0-dev","./engine/strategy.mjs":"./engine/strategy.mjs?v=1.4.0-dev","./engine/tactics.mjs":"./engine/tactics.mjs?v=1.4.0-dev","./engine/target-analysis.mjs":"./engine/target-analysis.mjs?v=1.4.0-dev","./engine/target-evidence.mjs":"./engine/target-evidence.mjs?v=1.4.0-dev","./engine/training.mjs":"./engine/training.mjs?v=1.4.0-dev","./engine/verification.mjs":"./engine/verification.mjs?v=1.4.0-dev","./idc.mjs":"./idc.mjs?v=1.4.0-dev","./bridge.mjs":"./bridge.mjs?v=1.4.0-dev","./v62-evidence.mjs":"./v62-evidence.mjs?v=1.4.0-dev","./coach-memory.mjs":"./coach-memory.mjs?v=1.4.0-dev","./coach-policy.mjs":"./coach-policy.mjs?v=1.4.0-dev","./host-exposure.mjs":"./host-exposure.mjs?v=1.4.0-dev","./host-targets.mjs":"./host-targets.mjs?v=1.4.0-dev","./game-profile.mjs":"./game-profile.mjs?v=1.4.0-dev","./integrated-dialogue.mjs":"./integrated-dialogue.mjs?v=1.4.0-dev","./target-checks.mjs":"./target-checks.mjs?v=1.4.0-dev","./reflections.mjs":"./reflections.mjs?v=1.4.0-dev","./context-profile.mjs":"./context-profile.mjs?v=1.4.0-dev","./longitudinal.mjs":"./longitudinal.mjs?v=1.4.0-dev","./intervention-audit.mjs":"./intervention-audit.mjs?v=1.4.0-dev","./contextual-questions.mjs":"./contextual-questions.mjs?v=1.4.0-dev","./actual-target-statistics.mjs":"./actual-target-statistics.mjs?v=1.4.0-dev","./context-statistics.mjs":"./context-statistics.mjs?v=1.4.0-dev","./evidence-coverage.mjs":"./evidence-coverage.mjs?v=1.4.0-dev","./finish-validation.mjs":"./finish-validation.mjs?v=1.4.0-dev","./manual-target-samples.mjs":"./manual-target-samples.mjs?v=1.4.0-dev","./match-statistics.mjs":"./match-statistics.mjs?v=1.4.0-dev","./practice-statistics.mjs":"./practice-statistics.mjs?v=1.4.0-dev","./skill-statistics.mjs":"./skill-statistics.mjs?v=1.4.0-dev","./statistics-dialogue.mjs":"./statistics-dialogue.mjs?v=1.4.0-dev","./statistics-view.mjs":"./statistics-view.mjs?v=1.4.0-dev","./statistics.mjs":"./statistics.mjs?v=1.4.0-dev","./target-statistics.mjs":"./target-statistics.mjs?v=1.4.0-dev","./visit-statistics.mjs":"./visit-statistics.mjs?v=1.4.0-dev","./weekly-statistics.mjs":"./weekly-statistics.mjs?v=1.4.0-dev"}}</script><script type="module" src="./idc.mjs?v=1.4.0-dev"></script><script>if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=1.4.0-dev',{scope:'./'}).catch(()=>{});</script></body></html>
