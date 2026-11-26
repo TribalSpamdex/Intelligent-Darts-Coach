@@ -16,7 +16,7 @@ export function applyPrecision(game,profile,games,day,opts={}){
  const options=precisionOptions(games,game.name,day,game.tier,opts.now??Date.now());
  return precisionRound(game,profile.decisions,{...options,eligible:opts.eligible===true,safety:profile.safety||opts.safety,probe:options.probe||opts.probe,cooldown:options.cooldown||opts.cooldown});
 }
-export function createPrecisionAdapter(getData){
+export function createPrecisionAdapter(getData,getHistory=null){
  let cache=null;
  return Object.freeze({
   calibrationChoices,calibrationBand,isFoundationAverage,provisionalAllowance,botScoring,supported:name=>SUPPORTED_GAMES.includes(name),
@@ -24,11 +24,13 @@ export function createPrecisionAdapter(getData){
   adjust(game,context){
    if(!context?.eligible||!SUPPORTED_GAMES.includes(game?.name)||game.recovery||game.challengeTuning)return game;
    try{
-    const d=getData(),key=JSON.stringify([context.sessionId,context.exerciseIndex,d.day,context.tiers,context.assessmentDay]);
+    const key=JSON.stringify([context.sessionId,context.exerciseIndex,context.day??null,context.tiers,context.assessmentDay]);
+    let d=null;
     // Frozen profile within an exercise. A new exercise or restored page
     // recomputes from the saved authoritative history, not from partial darts.
-    if(!cache||cache.key!==key)cache={key,profile:snapshotPrecision(d.host,d.state,d.day,context.tiers,context.assessmentDay,d.now)};
-    return applyPrecision(game,cache.profile,d.host.games,d.day,{...context,now:d.now});
+    if(!cache||cache.key!==key){d=getData();cache={key,day:d.day,profile:snapshotPrecision(d.host,d.state,d.day,context.tiers,context.assessmentDay,d.now)}}
+    if(!getHistory&&!d)d=getData();const now=d?.now??Date.now(),history=getHistory?getHistory(game.name,cache.day,now):d.host.games;
+    return applyPrecision(game,cache.profile,history,cache.day,{...context,now});
    }catch{return game}
   },
   invalidate(){cache=null}
