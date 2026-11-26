@@ -11,6 +11,6 @@ export function makeCheck(skill,hits,day){
  return validObservation({id:prefix+skill+':'+day,day,skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts:d.attempts,hits});
 }
 export function validatePrecisionChecks(rows){
- for(const o of rows.filter(x=>x.id.startsWith(prefix))){const v=makeCheck(o.skill,o.hits,o.day);if(JSON.stringify(v)!==JSON.stringify(validObservation(o)))throw Error('Invalid precision check record')}
+ for(const o of rows.filter(x=>x.id.startsWith(prefix)||x.protocol.startsWith('IDC precision fixed '))){const v=makeCheck(o.skill,o.hits,o.day);if(JSON.stringify(v)!==JSON.stringify(validObservation(o)))throw Error('Invalid precision check record')}
 }
 export function isPrecisionCheck(o){return typeof o?.id==='string'&&o.id.startsWith(prefix)}
