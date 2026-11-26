@@ -30,9 +30,9 @@ export function deliveryEvidence(host,item,day,now=Date.now()){
   const x=candidates[0];
   if(x.exerciseId!==receiver.id||x.exerciseIndex!==p.receiverIndex||x.name!==receiver.name||x.plannedSeconds!==receiver.plannedSeconds||!integer(x.seconds)||!Number.isFinite(x.at)||x.at<b.at||x.at>now){rows.push({...base,planned:300,status:'planned-only',reason:'receiver activity inconsistent with locked plan'});continue}
   const observed=Math.min(300,Math.max(0,x.seconds-oldReceiver.proposedSeconds));
-  rows.push({...base,planned:300,observedBeyondOriginal:observed,status:'matched-activity',completedSession:s.completed===true,actualSeconds:x.seconds,originalSeconds:oldReceiver.proposedSeconds,allocatedSeconds:receiver.plannedSeconds});
+  rows.push({...base,planned:300,observedBeyondOriginal:observed,status:s.completed===true?'matched-activity':'abandoned-activity',completedSession:s.completed===true,actualSeconds:x.seconds,originalSeconds:oldReceiver.proposedSeconds,allocatedSeconds:receiver.plannedSeconds});
  }
- return {rows,plannedSeconds:rows.reduce((n,x)=>n+x.planned,0),observedBeyondOriginal:rows.reduce((n,x)=>n+(x.observedBeyondOriginal??0),0),matched:rows.filter(x=>x.status==='matched-activity').length,unverified:rows.filter(x=>x.status==='unverified').length,limitation:'Observed elapsed activity beyond original budget is capped at five minutes per transfer. Not actual throwing time, proof of extra training, or player-reported adherence.'};
+ return {rows,plannedSeconds:rows.reduce((n,x)=>n+x.planned,0),observedBeyondOriginal:rows.filter(x=>x.status==='matched-activity').reduce((n,x)=>n+(x.observedBeyondOriginal??0),0),matched:rows.filter(x=>x.status==='matched-activity').length,abandoned:rows.filter(x=>x.status==='abandoned-activity').length,abandonedElapsedBeyondOriginal:rows.filter(x=>x.status==='abandoned-activity').reduce((n,x)=>n+(x.observedBeyondOriginal??0),0),unverified:rows.filter(x=>x.status==='unverified').length,limitation:'Only completed sessions contribute to delivery totals. Abandoned activities are reported separately; elapsed time is capped at five minutes per transfer and is not actual throwing time, causal proof or player-reported adherence.'};
 }
 // Conservative eligibility policy, not a scientifically validated dose threshold.
 // Require three separate completed, attributable exercises, each with at least
@@ -67,13 +67,13 @@ export function coachingAccountability(host,state,baselines,day,now=Date.now()){
 }
 export function accountabilityLines(rows){
  if(!rows.length)return ['No accepted intervention history to audit.'];
- return [...rows.slice(-20).flatMap(r=>[r.skill+' · '+r.protocol+' · '+r.status.replaceAll('-',' ')+'. '+(r.observedOutcome??'No reproduced outcome')+'.','Reconstructed allocation '+(r.delivery.plannedSeconds/60).toFixed(1)+' min; matched elapsed activity above original budget '+(r.delivery.observedBeyondOriginal/60).toFixed(1)+' min across '+r.delivery.matched+' activities. '+r.delivery.unverified+' unverified transfers.','Reported adherence '+(r.reportedAdherence===null?'not recorded':(100*r.reportedAdherence).toFixed(0)+'%')+'; '+r.retentionChecks+' reproduced retention checks, '+r.invalidRetention+' invalid checks.']), 'Reproduced results remain observational. Delivery, adherence, and outcome are different kinds of evidence; no causal success rate is asserted.'];
+ return [...rows.slice(-20).flatMap(r=>[r.skill+' · '+r.protocol+' · '+r.status.replaceAll('-',' ')+'. '+(r.observedOutcome??'No reproduced outcome')+'.','Reconstructed allocation '+(r.delivery.plannedSeconds/60).toFixed(1)+' min; matched elapsed activity above original budget '+(r.delivery.observedBeyondOriginal/60).toFixed(1)+' min across '+r.delivery.matched+' completed-session activities. '+r.delivery.unverified+' unverified transfers. '+r.delivery.abandoned+' abandoned-session activities excluded.','Reported adherence '+(r.reportedAdherence===null?'not recorded':(100*r.reportedAdherence).toFixed(0)+'%')+'; '+r.retentionChecks+' reproduced retention checks, '+r.invalidRetention+' invalid checks.']), 'Reproduced results remain observational. Delivery, adherence, and outcome are different kinds of evidence; no causal success rate is asserted.'];
 }
 
 export function deliveryGate(host,item,day,now=Date.now()){
  const evidence=deliveryEvidence(host,item,day,now),byDay=new Map();
  for(const r of evidence.rows){
-  if(r.status!=='matched-activity'||dayGap(r.day,day)>=14)continue;
+  if(r.status!=='matched-activity'||r.completedSession!==true||dayGap(r.day,day)>=14)continue;
   const previous=byDay.get(r.day)??0;byDay.set(r.day,Math.max(previous,r.observedBeyondOriginal));
  }
  const recent=[...byDay].sort(([a],[b])=>b.localeCompare(a)).slice(0,3);
