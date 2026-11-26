@@ -46,7 +46,12 @@ export function precisionRound(game,decisions,options={}){
  if(d?.half!=='upper'||!Number.isInteger(d.tier)||!Number.isInteger(game.tier)||game.tier!==d.tier)return game;
  // Singles foundation versions do not measure doubles. Mixed-skill games
  // require separate confirmation for their second skill as well.
- if(game.beginner||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles')return game;
+ if(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D')return game;
+ if(game.name==='Bull Bank'&&field==='dartsLeft'&&game.dartsLeft+delta<Math.ceil(game.goal/50))return game;
+ if(game.name==='Bull Blackjack'&&field==='allowed'&&game.allowed+delta<Math.ceil(game.goal/50))return game;
+ if(game.name==='Outside Doubles'&&game.allowed+delta<game.targets?.length)return game;
+ if(game.name==='Double Double'&&game.allowed+delta<game.targets?.length)return game;
+ if(game.name==='Neighbour Trap'&&game.allowed+delta<game.goal)return game;
  if(['301 Pressure','501 Pressure'].includes(game.name)&&decisions.checkout?.half!=='upper')return game;
  if(game.name==='Double Bull Bridge'&&decisions.bull?.half!=='upper')return game;
  const old=game[field];
@@ -60,9 +65,9 @@ export function precisionRound(game,decisions,options={}){
  return out;
 }
 export function precisionOptions(games,name,day,tier){
- const rows=games.filter(g=>g&&g.name===name&&g.quick===false&&g.completion==='natural'&&g.day<=day&&g.tierAtStart===tier&&typeof g.win==='boolean').sort((a,b)=>b.at-a.at);
+ const rows=games.filter(g=>g&&g.name===name&&!g.extra&&!g.recovery&&Number.isFinite(g.at)&&/^\d{4}-\d{2}-\d{2}$/.test(g.day)&&Number.isFinite(Date.parse(g.day))&&g.quick===false&&g.completion==='natural'&&g.day<=day&&g.tierAtStart===tier&&typeof g.win==='boolean').sort((a,b)=>b.at-a.at);
  const latest=rows.slice(0,3);
- const probe=latest.length===3&&latest.every(r=>r.challengeTuning==='precision');
+ const probe=latest.length===3&&latest.every(r=>!!r.challengeTuning);
  const byDay=new Map();for(const g of rows.filter(g=>g.challengeTuning==='precision'&&g.precision?.version===1)){if(!byDay.has(g.day))byDay.set(g.day,g)}
  const recent=[...byDay.values()].slice(0,3);
  const cooldown=recent.length===3&&recent.every(r=>r.win===false)&&Date.parse(day)-Date.parse(recent[0].day)<7*86400000;
