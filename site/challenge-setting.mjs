@@ -23,6 +23,7 @@ const budget=v=>scalar(v)||Array.isArray(v)&&v.length>=1&&v.length<=20&&v.every(
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function clone(v){return JSON.parse(JSON.stringify(v))}
 function plain(v,depth=0){return depth<=3&&(v===null||typeof v==='boolean'||typeof v==='string'&&v.length<=80||scalar(v)||Array.isArray(v)&&v.length<=30&&v.every(x=>plain(x,depth+1))||v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length<=12&&Object.entries(v).every(([k,x])=>/^[a-zA-Z][a-zA-Z0-9]*$/.test(k)&&plain(x,depth+1)))}
+const targetRoute=(xs,length=null)=>Array.isArray(xs)&&xs.length>=1&&xs.length<=20&&(length===null||xs.length===length)&&xs.every(n=>Number.isInteger(n)&&n>=1&&n<=20);
 export function learningBasis(game){
  const spec=rules[game?.name];if(!spec)return null;
  if(['Bull Survival','Bull Streak'].includes(game.name)&&game.target!=='25/50')return null;
@@ -33,9 +34,10 @@ export function learningBasis(game){
   if(game.ring==='T'&&game.name==='Number Lock')return 'trebles';
   if(game.ring!=='D')return null;
  }
- if(['Double Double','Outside Doubles'].includes(game.name)&&(!Array.isArray(game.targets)||!game.targets.length||game.targets.some(n=>!Number.isInteger(n)||n<1||n>20)))return null;
- if(game.name==='Number Lock'&&(!Array.isArray(game.targets)||game.targets.length!==3))return null;
- if(game.name==='Golf Five'&&(!Array.isArray(game.holes)||game.holes.length!==5))return null;
+ if(game.name==='Double Double'&&!targetRoute(game.targets,4))return null;
+ if(game.name==='Outside Doubles'&&!targetRoute(game.targets))return null;
+ if(game.name==='Number Lock'&&(!targetRoute(game.targets,3)||new Set(game.targets).size!==3))return null;
+ if(game.name==='Golf Five'&&!targetRoute(game.holes,5))return null;
  if(game.name==='Focused Checkouts'&&!game.config?.balanced)return null;
  return spec.skill;
 }
