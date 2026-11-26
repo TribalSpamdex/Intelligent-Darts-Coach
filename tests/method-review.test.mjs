@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {methodDeliveryEvidence,methodReviews,methodReviewGate,methodReviewLines} from '../site/coaching-accountability.mjs';
+import {methodDeliveryEvidence,methodReviews,methodReviewGate,methodReviewLines,methodFollowupGate} from '../site/coaching-accountability.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),shift=(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10);
 const protocol='IDC precision fixed scoring',skill='scoring';
 const setting={version:1,name:'Scoring Ladder',skill,tier:3,rule:null,field:'targets',before:[40,50,60],after:[40,50,60],quarter:0,variant:{}};
@@ -46,4 +46,17 @@ test('two disjoint lower reviews defer optional method; corrected data or aging 
 test('same-skill overlapping selections cannot independently validate one another',()=>{
  const a=session('2026-11-15',1),b=session('2026-11-18',2),host={sessions:[a.s,b.s],games:[...a.games,...b.games]},obs=measurements(a.s.date);
  assert.equal(methodReviews(host,{observations:obs},day,now)[0].outcome,'overlapping-selections');
+});
+
+test('pending review is time-limited and does not turn missing records into failure',()=>{
+ const {host,s}=fixture(),obs=measurements(s.date).slice(0,3),rows=methodReviews(host,{observations:obs},day,now);
+ assert.equal(methodFollowupGate(rows,day).length,1);
+ assert.equal(methodFollowupGate(rows,'2026-12-03').length,0);
+ assert.equal(methodReviewGate(rows,day).length,0);
+ assert.equal(methodFollowupGate(methodReviews(host,{observations:measurements(s.date)},day,now),day).length,0);
+});
+test('impossible review chronology cannot manufacture a repeat-method veto',()=>{
+ const {host,s}=fixture(),rows=methodReviews(host,{observations:measurements(s.date)},day,now);
+ const broken={...rows[0],id:'bad',day:'2026-10-20',baselineDays:['2026-11-12','2026-10-10'],followupDays:['2026-10-21','2026-10-22']};
+ assert.equal(methodReviewGate([broken,...rows],day).length,0);
 });

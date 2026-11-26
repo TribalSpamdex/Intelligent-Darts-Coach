@@ -1,7 +1,7 @@
-import {deliveryGate,methodReviews,methodReviewGate} from './coaching-accountability.mjs';
+import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes} from './training-outcomes.mjs';
-import {recordedConfounder} from './challenge-episodes.mjs';
+import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
 import {validSetting} from './challenge-setting.mjs';
 import {eventContext,validateEvents} from './competition-calendar.mjs';
 import {developmentAgenda} from './development-review.mjs';
@@ -43,14 +43,15 @@ export function planPreview(host,state,report,events,day,now=Date.now(),existing
   if(to&&from){to.minutes+=5;from.minutes-=5;to.reason='Accepted focus preview; native allocation safeguards still decide actual session.';focus=open.skill}
  }
  // Prefer no additional changes while a focus or comparison is active.
- const blocked=open||pending||report?.verification?.status!=='passed'||(state.trials??[]).some(x=>x.status==='active'&&x.start<=day)||event.phase!=='ordinary';
+ const blocked=open||pending||report?.decision!=='balanced'||report?.verification?.status!=='passed'||(state.trials??[]).some(x=>x.status==='active'&&x.start<=day)||event.phase!=='ordinary';
  if(!blocked){
-  const learning=personalLearning(host,state,day,now);
+  const learning=personalLearning(host,state,day,now),reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
   for(const row of rows){
+   if(awaiting.some(r=>r.skill===row.skill))continue;
    const evidence=learning.find(x=>x.skill===row.skill)?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
    const distinct=[...new Set(evidence.map(x=>x.favoured.name))];
    // Different methods or protocol disagreements are reasons not to select.
-   if(distinct.length===1&&evidence.every(x=>x.other.name!==distinct[0])&&evidence.every(x=>x.protocol===evidence[0].protocol)){
+   if(distinct.length===1&&!deferred.some(r=>r.skill===row.skill&&r.alternative===distinct[0])&&evidence.every(x=>x.other.name!==distinct[0])&&evidence.every(x=>x.protocol===evidence[0].protocol)){
     row.drill=distinct[0];row.reason='Candidate drill from repeated matched observations; confirm suitability and normal game settings before using it. Not an automatic replacement.';
    }
   }
@@ -108,9 +109,9 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   if((state.interventions??[]).some(i=>['proposed','accepted'].includes(i.status))||(state.trials??[]).some(i=>i.status==='active'))return no('Existing intervention or trial takes priority');
   if(recordedConfounder(state,day,day))return no('Current practice conditions need review');
   if(history.some(s=>dayValid(s?.date)&&dayGap(s.date,day)>=0&&dayGap(s.date,day)<7&&s.wholeSessionAudit?.idcMethod?.status==='selected'))return no('One learned method selection per rolling seven days');
-  const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&typeof c.protocol==='string'&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
+  const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
    .map(c=>({...c,favoured:c.status==='first-associated'?c.firstSetting:c.secondSetting,other:c.status==='first-associated'?c.secondSetting:c.firstSetting}));
-  const deferred=methodReviewGate(reviews,day);
+  const deferred=methodReviewGate(reviews,day),followup=methodFollowupGate(reviews,day);
   const eligible=[];
   for(const o of options){
    if(!o||!core.has(o.skill)||typeof o.normal!=='string'||typeof o.alternative!=='string'||o.normal===o.alternative||!Number.isFinite(o.normalScore)||!Number.isFinite(o.alternativeScore)||o.alternativeScore<o.normalScore||o.alternativeScore-o.normalScore>2.5||!Number.isInteger(o.seconds)||o.seconds<300||o.seconds>1200||!Number.isInteger(o.normalTier)||!Number.isInteger(o.alternativeTier)||o.normalTier<1||o.normalTier>7||o.alternativeTier<1||o.alternativeTier>7)continue;
@@ -120,10 +121,19 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
    // Conflicting favoured names, protocols or exact settings veto a switch.
    if(!rows.length||rows.some(r=>r.favoured.name!==o.alternative||r.protocol!==rows[0].protocol||r.favoured.tier!==o.alternativeTier))continue;
    const pair=rows.filter(r=>r.other.name===o.normal&&r.other.tier===o.normalTier);
-   if(!pair.length||rows.some(r=>recordedConfounder(state,r.latest,day))||deferred.some(r=>r.skill===o.skill&&r.protocol===rows[0].protocol&&r.alternative===o.alternative))continue;
+   if(!pair.length||rows.some(r=>recordedConfounder(state,r.latest,day))||deferred.some(r=>r.skill===o.skill&&r.protocol===rows[0].protocol&&r.alternative===o.alternative)||followup.some(r=>r.skill===o.skill))continue;
    const exact=JSON.stringify(pair[0].favoured);
    if(rows.some(r=>JSON.stringify(r.favoured)!==exact)||pair.some(r=>JSON.stringify(r.other)!==JSON.stringify(pair[0].other)))continue;
-   const best=[...pair].sort((a,b)=>b.pairs-a.pairs||b.weeks-a.weeks||b.latest.localeCompare(a.latest))[0];
+   // A supported difference between methods at one dose cannot justify a
+   // substantially different dose. Require most recorded matched durations
+   // on BOTH arms to be close to the actual final native clock budget.
+   const compatibleDose=c=>Array.isArray(c.matched)&&c.matched.length===c.pairs&&c.matched.every(m=>m&&Number.isInteger(m.aSeconds)&&Number.isInteger(m.bSeconds)&&m.aSeconds>=300&&m.bSeconds>=300&&m.aSeconds<=7200&&m.bSeconds<=7200)&&c.matched.filter(m=>[m.aSeconds,m.bSeconds].every(n=>Math.abs(n-o.seconds)<=.25*Math.max(n,o.seconds))).length>=Math.ceil(.75*c.pairs);
+   const doseMatched=pair.filter(compatibleDose);
+   if(!doseMatched.length)continue;
+   // Adequately sampled, recent uncertainty in the exact same comparison
+   // is a veto, not permission to cherry-pick a favourable duplicate.
+   if(comparisons.some(c=>c?.kind==='method'&&c.skill===o.skill&&c.protocol===rows[0].protocol&&c.status==='unclear'&&c.pairs>=6&&c.weeks>=6&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&[c.firstSetting.name,c.secondSetting.name].includes(o.normal)&&[c.firstSetting.name,c.secondSetting.name].includes(o.alternative)))continue;
+   const best=[...doseMatched].sort((a,b)=>b.pairs-a.pairs||b.weeks-a.weeks||b.latest.localeCompare(a.latest))[0];
    eligible.push({status:'selected',normal:o.normal,alternative:o.alternative,skill:o.skill,seconds:o.seconds,protocol:best.protocol,pairs:best.pairs,weeks:best.weeks,latest:best.latest,expectedSetting:JSON.parse(JSON.stringify(best.favoured)),scoreGap:o.alternativeScore-o.normalScore,day,reason:'Player-enabled native near-tie; matched observational evidence supports trying this method. Native rules and minutes are unchanged.'});
   }
   return eligible.sort((a,b)=>a.scoreGap-b.scoreGap||b.pairs-a.pairs||a.normal.localeCompare(b.normal)||a.alternative.localeCompare(b.alternative))[0]??no('No sufficiently supported native near-tie');

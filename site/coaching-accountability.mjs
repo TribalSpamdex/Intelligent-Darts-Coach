@@ -127,7 +127,7 @@ export function methodReviewGate(rows,day){
  if(!dayValid(day)||!Array.isArray(rows))throw Error('Invalid method review');
  const groups=new Map(),blocked=[];
  for(const r of rows){
-  if(r.outcome!=='observed-lower'||!Array.isArray(r.baselineDays)||r.baselineDays.length!==2||!Array.isArray(r.followupDays)||r.followupDays.length!==2||!r.followupDays.every(dayValid)||!r.baselineDays.every(dayValid)||!dayValid(r.day)||r.followupDays[1]>day||dayGap(r.followupDays[1],day)>56)continue;
+  if(r.outcome!=='observed-lower'||!Array.isArray(r.baselineDays)||r.baselineDays.length!==2||!Array.isArray(r.followupDays)||r.followupDays.length!==2||!r.followupDays.every(dayValid)||!r.baselineDays.every(dayValid)||!dayValid(r.day)||!(r.baselineDays[0]<r.baselineDays[1]&&r.baselineDays[1]<r.day&&r.day<r.followupDays[0]&&r.followupDays[0]<r.followupDays[1])||r.followupDays[1]>day||dayGap(r.followupDays[1],day)>56)continue;
   const key=JSON.stringify([r.skill,r.protocol,r.alternative]),a=groups.get(key)??[];a.push(r);groups.set(key,a);
  }
  for(const a of groups.values()){
@@ -139,5 +139,19 @@ export function methodReviewGate(rows,day){
 }
 export function methodReviewLines(rows,day){
  if(!rows.length)return ['No saved personalised drill selections to review.'];
- return [...rows.slice(-15).flatMap(r=>[r.day+' · '+r.normal+' to '+r.alternative+' · '+r.status.replaceAll('-',' ')+'; '+r.outcome.replaceAll('-',' ')+'.',...(r.seconds!==null?['Matched elapsed activity '+(r.seconds/60).toFixed(1)+' min; exact historical setting '+(r.exactSetting?'observed':'not established')+'.']:[]),...(r.change!==null?['Later fixed checks changed '+(r.change>0?'+':'')+r.change.toFixed(1)+(r.skill==='scoring'?' points.':' percentage points.')+' '+r.otherPractice+' other recorded practice days in the comparison window.']:[])]),...methodReviewGate(rows,day).map(x=>x.alternative+': '+x.reason),'A selected drill, actual exposure and later performance are not the same. These reviews are observational, not controlled tests.'];
+ return [...rows.slice(-15).flatMap(r=>[r.day+' · '+r.normal+' to '+r.alternative+' · '+r.status.replaceAll('-',' ')+'; '+r.outcome.replaceAll('-',' ')+'.',...(r.seconds!==null?['Matched elapsed activity '+(r.seconds/60).toFixed(1)+' min; exact historical setting '+(r.exactSetting?'observed':'not established')+'.']:[]),...(r.change!==null?['Later fixed checks changed '+(r.change>0?'+':'')+r.change.toFixed(1)+(r.skill==='scoring'?' points.':' percentage points.')+' '+r.otherPractice+' other recorded practice days in the comparison window.']:[])]),...methodReviewGate(rows,day).map(x=>x.alternative+': '+x.reason),...methodFollowupGate(rows,day).map(x=>x.skill+': '+x.reason),'A selected drill, actual exposure and later performance are not the same. These reviews are observational, not controlled tests.'];
+}
+
+// A new same-skill selection during a pending review can make both
+// comparisons uninterpretable. Defer until follow-up is observed or the
+// 14-day observation window expires; missing checks are not a failure.
+export function methodFollowupGate(rows,day){
+ if(!dayValid(day)||!Array.isArray(rows))throw Error('Invalid follow-up review');
+ const result=new Map();
+ for(const r of rows){
+  if(!r||!dayValid(r.day)||dayGap(r.day,day)<0||dayGap(r.day,day)>14||r.status!=='eligible-exposure'||r.outcome!=='awaiting-comparable-checks'||!Object.hasOwn(methodMinimum,r.skill)||!FIXED_PROTOCOLS[r.skill]?.includes(r.protocol))continue;
+  const previous=result.get(r.skill);
+  if(!previous||r.day>previous.day)result.set(r.skill,{skill:r.skill,protocol:r.protocol,day:r.day,reviewUntil:new Date(Date.parse(r.day)+14*86400000).toISOString().slice(0,10),reason:'Repeat the same fixed benchmark on separate days before choosing another personalised method for this skill.'});
+ }
+ return [...result.values()].sort((a,b)=>a.skill.localeCompare(b.skill));
 }

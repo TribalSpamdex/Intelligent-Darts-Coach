@@ -5,7 +5,7 @@ import {newMemory,validateMemory,changeMemory} from '../site/coach-memory.mjs';
 const day='2026-11-26',prev='2026-11-20';
 const scoring=(name,field,before)=>({version:1,name,skill:'scoring',tier:3,rule:null,field,before,after:before,quarter:0,variant:{}});
 const a=scoring('Scoring Survival','target',60),b=scoring('Scoring Ladder','targets',[40,50,60]);
-const comparison={kind:'method',skill:'scoring',protocol:'IDC precision fixed scoring',status:'second-associated',pairs:8,weeks:8,latest:prev,firstSetting:a,secondSetting:b};
+const comparison={kind:'method',skill:'scoring',protocol:'IDC precision fixed scoring',status:'second-associated',pairs:8,weeks:8,latest:prev,firstSetting:a,secondSetting:b,matched:Array.from({length:8},()=>({aSeconds:600,bSeconds:600}))};
 const opt={normal:a.name,alternative:b.name,skill:'scoring',normalTier:3,alternativeTier:3,seconds:600,normalScore:10,alternativeScore:11};
 const fixture=()=>({memory:{learnedMethods:true},state:newMemory().state,report:{decision:'balanced',verification:{status:'passed'}},events:[],history:[],policy:{categories:{scoring:{}}},options:[{...opt}],comparisons:[structuredClone(comparison)],day});
 const pick=patch=>learnedMethodChoice({...fixture(),...patch});
@@ -39,7 +39,7 @@ test('stale, future, weak, reversed, contradictory or malformed evidence is not 
  for(const p of [{latest:'2026-10-28'},{latest:'2026-11-27'},{pairs:5},{weeks:5},{status:'unclear'},{status:'first-associated'},{kind:'dose'},{firstSetting:{name:a.name}},{secondSetting:{...b,skill:'bull'}}])assert.equal(pick({comparisons:[{...comparison,...p}]}).status,'unchanged',JSON.stringify(p));
  assert.equal(pick({comparisons:[]}).status,'unchanged');
  assert.equal(pick({comparisons:[comparison,{...comparison,status:'first-associated'}]}).status,'unchanged');
- assert.equal(pick({comparisons:[comparison,{...comparison,protocol:'Different fixed protocol'}]}).status,'unchanged');
+ assert.equal(pick({comparisons:[comparison,{...comparison,protocol:'IDC V6.2 Scoring Challenge fixed 30 darts'}]}).status,'unchanged');
  assert.equal(pick({comparisons:[comparison,{...comparison,secondSetting:{...b,before:[45,55,65],after:[45,55,65]}}]}).status,'unchanged');
 });
 test('recent reported equipment or readiness changes veto selection',()=>{
@@ -49,4 +49,21 @@ test('recent reported equipment or readiness changes veto selection',()=>{
 test('deterministic tie-breaking and evidence deletion',()=>{
  const x=fixture();x.options.push({...opt,alternativeScore:12});assert.equal(learnedMethodChoice(x).scoreGap,1);
  x.comparisons=[];assert.equal(learnedMethodChoice(x).status,'unchanged');
+});
+
+test('a native clock budget must match historical doses on both arms',()=>{
+ for(const seconds of [300,900,1200])assert.equal(pick({options:[{...opt,seconds}]}).status,'unchanged');
+ assert.equal(pick({options:[{...opt,seconds:750}]}).status,'selected');
+ for(const matched of [undefined,[],Array.from({length:8},()=>({aSeconds:600,bSeconds:1200})),Array.from({length:8},()=>({aSeconds:NaN,bSeconds:600}))])assert.equal(pick({comparisons:[{...comparison,matched}]}).status,'unchanged');
+});
+test('recent pending review prevents overlapping personalised choices, but expires',()=>{
+ const row={day:'2026-11-17',status:'eligible-exposure',outcome:'awaiting-comparable-checks',skill:'scoring',protocol:comparison.protocol};
+ assert.equal(pick({reviews:[row]}).status,'unchanged');
+ assert.equal(pick({reviews:[{...row,day:'2026-11-11'}]}).status,'selected');
+ assert.equal(pick({reviews:[{...row,outcome:'no-clear-change'}]}).status,'selected');
+});
+test('unknown benchmark and a well-sampled unclear contradictory comparison prevent activation',()=>{
+ assert.equal(pick({comparisons:[{...comparison,protocol:'unrecognised'}]}).status,'unchanged');
+ assert.equal(pick({comparisons:[comparison,{...comparison,status:'unclear'}]}).status,'unchanged');
+ assert.equal(pick({comparisons:[comparison,{...comparison,status:'unclear',pairs:2}]}).status,'selected');
 });

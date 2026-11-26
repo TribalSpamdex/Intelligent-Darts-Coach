@@ -3,7 +3,7 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {developmentAgenda} from './development-review.mjs';
 import {eventContext} from './competition-calendar.mjs';
 import {reflectionInsights} from './reflections.mjs';
-import {deliveryGate,methodReviews,methodReviewGate} from './coaching-accountability.mjs';
+import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
 const same=(a,b)=>a.skill===b.skill&&a.context===b.context&&a.protocol===b.protocol;
 export function coachBrief(host,state,report,events,reflections,day,now=Date.now()){
  if(!dayValid(day))throw Error('Invalid coaching brief date');
@@ -41,8 +41,10 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(report?.verification?.status==='passed'&&report.decision==='temporary-focus')return response('focus','Review a supported training focus','The independent engine has confirmed a change worth investigating. Review the evidence before making an optional adjustment.');
  const concern=reflectionInsights(reflections??[],host,day).repeated[0];
  if(concern)return response('reflection','A recurring practice observation',concern.question+' This is player-reported context, not a diagnosis.');
- const deferred=methodReviewGate(methodReviews(host,state,day,now),day)[0];
+ const reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day)[0];
  if(deferred)return response('method-review','Review a personalised drill choice',deferred.reason+' Keep the ordinary planner for this method while its evidence is reviewed.');
+ const waiting=methodFollowupGate(reviews,day)[0];
+ if(waiting)return response('method-followup','Complete your personalised drill review',waiting.reason+' No extra session is required.');
  const lead=agenda.actions.find(a=>['investigate-decline','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
  if(event.phase==='event-week')return response('competition','Competition this week','Keep familiar scoring and finishing practice and allow recovery. No additional workload is prescribed.');
