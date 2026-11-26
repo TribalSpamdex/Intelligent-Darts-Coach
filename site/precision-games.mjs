@@ -34,6 +34,7 @@ const specs={
  'First Nine Siege':['scoring','goal',5,5,540],
  'Neighbour Trap':['scoring','allowed',-1,2,120],
  'Double Jackpot':['doubles','allowed',-1,2,120],
+ 'Double Duel':['doubles','opponentEvery',-1,2,6],
  'Dartboard Bingo':['doubles','maxCalls',-1,5,100],
  'Split the Difference':['scoring','tolerance',-1,1,100],
  '301 Pressure':['scoring','maxDarts',-1,12,75],
@@ -50,9 +51,9 @@ export function quarterDelta(delta,quarter){
  const magnitude=Math.abs(delta),steps=magnitude===1?[1,2,3]:magnitude===2?[1,2,3]:magnitude===3?[1,3,4]:[Math.max(1,Math.floor(magnitude/2)),magnitude,Math.ceil(magnitude*1.5)];
  return Math.sign(delta)*steps[quarter-1];
 }
-const singleGames=new Set(['Treble Hunt','Doubles Streak','Doubles Survival','Number Lock','Shanghai Combo','Golf Five','Switchback','Double Jackpot','Dartboard Bingo']);
+const singleGames=new Set(['Treble Hunt','Doubles Streak','Doubles Survival','Number Lock','Shanghai Combo','Golf Five','Switchback','Double Jackpot','Dartboard Bingo','Double Duel']);
 const trebleGames=new Set(['Treble Hunt','Number Lock','Switchback']);
-function ringBasis(g){if(singleGames.has(g.name)&&(g.variant==='single'||g.variant==='singles'||g.ring==='S'))return 'singles';if(trebleGames.has(g.name)&&(g.variant==='treble'||g.ring==='T'))return 'trebles';return null}
+function ringBasis(g){if(singleGames.has(g.name)&&(g.variant==='single'||g.variant==='singles'||g.ring==='S'||g.name==='Double Duel'&&g.tier>=6))return 'singles';if(trebleGames.has(g.name)&&(g.variant==='treble'||g.ring==='T'))return 'trebles';return null}
 const bounded=(v,delta,min,max)=>Math.max(min,Math.min(max,v+delta));
 const quarterOf=d=>d?.quarter!==undefined?(Number.isInteger(d.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:0):d?.half==='upper'?2:0;
 export function validPrecisionRecord(g){
@@ -60,6 +61,7 @@ export function validPrecisionRecord(g){
  if(!p||![1,2].includes(p.version)||!Object.hasOwn(specs,g.name)||p.tier!==g.tierAtStart||g.challengeTuning!=='precision')return false;
  const [skill,field,delta,min,max]=specs[g.name];
  if(p.skill!==skill||p.field!==field||!Number.isInteger(p.tier)||p.tier<1||p.tier>7)return false;
+ if(p.version===1&&g.name==='Double Duel')return false;
  if(p.version===2&&(!Number.isInteger(p.quarter)||p.quarter<1||p.quarter>3))return false;
  if(p.basis!==undefined&&(p.version!==2||!(p.basis==='singles'&&singleGames.has(g.name)||p.basis==='trebles'&&trebleGames.has(g.name))))return false;
  const step=p.version===1?delta:quarterDelta(delta,p.quarter);
@@ -85,6 +87,7 @@ export function precisionRound(game,decisions,options={}){
  const basis=legacy?null:ringBasis(game);
  let quarter=basis&&!legacy?quarterOf(decisions[basis]):quarterOf(d);
  if(Number.isInteger(options.maxQuarter))quarter=Math.min(quarter,Math.max(0,options.maxQuarter));if(!quarter)return game;
+ if(legacy&&game.name==='Double Duel')return game;
  if(legacy&&(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D'))return game;
  if(!legacy&&game.name==='Number Lock'&&game.ring!=='D'&&!basis)return game;
  if(!legacy&&['Bull Survival','Bull Streak'].includes(game.name)&&game.target!=='25/50')return game;
