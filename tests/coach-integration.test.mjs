@@ -4,7 +4,7 @@ import {newMemory,assemble,assess,changeMemory,memorySummary,validateMemory,inte
 import {decideTransfer,applyTransfer} from '../site/coach-policy.mjs';
 const day='2026-11-15',now=Date.parse(day+'T12:00:00Z');
 const empty=()=>({sessions:[],games:[],assessmentHistory:[],bigSingles:[]});
-const fixture=()=>{const h=empty();for(let i=0;i<14;i++){const d=new Date(Date.parse('2026-11-01T12:00:00Z')+i*86400000);h.assessmentHistory.push({version:6,finished:true,completedAt:+d,doubles:Array.from({length:20},(_,j)=>({target:'D'+(j+1),darts:Array.from({length:3},(_,k)=>({segment:i<7&&k<2?'D'+(j+1):'MISS'}))}))}return h};
+const fixture=()=>{const h=empty();for(let i=0;i<14;i++){const d=new Date(Date.parse('2026-11-01T12:00:00Z')+i*86400000);const doubles=[];for(let j=1;j<=20;j++){const target='D'+j;doubles.push({target,darts:[0,1,2].map(k=>({segment:i<7&&k<2?target:'MISS'}))})}h.assessmentHistory.push({version:6,finished:true,completedAt:+d,doubles})}return h};
 const change=(h,m,type,payload)=>changeMemory(h,m,day,type,payload,now);
 function accepted(h){let m=change(h,null,'propose',{id:'focus1'});m=change(h,m,'respond',{id:'focus1',decision:'accepted'});return m}
 test('player facts persist separately from host projections and can be corrected and removed',()=>{const h=empty(),m=change(h,null,'fact',{key:'preferred double',value:'D16',evidence:'reported'}),n=change(h,m,'fact',{key:'preferred double',value:'D20',evidence:'confirmed'});assert.equal(memorySummary(n).facts[0].value,'D20');assert.equal(n.state.facts.length,2);assert.equal(memorySummary(change(h,n,'remove-fact',{key:'preferred double'})).facts.length,0);assert.equal(m.state.facts.length,1);assert.equal(validateMemory(JSON.parse(JSON.stringify(n))).state.facts.length,2)});
