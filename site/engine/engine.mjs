@@ -43,7 +43,15 @@ function removeFact(s,key){return {...s,facts:s.facts.filter(f=>f.key!==key)}}
 
 function summarise(obs){if(!obs.length)return null;const n=obs.reduce((a,o)=>a+o.attempts,0),h=obs.reduce((a,o)=>a+o.hits,0),scale=["scoring","firstNine"].includes(obs[0].skill)?3:1;const days=new Map();for(const o of obs){const d=days.get(o.day)||[0,0];d[0]+=o.hits;d[1]+=o.attempts;days.set(o.day,d)}const daily=[...days].sort().map(([day,[hits,attempts]])=>({day,value:scale*hits/attempts}));return {attempts:n,hits:h,value:scale*h/n,days:daily.length,daily,dayMean:mean(daily.map(x=>x.value)),daySD:sd(daily.map(x=>x.value)),interval:null}}
 
-function compare(obs){const sorted=[...obs].sort((a,b)=>a.day.localeCompare(b.day)),days=[...new Set(sorted.map(o=>o.day))];const a=summarise(sorted.filter(o=>days.slice(0,-7).includes(o.day))),b=summarise(sorted.filter(o=>days.slice(-7).includes(o.day)));if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {status:"insufficient",earlier:a,recent:b};const change=b.dayMean-a.dayMean;const floor=["scoring","firstNine"].includes(obs[0].skill)?3:0.05;const noise=2*Math.sqrt(a.daySD**2/a.days+b.daySD**2/b.days);return {status:Math.abs(change)>=Math.max(floor,noise)?change>0?"improving":"declining":"unclear",earlier:a,recent:b,change,noise,method:"Exploratory daily-cluster comparison; not a calibrated significance test."}}
+// Engineering uncertainty margin for correlated form. Do not count consecutive
+// practice days as independent replications. Cap effective daily observations
+// at one per five measured days (rounded up). This is not a confidence interval.
+export function serialMargin(a,b,multiplier=2.5){
+ if(!a||!b||a.days<2||b.days<2)return Infinity;
+ const effective=n=>Math.max(1,Math.ceil(n/5));
+ return multiplier*Math.sqrt(a.daySD**2/effective(a.days)+b.daySD**2/effective(b.days));
+}
+function compare(obs){const sorted=[...obs].sort((a,b)=>a.day.localeCompare(b.day)),days=[...new Set(sorted.map(o=>o.day))];const a=summarise(sorted.filter(o=>days.slice(0,-7).includes(o.day))),b=summarise(sorted.filter(o=>days.slice(-7).includes(o.day)));if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {status:"insufficient",earlier:a,recent:b};const change=b.dayMean-a.dayMean;const floor=["scoring","firstNine"].includes(obs[0].skill)?3:0.05;const noise=serialMargin(a,b);return {status:Math.abs(change)>=Math.max(floor,noise)?change>0?"improving":"declining":"unclear",earlier:a,recent:b,change,noise,method:"Exploratory daily comparison with conservative dependence allowance; not a significance test."}}
 
 function assessments(s){const groups=new Map();for(const o of s.observations){const k=JSON.stringify([o.skill,o.context,o.protocol]);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)}return [...groups.values()].map(obs=>({skill:obs[0].skill,context:obs[0].context,protocol:obs[0].protocol,summary:summarise(obs),trend:compare(obs)}))}
 
