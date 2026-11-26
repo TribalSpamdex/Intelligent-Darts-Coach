@@ -10,6 +10,7 @@ import {validObservation,currentFacts,removeFact,plan} from './engine/engine.mjs
 import {recordClinic} from './engine/clinic.mjs';
 import {recordSetup,setupComparison} from './engine/equipment-profile.mjs';
 import {fullReport} from './engine/executive.mjs';
+import {asOfState} from './engine/context.mjs';
 import {review,finish} from './engine/interventions.mjs';
 import {validateReflections,saveReflection,reflectionInsights} from './reflections.mjs';
 import {validateChecks,addCheck} from './target-checks.mjs';
@@ -34,18 +35,18 @@ export function assemble(host,raw,day,now=Date.now()){
  const memory=validateMemory(raw),evidence=projectEvidence(host,{today:day,now});
  const practice=projectExposure(host,day);
  const state=validateState({...memory.state,exposure:practice.exposure,observations:[...memory.state.observations,...evidence.observations]});
- const byId=new Map(state.observations.map(o=>[o.id,JSON.stringify(o)]));
- const edited=state.interventions.filter(i=>['proposed','accepted'].includes(i.status)&&memory.baselines[i.id].some(o=>byId.get(o.id)!==JSON.stringify(o))).map(i=>i.id);
+ const known=asOfState(state,day),byId=new Map(known.observations.map(o=>[o.id,JSON.stringify(o)]));
+ const edited=known.interventions.filter(i=>['proposed','accepted'].includes(i.status)&&memory.baselines[i.id].some(o=>byId.get(o.id)!==JSON.stringify(o))).map(i=>i.id);
  return {memory,state,evidence,edited,practice};
 }
 export function assess(host,raw,day,now=Date.now()){
- const x=assemble(host,raw,day,now),learning=verifiedLearningState(x.state,x.memory.baselines,day,host,now),report=fullReport(learning.state,day);
+ const x=assemble(host,raw,day,now),known=asOfState(x.state,day),learning=verifiedLearningState(known,x.memory.baselines,day,host,now),report=fullReport(learning.state,day);
  if(x.edited.includes(report.active.intervention)){report.active={mode:'baseline-edited',plan:plan(),intervention:report.active.intervention}}
- const active=x.state.interventions.find(i=>i.status==='accepted'&&i.id===report.active.intervention);
+ const active=known.interventions.find(i=>i.status==='accepted'&&i.id===report.active.intervention);
  // The engine intentionally suppresses new proposals while an intervention is accepted.
  // Reassess only that proposal guard, retaining all other history and current evidence.
  const confirmation=active&&report.active.mode==='accepted-temporary-focus'?fullReport({...learning.state,interventions:learning.state.interventions.filter(i=>i.id!==active.id)},day):null;
- return {...x,report,confirmation,questionableOutcomes:learning.questionable,reflectionReview:reflectionInsights(x.memory.reflections,host,day)};
+ return {...x,state:known,report,confirmation,questionableOutcomes:learning.questionable,reflectionReview:reflectionInsights(x.memory.reflections,host,day)};
 }
 export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  const x=assemble(host,raw,day,now),m=x.memory;let state;
