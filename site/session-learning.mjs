@@ -8,7 +8,7 @@ const mean=xs=>distribution(xs).mean;
 const rate=xs=>xs.reduce((n,x)=>n+Number(x.win),0)/xs.length;
 export function exerciseSequences(host,state,reflections,day,now=Date.now()){
  if(!dayValid(day))throw Error('Invalid exercise review date');
- const history=extractLearningExposure(host,day,now),ref=validateReflections(reflections??[]),groups=new Map(),rejected={partialOrMixed:0,tooFew:0,duplicateTime:0};
+ const history=extractLearningExposure(host,day,now,{includeSequence:true}),ref=validateReflections(reflections??[]),groups=new Map(),rejected={partialOrMixed:0,tooFew:0,duplicateTime:0};
  const reflectionMap=new Map(ref.filter(r=>r.kind==='exercise'&&r.answer!=='skip'&&r.at<=now).map(r=>[JSON.stringify([r.sessionId,r.index]),r]));
  const readiness=new Map((state.readiness??[]).filter(r=>r.context==='practice'&&r.day<=day).map(r=>[r.day,r]));
  for(const e of history.exposures){
