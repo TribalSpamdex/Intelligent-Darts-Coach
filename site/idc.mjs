@@ -1,5 +1,5 @@
 import {createPrecisionAdapter} from './precision-adapter.mjs';
-import {milestoneCards,progressionAnswer} from './progression-dialogue.mjs';
+import {milestoneCards,progressionAnswer,progressHighlights} from './progression-dialogue.mjs';
 import {CHECKS,makeCheck} from './precision-checks.mjs';
 import {makeTargetSample} from './manual-target-samples.mjs';
 import {REGIONS,targetSummaries} from './engine/target-evidence.mjs';
@@ -131,6 +131,7 @@ for(const [caption,fatigue,pressure,confidence,pain] of [['Feeling ready','norma
  button($('idcPreOptions'),caption,()=>{const p=$('idcPreStatus');try{const d=data(),prior=memorySummary(d.raw).readiness.find(x=>x.day===d.day&&x.context==='practice');mutate('readiness',{day:d.day,context:'practice',fatigue,pressure:prior?.pressure??pressure,confidence:prior?.confidence??confidence,pain,note:prior?.note??''});p.textContent=pain?'Saved. Stop throwing while it is painful. Seek qualified advice for significant or persistent pain.':'Readiness saved. You can continue when comfortable.'}catch(e){p.textContent=e.message}}).className='secondary';
 }
 let scheduled=false;function queueRefresh(){refreshBoundary();if(scheduled||$('technique').classList.contains('hidden'))return;scheduled=true;setTimeout(()=>{scheduled=false;if(!$('technique').classList.contains('hidden')){refresh()}},150)}
-window.addEventListener('idc-training-saved',queueRefresh);window.addEventListener('idc-view-changed',queueRefresh);
+function refreshProgressHighlights(){if($('progress').classList.contains('hidden'))return;run('idcProgressHighlights',p=>{const d=data(),x=assemble(d.host,d.raw,d.day),rows=progressHighlights(x.state,d.day);if(!rows.length)line(p,'Keep recording comparable practice to establish your next confirmed improvement.');for(const r of rows)line(p,r.skill+' · '+r.protocol+' · '+r.context+': '+r.milestone.toFixed(1)+(['scoring','firstNine'].includes(r.skill)?' average':'%')+' milestone supported by '+r.days+' recent measured days.');})}
+window.addEventListener('idc-training-saved',queueRefresh);window.addEventListener('idc-view-changed',()=>{queueRefresh();refreshProgressHighlights()});
 window.IDCPolicy=Object.freeze({validateMemory:raw=>validateMemory(raw),mayStart:()=>{try{const d=data();if(!d.raw)return true;return !['stop','reduce-load'].includes(assess(d.host,d.raw,d.day).report.decision)}catch{return true}},transfer:(session,queue,legacyTransfer,legacyPolicy)=>{const d=data();if(!d.raw)return {status:'unchanged',reason:'No independent player memory'};const x=assess(d.host,d.raw,d.day),decision=decideTransfer({...x,session,queue,legacyTransfer,legacyPolicy,priorSessions:d.host.sessions,day:d.day});applyTransfer(queue,decision);return decision}});
 refresh();
