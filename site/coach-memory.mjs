@@ -1,6 +1,6 @@
 import {newPlayer,command} from './engine/coach-api.mjs';
 import {validateState} from './engine/state.mjs';
-import {validObservation,currentFacts,removeFact} from './engine/engine.mjs';
+import {validObservation,currentFacts,removeFact,plan} from './engine/engine.mjs';
 import {recordClinic} from './engine/clinic.mjs';
 import {recordSetup,setupComparison} from './engine/equipment-profile.mjs';
 import {fullReport} from './engine/executive.mjs';
@@ -27,7 +27,7 @@ export function assemble(host,raw,day,now=Date.now()){
 }
 export function assess(host,raw,day,now=Date.now()){
  const x=assemble(host,raw,day,now),report=fullReport(x.state,day);
- if(x.edited.includes(report.active.intervention)){report.active={mode:'baseline-edited',plan:[],intervention:report.active.intervention}}
+ if(x.edited.includes(report.active.intervention)){report.active={mode:'baseline-edited',plan:plan(),intervention:report.active.intervention}}
  return {...x,report};
 }
 export function changeMemory(host,raw,day,type,payload,now=Date.now()){
