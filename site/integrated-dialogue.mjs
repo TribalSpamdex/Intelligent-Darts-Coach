@@ -1,5 +1,5 @@
 import {longitudinal,profileLines,investigationQueue} from './longitudinal.mjs';
-import {outcomeAudit,outcomeLines} from './intervention-audit.mjs';
+import {outcomeAudit,outcomeLines,verifiedLearningState} from './intervention-audit.mjs';
 import {reflectionInsights,label as reflectionLabel} from './reflections.mjs';
 import {ask,interpret} from './engine/coach-dialogue.mjs';
 import {projectTargets,summaries,compareTargets,combinedDoubleComparison,personalisedCheckout,targetProfile} from './host-targets.mjs';
@@ -34,7 +34,7 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  if(/^(how have i progressed this year|long term progress|long-term progress|show my progress history)$/.test(q))return reply('longitudinal',profileLines(longitudinal(state.observations,day)));
  if(/^(what happened to my interventions|intervention history|did the advice work)$/.test(q))return reply('intervention-audit',outcomeLines(outcomeAudit(host,state,baselines,day)));
  if(/^(what should i investigate next|next investigation)$/.test(q)){
- const base=ask(state,text,day),r=reflectionInsights(reflections,host,day),items=investigationQueue(longitudinal(state.observations,day),r.repeated);
+ const base=ask(verifiedLearningState(state,baselines,day).state,text,day),r=reflectionInsights(reflections,host,day),items=investigationQueue(longitudinal(state.observations,day),r.repeated);
  return reply('next-actions',[...(base.lines??[base.reason]).filter(Boolean),...items.slice(0,3).map(i=>i.kind==='reported'?i.question:JSON.parse(i.scope).join(' · ')+': '+i.question)]);
  }
  const cmp=q.match(/^compare (d(?:[1-9]|1[0-9]|20)) (?:and|with|vs) (d(?:[1-9]|1[0-9]|20))$/);
@@ -51,5 +51,5 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  const {score,darts}=intent.request.payload,r=personalisedCheckout(state,projectTargets(host,day,now,checks).rows,score,darts);
  return reply('checkout',[r.guidance,...(r.suggested?['Suggested: '+r.suggested.join(' → '),'Standard: '+r.standard.join(' → '),r.personalisation]:r.setup.slice(0,3).map(x=>'Aim '+x.target+' to leave '+x.remaining)),...(r.comparison?[r.comparison.days+' matched days; observed finishing-double difference '+pct(r.comparison.delta)+'.']:[])]);
  }
- const result=ask(state,text,day);if(result.type==='next-actions'){const review=reflectionInsights(reflections,host,day);for(const x of review.repeated)result.lines.push('Additional player-reported concern: '+x.question+' ('+x.days+' days)')}return result
+ const result=ask(verifiedLearningState(state,baselines,day).state,text,day);if(result.type==='next-actions'){const review=reflectionInsights(reflections,host,day);for(const x of review.repeated)result.lines.push('Additional player-reported concern: '+x.question+' ('+x.days+' days)')}return result
 }
