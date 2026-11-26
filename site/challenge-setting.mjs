@@ -29,15 +29,15 @@ export function learningBasis(game){
  if(['Bull Survival','Bull Streak'].includes(game.name)&&game.target!=='25/50')return null;
  if(['Doubles Survival','Doubles Streak'].includes(game.name)&&game.variant!=='doubles')return game.variant==='singles'?'singles':null;
  if(game.name==='Treble Hunt'&&game.variant!=='treble')return game.variant==='single'?'singles':null;
+ if(game.name==='Double Double'&&!targetRoute(game.targets,4))return null;
+ if(game.name==='Outside Doubles'&&!targetRoute(game.targets))return null;
+ if(game.name==='Number Lock'&&(!targetRoute(game.targets,3)||new Set(game.targets).size!==3))return null;
+ if(game.name==='Golf Five'&&!targetRoute(game.holes,5))return null;
  if(['Number Lock','Golf Five'].includes(game.name)){
   if(game.ring==='S')return 'singles';
   if(game.ring==='T'&&game.name==='Number Lock')return 'trebles';
   if(game.ring!=='D')return null;
  }
- if(game.name==='Double Double'&&!targetRoute(game.targets,4))return null;
- if(game.name==='Outside Doubles'&&!targetRoute(game.targets))return null;
- if(game.name==='Number Lock'&&(!targetRoute(game.targets,3)||new Set(game.targets).size!==3))return null;
- if(game.name==='Golf Five'&&!targetRoute(game.holes,5))return null;
  if(game.name==='Focused Checkouts'&&!game.config?.balanced)return null;
  return spec.skill;
 }
