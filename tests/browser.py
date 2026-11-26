@@ -406,6 +406,23 @@ with sync_playwright() as p:
     assert rp.evaluate("idcRecoveryBlocked && !data.__solRecoveryMarker")
     assert rp.evaluate("localStorage.getItem(KEY)")=='broken-primary'
     recovery.close()
+    # Positive recovery: an exact current checkpoint must survive unchanged
+    # writes, restore a corrupt primary, and be refreshed under the new fence.
+    valid_recovery=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    vp=valid_recovery.new_page()
+    vp.goto('http://127.0.0.1:8765/index.html')
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    unchanged=vp.evaluate("""()=>{data.__solRecoveryMarker='keep';if(!save(false)||!checkpointData())throw Error('setup failed');const fence=localStorage.getItem(RECOVERY_FENCE);if(!save(false))throw Error('no-op save failed');const same=localStorage.getItem(RECOVERY_FENCE)===fence;localStorage.setItem(KEY,'broken-current-primary');return same}""")
+    assert unchanged
+    vp.reload()
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert vp.evaluate("""()=>!idcRecoveryBlocked&&data.__solRecoveryMarker==='keep'&&localStorage.getItem(KEY)!=='broken-current-primary'&&JSON.parse(localStorage.getItem(CHECKPOINT_KEY)).fence===localStorage.getItem(RECOVERY_FENCE)""")
+    # A second corruption of primary must still recover the same current data.
+    vp.evaluate("localStorage.setItem(KEY,'second-corruption')")
+    vp.reload()
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert vp.evaluate("!idcRecoveryBlocked && data.__solRecoveryMarker==='keep'")
+    valid_recovery.close()
     print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
     browser.close()
