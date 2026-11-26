@@ -25,7 +25,7 @@ export function validateMemory(raw){
  if(raw.learnedMethods!==undefined&&typeof raw.learnedMethods!=='boolean')throw Error('Invalid learned method preference');
  const state=validateState(raw.state);
  manualSamples(state.throws);validatePrecisionChecks(state.observations);
- if(state.observations.some(o=>o.id.startsWith(HOST_PREFIX)))throw Error('Host observations must not be stored twice');
+ if(state.observations.some(o=>o.id.startsWith(HOST_PREFIX)||o.protocol.startsWith('IDC V6.2 ')))throw Error('Native benchmark observations must be reconstructed from original host records, not imported as manual results. Current profile has not been replaced.');
  const baselines={};
  for(const i of state.interventions){const rows=Object.hasOwn(raw.baselines,i.id)?raw.baselines[i.id]:null;if(!Array.isArray(rows)||rows.length!==i.baselineIds.length||rows.length>50000)throw Error('Missing intervention baseline');const verified=rows.map(validObservation);if(new Set(verified.map(o=>o.id)).size!==verified.length||!i.baselineIds.every(id=>verified.some(o=>o.id===id)))throw Error('Invalid intervention baseline');Object.defineProperty(baselines,i.id,{value:verified,enumerable:true,writable:true,configurable:true})}
  return {format:'IDC-coach-memory',version:1,state,baselines,targetChecks:validateChecks(raw.targetChecks??[]),reflections:validateReflections(raw.reflections??[]),events:validateEvents(raw.events??[]),learnedMethods:raw.learnedMethods===true};
