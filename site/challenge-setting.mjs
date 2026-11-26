@@ -11,7 +11,11 @@ const rules=Object.freeze({
  'Bull Survival':{skill:'bull',field:'allowed',keys:['target','goal','beginner']},
  'Bull Streak':{skill:'bull',field:'allowedMisses',keys:['target','goal','beginner']},
  'Focused Checkouts':{skill:'checkout',field:'lives',keys:['config','beginner']},
- 'Checkout Climb':{skill:'checkout',field:'failedVisitLimit',keys:['target','finishGoal','priorFirstCheckout','beginner']}
+ 'Checkout Climb':{skill:'checkout',field:'failedVisitLimit',keys:['target','finishGoal','priorFirstCheckout','beginner']},
+ 'Double Double':{skill:'doubles',field:'allowed',keys:['targets','beginner']},
+ 'Outside Doubles':{skill:'doubles',field:'allowed',keys:['targets','lives','beginner']},
+ 'Number Lock':{skill:'doubles',field:'allowedMisses',keys:['ring','targets','beginner']},
+ 'Golf Five':{skill:'doubles',field:'par',keys:['ring','holes','beginner']}
 });
 export const LEARNING_GAMES=Object.freeze(Object.keys(rules));
 const scalar=v=>Number.isSafeInteger(v)&&v>=0&&v<=1000;
@@ -24,6 +28,14 @@ export function learningBasis(game){
  if(['Bull Survival','Bull Streak'].includes(game.name)&&game.target!=='25/50')return null;
  if(['Doubles Survival','Doubles Streak'].includes(game.name)&&game.variant!=='doubles')return game.variant==='singles'?'singles':null;
  if(game.name==='Treble Hunt'&&game.variant!=='treble')return game.variant==='single'?'singles':null;
+ if(['Number Lock','Golf Five'].includes(game.name)){
+  if(game.ring==='S')return 'singles';
+  if(game.ring==='T'&&game.name==='Number Lock')return 'trebles';
+  if(game.ring!=='D')return null;
+ }
+ if(['Double Double','Outside Doubles'].includes(game.name)&&(!Array.isArray(game.targets)||!game.targets.length||game.targets.some(n=>!Number.isInteger(n)||n<1||n>20)))return null;
+ if(game.name==='Number Lock'&&(!Array.isArray(game.targets)||game.targets.length!==3))return null;
+ if(game.name==='Golf Five'&&(!Array.isArray(game.holes)||game.holes.length!==5))return null;
  if(game.name==='Focused Checkouts'&&!game.config?.balanced)return null;
  return spec.skill;
 }
