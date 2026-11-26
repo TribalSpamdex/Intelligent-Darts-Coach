@@ -330,6 +330,30 @@ with sync_playwright() as p:
     assert allocation[1]['calls']==1 and allocation[1]['names'][0]=='Scoring Survival', allocation
     assert all(x['calls']==0 and x['names'][0]=='Scoring Survival' for x in allocation[2:]), allocation
     assert all(x['total']==1800 for x in allocation), allocation
+    # H5: same native skill tier, calendar, exposure and settings; change only
+    # independent measured ability and inspect actual executable scheduler output.
+    adaptation=page.evaluate("""()=>{const original=clone(data);try{
+      data.sessions=[];data.games=[];data.bigSingles=[];data.activeSession=null;data.assessmentHistory=[];data.assessment.completedAt=Date.now()-90*DAY_MS;
+      data.idcCoachMemory.events=[];data.idcCoachMemory.state.readiness=[];data.idcCoachMemory.state.interventions=[];data.idcCoachMemory.baselines={};
+      for(const k of SKILLS)data.skills[k].level=4;
+      const day=n=>dateKey(Date.now()-n*DAY_MS),results=[];
+      for(const [avg,doubles,checkout,bull] of [[25,6,1,3],[55,18,4,10],[75,30,6,16],[95,42,9,22],[108,51,11,27]]){
+       data.idcCoachMemory.state.observations=[];
+       for(const n of [0,1,7,8,14,15,21,22])for(const [skill,attempts,hits] of [['scoring',30,avg*10],['doubles',60,doubles],['checkout',12,checkout],['bull',30,bull]])
+        data.idcCoachMemory.state.observations.push({id:'IDC:precision-check:'+skill+':'+day(n),day:day(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
+       window.IDCPrecision.invalidate();
+       const pref=window.IDCPolicy.preferredDrills();
+       if(Object.values(pref).some(n=>!QUICK_GAMES.includes(n)||DC10_MEASUREMENT_GAMES.has(n)))throw Error('Measured drill is not executable '+JSON.stringify(pref));
+       const plans=FOCUS.map(focus=>Array.from(chooseSessionGames(focus,4,null,false,null)));
+       if(plans.some(p=>p.length!==4||new Set(p).size!==4||p.some(n=>DC10_MEASUREMENT_GAMES.has(n))))throw Error('Invalid native plan');
+       const full=generateSession(false,false,true).map(e=>[e.name,e.seconds??null,e.mode]);
+       results.push({pref,plans,full});
+      }
+      return results;
+    }finally{data=original;window.IDCPrecision.invalidate()}}""")
+    assert len({json.dumps(x['pref'],sort_keys=True) for x in adaptation})>=3, adaptation
+    assert len({json.dumps(x['plans']) for x in adaptation})>=2, adaptation
+    print('Native measured profile scheduling audit:',adaptation)
     # Synthetic native construction audit: same rule-builder used by timed training.
     audit=page.evaluate("""async()=>{
       const original=clone(data),oldGame=activeGame,oldUndo=undoSnapshot,oldTab=currentTab;
