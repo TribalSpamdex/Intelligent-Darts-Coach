@@ -37,6 +37,21 @@ export function deliveryEvidence(host,item,day,now=Date.now()){
 // Conservative eligibility policy, not a scientifically validated dose threshold.
 // Require three separate completed, attributable exercises, each with at least
 // four of the additional five minutes and a real recorded throwing round.
+// A planner category is not direct evidence of what was actually practised.
+// Mixed exercises and beginner single-ring adaptations cannot establish a
+// skill-specific dose. Only these unambiguous native round families qualify.
+const directRoundNames={
+ scoring:new Set(['Scoring Survival','Scoring Ladder','Scoring Challenge']),
+ doubles:new Set(['Doubles Survival','Doubles Streak','Double Double','Outside Doubles','Double Duel','Double Jackpot','Dartboard Bingo']),
+ checkout:new Set(['Checkout Climb','Focused Checkouts','Checkout Poker']),
+ bull:new Set(['Bull Survival','Bull Streak','Bull Accuracy','Bull Bank','Bull Blackjack'])
+};
+function attributableRound(g,skill){
+ if(!Object.hasOwn(directRoundNames,skill)||!directRoundNames[skill].has(g.name))return false;
+ if(skill==='doubles'&&['Doubles Survival','Doubles Streak'].includes(g.name)&&g.variant!=='doubles')return false;
+ if(g.trainingRing==='S'||g.variant==='single'||g.variant==='singles')return false;
+ return [g.thrown,g.visits,g.attempts,g.dartsUsed,g.darts].some(n=>Number.isInteger(n)&&n>0);
+}
 export function attributableAllocation(host,item,day,now=Date.now()){
  if(!Array.isArray(host?.games)||!Array.isArray(host?.sessions)||item.context!=='practice')return false;
  const evidence=deliveryEvidence(host,item,day,now),days=new Set();
@@ -48,7 +63,7 @@ export function attributableAllocation(host,item,day,now=Date.now()){
   if(!receiver||!activity)continue;
   const rounds=host.games.filter(g=>g.sessionId===session.id&&g.exerciseId===receiver.id&&g.exerciseIndex===index&&g.name===receiver.name&&g.quick===false&&g.extra===false&&!g.recovery&&['natural','partial'].includes(g.completion)&&g.day===session.date&&Number.isFinite(g.at)&&g.at>=session.provenanceLocked.at&&g.at<=activity.at);
   const unique=new Set(rounds.map(g=>g.at));
-  if(rounds.length!==unique.size||!rounds.some(g=>[g.thrown,g.visits,g.attempts,g.dartsUsed,g.darts].some(n=>Number.isInteger(n)&&n>0)))continue;
+  if(rounds.length!==unique.size||!rounds.some(g=>attributableRound(g,item.skill)))continue;
   days.add(row.day);
  }
  return days.size>=3;
