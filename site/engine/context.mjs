@@ -1,4 +1,4 @@
-import {SKILLS,mean,sd,summarise,serialMargin} from './engine.mjs';
+import {SKILLS,mean,sd,summarise,serialMargin,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine.mjs';
 export const dayValid=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d;
 export const dayGap=(a,b)=>(Date.parse(b)-Date.parse(a))/86400000;
 // End-of-local-day retrospective projection. The original stored records
@@ -13,8 +13,8 @@ export function asOfState(m,day){
  x.facts=(m.facts??[]).filter(f=>typeof f.at==='string'&&dayValid(f.at.slice(0,10))&&f.at.slice(0,10)<=day);
  x.interventions=(m.interventions??[]).filter(i=>!i.proposedDay||i.proposedDay<=day).map(i=>{
   const y={...i,retentionHistory:(i.retentionHistory??[]).filter(r=>dayValid(r.reviewDay)&&r.reviewDay<=day)};
-  const removeReview=()=>{for(const key of ['reviewDay','outcome','adherence','confounders','retentionHistory'])delete y[key]};
-  if(i.responseDay&&i.responseDay>day){y.status='proposed';delete y.responseDay;delete y.cancelledDay;removeReview()}
+  const removeReview=()=>{for(const key of ['reviewDay','outcome','adherence','confounders','retentionHistory',ALLOCATION_PROOF,REVIEW_UNVERIFIED])delete y[key]};
+  if(i.responseDay&&i.responseDay>day){y.status='proposed';delete y.responseDay;delete y.cancelledDay;delete y.cancelledFrom;removeReview()}
   else if(i.cancelledDay&&i.cancelledDay>day){y.status=i.cancelledFrom??(i.responseDay<i.cancelledDay?'accepted':'proposed');if(y.status==='proposed')delete y.responseDay;delete y.cancelledDay;delete y.cancelledFrom;removeReview()}
   else if(i.reviewDay&&i.reviewDay>day){y.status='accepted';removeReview()}
   return y;
