@@ -41,36 +41,67 @@ const specs={
 };
 export const SUPPORTED_GAMES=Object.freeze(Object.keys(specs));
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
-export function validPrecisionRecord(g){const p=g?.precision;if(!p||p.version!==1||!Object.hasOwn(specs,g.name)||p.tier!==g.tierAtStart||g.challengeTuning!=='precision')return false;const [skill,field,delta,min,max]=specs[g.name];if(p.skill!==skill||p.field!==field||!Number.isInteger(p.tier)||p.tier<1||p.tier>7)return false;const valid=(a,b)=>Number.isInteger(a)&&a>=min&&a<=max&&b===Math.max(min,Math.min(max,a+delta));return !same(p.before,p.after)&&(field==='targets'?Array.isArray(p.before)&&Array.isArray(p.after)&&p.before.length>0&&p.before.length===p.after.length&&p.before.every((a,i)=>valid(a,p.after[i])):valid(p.before,p.after))}
+// Four integer game configurations. Large score adjustments use smaller
+// increments; small integer life/allowance budgets can change by 1, 2 or 3.
+// A mathematical floor can legitimately collapse adjacent configurations.
+export function quarterDelta(delta,quarter){
+ if(!Number.isInteger(quarter)||quarter<0||quarter>3||!Number.isInteger(delta)||!delta)throw Error('Invalid quarter adjustment');
+ if(!quarter)return 0;
+ const magnitude=Math.abs(delta),steps=magnitude===1?[1,2,3]:magnitude===2?[1,2,3]:magnitude===3?[1,3,4]:[Math.max(1,Math.floor(magnitude/2)),magnitude,Math.ceil(magnitude*1.5)];
+ return Math.sign(delta)*steps[quarter-1];
+}
+const bounded=(v,delta,min,max)=>Math.max(min,Math.min(max,v+delta));
+const quarterOf=d=>Number.isInteger(d?.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:d?.half==='upper'?2:0;
+export function validPrecisionRecord(g){
+ const p=g?.precision;
+ if(!p||![1,2].includes(p.version)||!Object.hasOwn(specs,g.name)||p.tier!==g.tierAtStart||g.challengeTuning!=='precision')return false;
+ const [skill,field,delta,min,max]=specs[g.name];
+ if(p.skill!==skill||p.field!==field||!Number.isInteger(p.tier)||p.tier<1||p.tier>7)return false;
+ if(p.version===2&&(!Number.isInteger(p.quarter)||p.quarter<1||p.quarter>3))return false;
+ const step=p.version===1?delta:quarterDelta(delta,p.quarter);
+ const valid=(a,b)=>Number.isInteger(a)&&a>=min&&a<=max&&b===bounded(a,step,min,max);
+ return !same(p.before,p.after)&&(field==='targets'?Array.isArray(p.before)&&Array.isArray(p.after)&&p.before.length>0&&p.before.length===p.after.length&&p.before.every((a,i)=>valid(a,p.after[i])):valid(p.before,p.after));
+}
+function feasible(game,field,next){
+ if(field==='targets')return Array.isArray(next)&&next.length===game.targets.length&&next.every((v,i)=>!i||v>=next[i-1]);
+ switch(game.name){
+ case 'Bull Bank':case 'Bull Blackjack':return next>=Math.ceil(game.goal/50);
+ case 'Outside Doubles':case 'Double Double':case 'Cricket Countdown':case 'Pressure Cricket':return Array.isArray(game.targets)&&next>=game.targets.length;
+ case 'Neighbour Trap':return next>=game.goal;
+ case 'Dartboard Bingo':return !!game.singleLineRound||next>=20;
+ case 'Switchback':return Array.isArray(game.sequence)&&next>=game.sequence.length;
+ default:return true;
+ }
+}
 export function precisionRound(game,decisions,options={}){
  if(!game||typeof game!=='object'||!Object.hasOwn(specs,game.name)||game.precision||game.recovery||game.challengeTuning||!options.eligible||options.probe||options.safety||options.cooldown)return game;
  const [skill,field,delta,min,max]=specs[game.name],d=decisions?.[skill];
- if(d?.half!=='upper'||!Number.isInteger(d.tier)||!Number.isInteger(game.tier)||game.tier!==d.tier)return game;
- // Singles foundation versions do not measure doubles. Mixed-skill games
- // require separate confirmation for their second skill as well.
+ if(!Number.isInteger(d?.tier)||!Number.isInteger(game.tier)||game.tier!==d.tier)return game;
+ const legacy=!Number.isInteger(d.quarter);
+ let quarter=quarterOf(d);if(!quarter)return game;
  if(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D')return game;
  if(game.name==='Focused Checkouts'&&(!game.config?.balanced||game.config.tier!==game.tier||game.config.lives!==game.lives))return game;
- if(game.name==='Pressure Cricket'&&game.allowed+delta<game.targets?.length)return game;
- if(game.name==='Bull Bank'&&field==='dartsLeft'&&game.dartsLeft+delta<Math.ceil(game.goal/50))return game;
- if(game.name==='Bull Blackjack'&&field==='allowed'&&game.allowed+delta<Math.ceil(game.goal/50))return game;
- if(game.name==='Outside Doubles'&&game.allowed+delta<game.targets?.length)return game;
- if(game.name==='Double Double'&&game.allowed+delta<game.targets?.length)return game;
- if(game.name==='Neighbour Trap'&&game.allowed+delta<game.goal)return game;
- if(['301 Pressure','501 Pressure'].includes(game.name)&&decisions.checkout?.half!=='upper')return game;
- if(game.name==='Double Bull Bridge'&&decisions.bull?.half!=='upper')return game;
- if(game.name==='Dartboard Bingo'&&!game.singleLineRound&&game.maxCalls+delta<20)return game;
- if(game.name==='Switchback'&&game.allowed+delta<game.sequence?.length)return game;
- if(game.name==='Cricket Countdown'&&game.allowed+delta<game.targets?.length)return game;
+ // Mixed skills never inherit an unsupported harder setting.
+ if(['301 Pressure','501 Pressure'].includes(game.name))quarter=Math.min(quarter,quarterOf(decisions.checkout));
+ if(game.name==='Double Bull Bridge')quarter=Math.min(quarter,quarterOf(decisions.bull));
+ if(!quarter)return game;
  const old=game[field];
- const adjust=v=>Math.max(min,Math.min(max,v+delta));
- const next=field==='targets'&&Array.isArray(old)&&old.length&&old.every(v=>Number.isInteger(v)&&v>=min&&v<=max)?old.map(adjust):Number.isInteger(old)&&old>=min&&old<=max?adjust(old):old;
- if(same(old,next))return game;
- const out={...game,[field]:next,precision:{version:1,skill,tier:d.tier,field,before:old,after:next},challengeTuning:'precision',challengeTuningVersion:'IDC-1.5',challengeMessage:'Personalised challenge: '+field+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
+ if(field==='targets'?(!Array.isArray(old)||!old.length||!old.every(v=>Number.isInteger(v)&&v>=min&&v<=max)):(!Number.isInteger(old)||old<min||old>max))return game;
+ // Choose the hardest supported feasible configuration, falling back to
+ // a less demanding quarter when a discrete dart budget reaches its floor.
+ for(let q=quarter;q>=1;q--){
+ const step=legacy?delta:quarterDelta(delta,q);
+ const next=field==='targets'?old.map(v=>bounded(v,step,min,max)):bounded(old,step,min,max);
+ if(same(old,next)||!feasible(game,field,next))continue;
+ const provenance={version:legacy?1:2,skill,tier:d.tier,field,before:old,after:next,...(legacy?{}:{quarter:q})};
+ const out={...game,[field]:next,precision:provenance,challengeTuning:'precision',challengeTuningVersion:legacy?'IDC-1.5':'IDC-1.6',challengeMessage:'Personalised challenge: '+field+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
  if(field==='targets')out.target=next[game.step??0];
  if(game.name==='Focused Checkouts')out.config={...game.config,lives:next};
  if(field==='maxDarts'&&Number.isInteger(game.maxVisits))out.maxVisits=Math.ceil(next/3);
  delete out.prospectiveForecast;
  return out;
+ }
+ return game;
 }
 export function precisionOptions(games,name,day,tier,now=Date.now()){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(games))throw Error('Invalid challenge history');
