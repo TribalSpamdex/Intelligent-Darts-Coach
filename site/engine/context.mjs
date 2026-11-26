@@ -15,7 +15,7 @@ export function asOfState(m,day){
   const y={...i,retentionHistory:(i.retentionHistory??[]).filter(r=>dayValid(r.reviewDay)&&r.reviewDay<=day)};
   const removeReview=()=>{for(const key of ['reviewDay','outcome','adherence','confounders','retentionHistory'])delete y[key]};
   if(i.responseDay&&i.responseDay>day){y.status='proposed';delete y.responseDay;delete y.cancelledDay;removeReview()}
-  else if(i.cancelledDay&&i.cancelledDay>day){y.status=i.responseDay<i.cancelledDay?'accepted':'proposed';if(y.status==='proposed')delete y.responseDay;delete y.cancelledDay;removeReview()}
+  else if(i.cancelledDay&&i.cancelledDay>day){y.status=i.cancelledFrom??(i.responseDay<i.cancelledDay?'accepted':'proposed');if(y.status==='proposed')delete y.responseDay;delete y.cancelledDay;delete y.cancelledFrom;removeReview()}
   else if(i.reviewDay&&i.reviewDay>day){y.status='accepted';removeReview()}
   return y;
  });
