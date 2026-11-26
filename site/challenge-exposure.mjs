@@ -7,7 +7,7 @@ const seconds=v=>Number.isInteger(v)&&v>=0&&v<=3600;
 function validRound(g,s,a,now){
  const l=g.learningSetting;
  if(!validSetting(l)||g.name!==l.name||g.name!==a.name||g.sessionId!==s.id||g.exerciseId!==a.exerciseId||g.exerciseIndex!==a.exerciseIndex||g.day!==s.date||g.quick!==false||g.extra||g.recovery||g.ruleVersion!==l.rule&&!(g.ruleVersion==null&&l.rule===null)||g.tierAtStart!==l.tier||!Number.isFinite(g.at)||g.at<s.start||g.at>a.at||g.at>now)return false;
- if(l.quarter){if(!validPrecisionRecord(g)||g.precision.version!==2||g.precision.quarter!==l.quarter||!same(g.precision.before,l.before)||!same(g.precision.after,l.after)||g.precision.field!==l.field||(g.precision.basis??g.precision.skill)!==l.skill)return false}
+ if(l.quarter){if(!validPrecisionRecord(g)||![2,3].includes(g.precision.version)||g.precision.quarter!==l.quarter||!same(g.precision.before,l.before)||!same(g.precision.after,l.after)||g.precision.field!==l.field||(g.precision.basis??g.precision.skill)!==l.skill)return false}
  else if(g.challengeTuning||g.precision)return false;
  return ['natural','partial','manual'].includes(g.completion)&&(g.completion!=='natural'||typeof g.win==='boolean');
 }
