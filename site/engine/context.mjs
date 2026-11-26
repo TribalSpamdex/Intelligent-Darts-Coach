@@ -1,4 +1,4 @@
-import {SKILLS,mean,sd,summarise} from './engine.mjs';
+import {SKILLS,mean,sd,summarise,serialMargin} from './engine.mjs';
 export const dayValid=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d;
 export const dayGap=(a,b)=>(Date.parse(b)-Date.parse(a))/86400000;
 // End-of-local-day retrospective projection. The original stored records
@@ -49,11 +49,14 @@ export function robustTrend(obs,{asOf=null}={}){
  if(new Set(obs.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
  const end=asOf??obs.map(o=>o.day).sort().at(-1);if(!dayValid(end))throw Error('Invalid analysis date');
  const current=obs.filter(o=>dayGap(o.day,end)>=0&&dayGap(o.day,end)<28),previous=obs.filter(o=>dayGap(o.day,end)>=28&&dayGap(o.day,end)<56);
- const a=summarise(previous),b=summarise(current),base={earlier:a,recent:b,asOf:end,method:'Nonoverlapping 28-day windows; weekly block means for exploratory noise. Serial dependence between weeks can remain.'};
+ const a=summarise(previous),b=summarise(current),base={earlier:a,recent:b,asOf:end,method:'Nonoverlapping 28-day windows; weekly and fortnightly block dispersion plus conservative daily dependence allowance. Exploratory, not a calibrated confidence interval.'};
  if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {...base,status:'insufficient'};
- function blocks(s){const bins=new Map();for(const d of s.daily){const k=Math.floor(dayGap(d.day,end)/7);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(d.value)}return [...bins.values()].map(mean)}
+ function blocks(s,width=7){const bins=new Map();for(const d of s.daily){const k=Math.floor(dayGap(d.day,end)/width);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(d.value)}return [...bins.values()].map(mean)}
  const x=blocks(a),y=blocks(b);if(x.length<3||y.length<3)return {...base,status:'insufficient'};
- const change=mean(y)-mean(x),noise=2*Math.sqrt(sd(x)**2/x.length+sd(y)**2/y.length),floor=['scoring','firstNine'].includes(obs[0].skill)?3:.05;
+ const u=blocks(a,14),v=blocks(b,14);
+ if(u.length<2||v.length<2)return {...base,status:'insufficient'};
+ const change=mean(y)-mean(x),weekly=2.5*Math.sqrt(sd(x)**2/x.length+sd(y)**2/y.length),fortnightly=2.5*Math.sqrt(sd(u)**2/u.length+sd(v)**2/v.length),daily=serialMargin(a,b);
+ const noise=Math.max(weekly,fortnightly,daily),floor=['scoring','firstNine'].includes(obs[0].skill)?3:.05;
  const signs=y.map(v=>v-mean(x));const consistent=signs.filter(v=>Math.sign(v)===Math.sign(change)).length>=3;
  return {...base,change,noise,consistent,blocks:[x.length,y.length],status:consistent&&Math.abs(change)>=Math.max(floor,noise)?change>0?'improving':'declining':'unclear'};
 }
