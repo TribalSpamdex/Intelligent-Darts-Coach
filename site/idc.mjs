@@ -25,7 +25,7 @@ const button=(p,s,fn)=>{const b=el('button',s);b.type='button';b.onclick=fn;p.ap
 const select=(node,items)=>{const old=node.value;node.replaceChildren();for(const item of items){const [v,t]=Array.isArray(item)?item:[item,item];const o=el('option',t);o.value=v;node.append(o)}if([...node.options].some(o=>o.value===old))node.value=old};
 const data=()=>({host:host.snapshot(),raw:host.memory(),day:host.day()});
 window.IDCPrecision=createPrecisionAdapter(()=>{const d=data();return {...d,now:Date.now(),state:validateMemory(d.raw).state}},(name,day,now)=>host.precisionHistory(name,day,now));
-host.installCalibration(window.IDCPrecision.calibrationChoices());
+host.installCalibration(window.IDCPrecision.calibrationChoices(),window.IDCPrecision.legacyPrecisionChoices());
 function run(id,fn){const p=$(id);p.replaceChildren();try{fn(p)}catch(e){line(p,'Coach unavailable: '+e.message+' Existing training is unchanged.')}}
 function mutate(type,payload){const x=data();const next=changeMemory(x.host,x.raw,x.day,type,payload);host.writeMemory(next,JSON.stringify(x.raw));refresh();$('idcReport').replaceChildren();$('idcAnswer').replaceChildren();line($('idcMemoryStatus'),'Saved locally.');return next}
 function action(type,payload,after){try{mutate(type,payload);if(after)after()}catch(e){line($('idcMemoryStatus'),e.message);line($('idcReport'),e.message)}}
