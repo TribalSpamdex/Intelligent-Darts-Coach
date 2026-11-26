@@ -1,3 +1,4 @@
+import {deliveryGate} from './coaching-accountability.mjs';
 // A single actionable coaching prompt, not an extra automatic planner.
 import {dayValid,dayGap} from './engine/context.mjs';
 import {developmentAgenda} from './development-review.mjs';
@@ -13,6 +14,8 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  const open=(state.interventions??[]).find(i=>['proposed','accepted'].includes(i.status)&&i.proposedDay<=day);
  if(open){
   const due=open.status==='accepted'&&dayGap(open.responseDay,day)>=open.reviewAfterDays;
+  const shortfall=open.status==='accepted'&&dayValid(open.responseDay)&&open.responseDay<=day&&deliveryGate(host,open,day,now).defer;
+  if(shortfall)return response('intervention-review','Review your existing coaching adjustment','Three recent measured days had less than half the added elapsed practice delivered. Review the current adjustment before repeating it.',{intervention:open.id});
   if(due||report?.active?.mode==='baseline-edited'||report?.active?.mode?.startsWith('review-'))return response('intervention-review','Review your existing coaching adjustment','Review the original benchmark, actual delivery, reported adherence and changes before another adjustment.',{intervention:open.id});
   if(open.status==='proposed')return response('consent','A coaching adjustment is awaiting your decision','Review its current evidence before accepting or declining. Nothing changes without consent.',{intervention:open.id});
  }
