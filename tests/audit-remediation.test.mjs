@@ -196,3 +196,30 @@ test('H4: native assessment and both audit views reconstruct historical interven
  assert.equal(earlier[proofSymbol],undefined);
  assert.equal(earlier[reviewSymbol],undefined);
 });
+
+import {projectEvidence} from '../site/v62-evidence.mjs';
+test('H4/H6: native benchmark chronology must be consistent with original records',()=>{
+ const date='2026-11-15',start=new Date(2026,10,15,23,50).getTime(),end=start+20*60000;
+ const session={id:123,date,start,quick:false,completed:true};
+ const singles={day:date,at:end,hits:60,perNumber:Array(20).fill(3),complete:true,sessionId:123};
+ const scoring={name:'Scoring Challenge',day:'2026-11-16',at:end,completion:'natural',benchmark:true,quick:false,visits:10,scores:Array(10).fill(60),points:600};
+ const bull={name:'Bull Accuracy',day:'2026-11-16',at:end+1000,completion:'natural',benchmark:true,quick:false,thrown:30,outer:15,inner:3,misses:12};
+ const host={sessions:[session],bigSingles:[singles],games:[scoring,bull]};
+ const read=h=>projectEvidence(h,{today:'2026-11-16',now:end+60000}).observations;
+ assert.equal(read(host).length,3,'valid cross-midnight native singles and same-day fixed games');
+ for(const change of [
+  h=>h.bigSingles[0].day='2026-11-14',
+  h=>h.bigSingles[0].at=start-1,
+  h=>h.sessions[0].start=end+120000,
+  h=>delete h.sessions[0].start,
+  h=>h.sessions[0].date='2026-11-14',
+  h=>h.sessions[0].quick=true
+ ]){
+  const h=structuredClone(host);change(h);assert.equal(read(h).filter(o=>o.skill==='singles').length,0,change.toString());
+ }
+ for(const i of [0,1])for(const day of ['2026-11-15','2026-11-14','2026-11-17']){
+  const h=structuredClone(host);h.games[i].day=day;
+  assert.equal(read(h).filter(o=>o.skill===(i===0?'scoring':'bull')).length,0);
+ }
+ assert.equal(projectEvidence(host,{today:date,now:start+60000}).observations.length,0,'not-yet-completed native measurement cannot leak');
+});
