@@ -284,3 +284,32 @@ test('Long-window deterioration with contradictory match improvement remains vis
  assert.equal(actual.decision,'investigate');
  assert.ok(actual.issues.some(i=>i.skill==='doubles'&&i.context==='practice'&&i.action==='investigate'));
 });
+
+import {retentionReview,recordRetention} from '../site/engine/learning.mjs';
+test('Retention requires delayed measurements, current support, and no recorded competing conditions',()=>{
+ const {state,item}=history(27);
+ const finished=finish(state,item.id,d(22),{adherence:1,confounders:[]});
+ const row=(n,h=27)=>({id:'delayed-'+n,day:d(n),skill:item.skill,protocol:item.protocol,context:item.context,attempts:60,hits:h});
+ const early={...finished,observations:[...finished.observations,...Array.from({length:7},(_,i)=>row(23+i))]};
+ assert.equal(retentionReview(early,item.id,d(36)).status,'insufficient');
+ const delayed={...finished,observations:[...finished.observations,...Array.from({length:8},(_,i)=>row(29+i))]};
+ const positive=retentionReview(delayed,item.id,d(36));
+ assert.equal(positive.status,'observed-retention');assert.equal(positive.method,'delayed-v2');
+ assert.equal(retentionReview(delayed,item.id,d(44)).status,'insufficient');
+ const decline={...delayed,observations:delayed.observations.map(o=>o.day>=d(34)?{...o,hits:0}:o)};
+ assert.equal(retentionReview(decline,item.id,d(36)).status,'retention-not-established');
+ for(const patch of [
+  {changes:[{day:d(25),field:'routine'}]},
+  {readiness:[{day:d(30),context:'practice',fatigue:'high',pain:false}]},
+  {clinic:[{day:d(25),pain:true}]},
+  {setups:[{day:d(28)}]}
+ ])assert.equal(retentionReview({...delayed,...patch},item.id,d(36)).status,'confounded');
+ const rival={...item,id:'rival',proposedDay:d(30),responseDay:d(30),status:'accepted'};
+ const withRival={...delayed,interventions:[...delayed.interventions,rival]};
+ assert.equal(retentionReview(withRival,item.id,d(36)).status,'confounded');
+ const cancelled={...withRival,interventions:[delayed.interventions[0],{...rival,status:'declined',cancelledFrom:'accepted',cancelledDay:d(40)}]};
+ assert.deepEqual(retentionReview(cancelled,item.id,d(36)),retentionReview(withRival,item.id,d(36)));
+ const future={...rival,proposedDay:d(40),responseDay:d(40)};
+ assert.deepEqual(retentionReview({...delayed,interventions:[...delayed.interventions,future]},item.id,d(36)),positive);
+ assert.equal(recordRetention(delayed,item.id,d(36)).interventions[0].retentionHistory[0].method,'delayed-v2');
+});
