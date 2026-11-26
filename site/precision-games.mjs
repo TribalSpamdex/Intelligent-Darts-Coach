@@ -85,7 +85,8 @@ export function precisionRound(game,decisions,options={}){
  const basis=ringBasis(game);
  let quarter=basis&&!legacy?quarterOf(decisions[basis]):quarterOf(d);
  if(Number.isInteger(options.maxQuarter))quarter=Math.min(quarter,Math.max(0,options.maxQuarter));if(!quarter)return game;
- if(basis&&legacy||game.beginner&&!basis&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.name==='Number Lock'&&game.ring!=='D'&&!basis)return game;
+ if(basis&&legacy||legacy&&game.beginner&&!basis&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.name==='Number Lock'&&game.ring!=='D'&&!basis)return game;
+ if(!legacy&&['Bull Survival','Bull Streak'].includes(game.name)&&game.target!=='25/50')return game;
  if(game.name==='Focused Checkouts'&&(!game.config?.balanced||game.config.tier!==game.tier||game.config.lives!==game.lives))return game;
  // Mixed skills never inherit an unsupported harder setting.
  if(['301 Pressure','501 Pressure'].includes(game.name))quarter=Math.min(quarter,quarterOf(decisions.checkout));
