@@ -33,10 +33,11 @@ export function precisionDecisions(observations,day,tiers){
  const rows=progressEvidence(observations,day),out={};
  for(const skill of Object.keys(SKILL_THRESHOLDS)){
  const tier=tiers[skill];if(!Number.isInteger(tier)||tier<1||tier>7)continue;
- const {midpoint}=tierRange(skill,tier);
+ const {midpoint,quarters}=tierRange(skill,tier);
  const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixed(skill,r.protocol)&&r.adequate&&dayGap(r.last,day)<=7);
- const qualifying=eligible.filter(r=>r.confirm(midpoint)),contrary=eligible.some(r=>!r.confirm(midpoint));
- out[skill]={tier,half:qualifying.length&&!contrary?'upper':'foundation',midpoint,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':contrary?'not-confirmed':'confirmed'};
+ const quarter=eligible.length?quarters.filter(boundary=>eligible.every(r=>r.confirm(boundary))).length:0;
+ const qualifying=quarter?eligible.filter(r=>r.confirm(quarters[quarter-1])):[];
+ out[skill]={tier,quarter,half:quarter>=2?'upper':'foundation',midpoint,quarters,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
  }
  return out;
 }
