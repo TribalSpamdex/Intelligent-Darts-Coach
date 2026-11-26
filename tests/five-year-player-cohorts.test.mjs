@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyMemory} from '../site/engine/engine.mjs';
+import {newPlayer} from '../site/engine/coach-api.mjs';
 import {fullReport} from '../site/engine/executive.mjs';
 import {measuredPracticeLevels,measuredGamePreferences,trainingRecommendation} from '../site/engine/session-intelligence.mjs';
 import {abilityProfiles,precisionDecisions} from '../site/progression-evidence.mjs';
@@ -12,7 +12,7 @@ const ages=[29,90,182,364,1094,1825];
 function player(index,avg){
  let seed=(0x82e18be3+index*7919)>>>0;
  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
- const state={...emptyMemory(),readiness:[],changes:[]};
+ const state=newPlayer();
  let form=0,trainingDays=0;
  // Distinct synthetic profiles, including scoring/finishing imbalance,
  // periodic travel, a prolonged decline, a recovery and a later plateau.
