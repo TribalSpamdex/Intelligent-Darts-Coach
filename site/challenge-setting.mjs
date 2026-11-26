@@ -1,4 +1,4 @@
-import {validPrecisionRecord} from './precision-games.mjs';
+import {validPrecisionRecord,validBaseBudget} from './precision-games.mjs';
 // Only named drills whose primary measurement has an unambiguous fixed
 // counterpart are eligible for learning. Mixed-skill drills remain on V1.6.
 const rules=Object.freeze({
@@ -31,7 +31,7 @@ export function settingSnapshot(base,played){
  const spec=rules[base?.name],skill=learningBasis(base);
  if(!spec||!skill||!Number.isInteger(base.tier)||base.tier<1||base.tier>7||base.name!==played?.name||base.recovery||base.challengeTuning||played.recovery||played.challengeTuning&&played.challengeTuning!=='precision')return null;
  const field=spec.field,before=base[field],after=played[field];
- if(!budget(before)||!budget(after))return null;
+ if(!validBaseBudget(base.name,field,before)||!validBaseBudget(base.name,field,after))return null;
  const p=played.precision,quarter=p?.quarter??0;
  if(p&&(!validPrecisionRecord({...played,tierAtStart:base.tier})||p.version!==2||p.field!==field||!same(p.before,before)||!same(p.after,after)))return null;
  if(!p&&!same(before,after))return null;
@@ -40,7 +40,7 @@ export function settingSnapshot(base,played){
  return validSetting(record)?record:null;
 }
 export function validSetting(s){
- if(!s||s.version!==1||!Object.hasOwn(rules,s.name)||!Number.isInteger(s.tier)||s.tier<1||s.tier>7||!Number.isInteger(s.quarter)||s.quarter<0||s.quarter>3||s.field!==rules[s.name].field||!(s.rule===null||typeof s.rule==='string'&&s.rule.length<=80)||!budget(s.before)||!budget(s.after)||!s.variant||Array.isArray(s.variant)||!plain(s.variant)||Object.keys(s.variant).some(k=>!rules[s.name].keys.includes(k)))return false;
+ if(!s||s.version!==1||!Object.hasOwn(rules,s.name)||!Number.isInteger(s.tier)||s.tier<1||s.tier>7||!Number.isInteger(s.quarter)||s.quarter<0||s.quarter>3||s.field!==rules[s.name].field||!(s.rule===null||typeof s.rule==='string'&&s.rule.length<=80)||!validBaseBudget(s.name,s.field,s.before)||!validBaseBudget(s.name,s.field,s.after)||!s.variant||Array.isArray(s.variant)||!plain(s.variant)||Object.keys(s.variant).some(k=>!rules[s.name].keys.includes(k)))return false;
  const base={name:s.name,tier:s.tier,...s.variant,[s.field]:s.before};if(learningBasis(base)!==s.skill)return false;
  if(s.quarter===0)return same(s.before,s.after);
  const basis=['singles','trebles'].includes(s.skill)?s.skill:undefined,skill=rules[s.name].skill==='trebles'?'scoring':rules[s.name].skill;
