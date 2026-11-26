@@ -1,3 +1,4 @@
+import {manualTargetRows} from './manual-target-samples.mjs';
 import {skillProfiles} from './skill-statistics.mjs';
 import {projectTargets} from './host-targets.mjs';
 import {detailedTargets} from './target-statistics.mjs';
@@ -21,7 +22,7 @@ export function snapshotView(host,state,type,filter,days,day,now=Date.now(),chec
  cards.push(card(r.skill+' · '+r.context+' · '+r.protocol,[field('Pooled result',fmt(w.pooled,r.skill)),field('Median day',fmt(d.median,r.skill)),field('Recorded days',d.n),field('Attempts',w.attempts)],[ 'Middle 50%: '+fmt(d.q1,r.skill)+' to '+fmt(d.q3,r.skill)+'. Recent trend: '+r.trend.status+'. Last measured '+r.last+'.']));
  }
  }else if(type==='Detailed target statistics'){
- for(const r of detailedTargets(projectTargets(host,day,now,checks).rows,day).filter(r=>!f||r.target.toLowerCase()===f)){
+ for(const r of detailedTargets([...projectTargets(host,day,now,checks).rows,...manualTargetRows(state.throws??[],day)],day).filter(r=>!f||r.target.toLowerCase()===f)){
  const w=window(r,days);
  cards.push(card(r.target+' · '+r.protocol,[field('Hit rate',pct(w.pooled)),field('Hits / attempts',w.hits+' / '+w.attempts),field('Median day',pct(w.daily.median)),field('Recorded days',w.daily.n)],['Middle 50%: '+pct(w.daily.q1)+' to '+pct(w.daily.q3)+'. Recent trend: '+r.trend.status+'.'],w.attempts?[{label:'Hit rate',value:w.hits,total:w.attempts}]:[]));
  }
