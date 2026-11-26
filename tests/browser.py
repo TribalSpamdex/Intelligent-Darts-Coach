@@ -144,9 +144,20 @@ with sync_playwright() as p:
     page.locator('#navTechnique').click()
     assert page.evaluate("""async()=>{const m=await import('./training-ledger.mjs?v=2.0.0-dev');const x=m.trainingLedger(window.IDCTrainingBridge.snapshot(),window.IDCTrainingBridge.day());return x.sessions.length>=1&&x.sessions.some(s=>!s.completed)}""")
     assert page.evaluate("window.IDCPolicy.methodEnabled()") is False
-    page.once('dialog',lambda d:d.accept())
-    page.locator('#idcBrief button').filter(has_text='Enable personalised drill choice').click()
-    assert page.evaluate("window.IDCPolicy.methodEnabled()") is True
+    consent_dialogs=[]
+    def confirm_method(dialog):
+        consent_dialogs.append({'type':dialog.type,'message':dialog.message})
+        if dialog.type=='confirm' and 'Allow the coach to choose' in dialog.message:
+            dialog.accept()
+        else:
+            dialog.dismiss()
+    page.on('dialog',confirm_method)
+    try:
+        page.locator('#idcBrief button').filter(has_text='Enable personalised drill choice').click()
+        assert len(consent_dialogs)==1 and consent_dialogs[0]['type']=='confirm' and 'Allow the coach to choose' in consent_dialogs[0]['message'], consent_dialogs
+        assert page.evaluate("window.IDCPolicy.methodEnabled()") is True, {'dialogs':consent_dialogs,'status':page.locator('#idcMemoryStatus').inner_text(),'report':page.locator('#idcReport').inner_text(),'writer':page.evaluate('idcWriter'),'active':page.evaluate('!!session()'),'saveError':page.evaluate('storageSaveError')}
+    finally:
+        page.remove_listener('dialog',confirm_method)
     page.reload()
     page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()
