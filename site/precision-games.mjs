@@ -41,6 +41,7 @@ const specs={
  '501 Pressure':['scoring','maxDarts',-1,18,105]
 };
 export const SUPPORTED_GAMES=Object.freeze(Object.keys(specs));
+export function validBaseBudget(name,field,value){if(!Object.hasOwn(specs,name))return false;const [,expected,,min,max]=specs[name];if(field!==expected)return false;const valid=x=>Number.isInteger(x)&&x>=min&&x<=max;return field==='targets'?Array.isArray(value)&&value.length>0&&value.length<=20&&value.every(valid):valid(value)}
 const descriptions={lives:'Lives',allowed:'Dart allowance',allowedMisses:'Miss allowance',dartsLeft:'Dart budget',maxDarts:'Dart limit',maxVisits:'Visit limit',target:'Scoring target',targets:'Scoring ladder',goal:'Target score',roundPointGoal:'Point target',failedVisitLimit:'Failed visit allowance',maxCalls:'Call limit',par:'Par',tolerance:'Score tolerance',opponentEvery:'Darts between rival points'};
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 // Four integer game configurations. Large score adjustments use smaller
