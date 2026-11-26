@@ -25,6 +25,8 @@ const specs={
  'Last Dart Standing':['checkout','lives',-1,2,60],
  'Checkout Poker':['checkout','allowed',-1,2,25],
  'Checkout Climb':['checkout','failedVisitLimit',-1,3,100],
+ 'Focused Checkouts':['checkout','lives',-1,3,100],
+ 'Pressure Cricket':['scoring','allowed',-1,3,120],
  'Cricket Countdown':['scoring','allowed',-1,5,120],
  'Switchback':['scoring','allowed',-1,7,120],
  'Halve It':['scoring','goal',5,5,999],
@@ -47,6 +49,8 @@ export function precisionRound(game,decisions,options={}){
  // Singles foundation versions do not measure doubles. Mixed-skill games
  // require separate confirmation for their second skill as well.
  if(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D')return game;
+ if(game.name==='Focused Checkouts'&&(!game.config?.balanced||game.config.tier!==game.tier||game.config.lives!==game.lives))return game;
+ if(game.name==='Pressure Cricket'&&game.allowed+delta<game.targets?.length)return game;
  if(game.name==='Bull Bank'&&field==='dartsLeft'&&game.dartsLeft+delta<Math.ceil(game.goal/50))return game;
  if(game.name==='Bull Blackjack'&&field==='allowed'&&game.allowed+delta<Math.ceil(game.goal/50))return game;
  if(game.name==='Outside Doubles'&&game.allowed+delta<game.targets?.length)return game;
@@ -63,6 +67,7 @@ export function precisionRound(game,decisions,options={}){
  if(same(old,next))return game;
  const out={...game,[field]:next,precision:{version:1,skill,tier:d.tier,field,before:old,after:next},challengeTuning:'precision',challengeTuningVersion:'IDC-1.5',challengeMessage:'Personalised challenge: '+field+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
  if(field==='targets')out.target=next[game.step??0];
+ if(game.name==='Focused Checkouts')out.config={...game.config,lives:next};
  if(field==='maxDarts'&&Number.isInteger(game.maxVisits))out.maxVisits=Math.ceil(next/3);
  delete out.prospectiveForecast;
  return out;
