@@ -1,6 +1,6 @@
 # Intelligent Darts Coach (IDC)
 
-V1.1.0-dev: integrated coaching candidate, not a production release. V1.0.0-dev preserved on archive/v1.0.0-dev.
+V1.2.0-dev: integrated target intelligence candidate, not a production release. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
 
 - Training platform: exact V6.2 source at TribalSpamdex/darts-coach commit b248a1caa169c9a45a6beda3954dc067cbfbe6e1, with separate storage keys, new local Coach panel, share URL and offline asset cache.
 - Independent engine: pinned V0.4.0 at TribalSpamdex/DCI-independent commit a39210419869ecf1160471997b10300d57c93ef1. The original engine regression suite is carried over.
@@ -14,3 +14,11 @@ Run node --test tests/*.test.mjs and the Playwright browser smoke checks from th
 
 ## V1.1.0 limitations
 Only known comparable benchmarks and unambiguous completed exercise minutes are projected. Target-dependent adaptive games are not pooled as fixed accuracy tests. The new coach can advise pausing normal scheduled training based on reported discomfort; Quick Play and assessments retain their original controls. If the independent engine is unavailable the legacy app continues unchanged. No full automatic diagnosis, unrestricted language model or scientific validation of training effectiveness. Allocation remains conservative and may be declined even after consent. The comparison is not a controlled effectiveness trial. The underlying engine is pinned at V0.4.0. Actual iPhone testing is required after publication.
+
+## V1.2.0 target intelligence
+- Mobile-first stacked forms, visible save feedback, example questions and goal creation/closure on a real recorded benchmark.
+- Binary intended target evidence extracted from completed fixed assessments, confirmed daily singles and eligible complete target logs from Doubles Survival, Doubles Streak and Treble Hunt. Adaptive game protocols remain separated by game/tier and do not drive checkout preferences. Never convert binary misses into actual board landing segments.
+- Scoring distributions from fixed Scoring Challenge visits and finish-specific records from fixed assessments and eligible Checkout Climb logs. No inference of target scoring distribution from visit totals.
+- Same-day fixed doubles comparisons require at least seven paired days, 30 attempts each, directional consistency, and a provisional minimum/noise threshold. Optional 20-dart two-double checks are separate records in IDC memory; one pair/day, player-confirmed comparable conditions. Conflicting decisive evidence blocks that route preference change. No automatic changes to legacy game selection or difficulty.
+- Checkout alternatives preserve shortest legal dart count and only compare evidence on the final double; not calibrated full-route probabilities. Unmeasured first darts, recovery, competition pressure and miss positions remain unknown. Use with caution. No new source repositories or external services.
+- The broader language interface is still deterministic and read-only, not unrestricted conversation. Real player effectiveness and iPhone behaviour require testing.
