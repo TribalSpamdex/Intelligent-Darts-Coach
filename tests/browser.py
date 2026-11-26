@@ -24,6 +24,32 @@ with sync_playwright() as p:
     for tab in ['train','quick','progress','records','technique','settings','home']:
         page.evaluate("show("+json.dumps(tab)+")")
         assert page.locator('#'+tab).is_visible()
+    page.locator('#idcMemoryPanel summary').click()
+    page.locator('#idcFact input[name=key]').fill('Preferred double')
+    page.locator('#idcFact input[name=value]').fill('D16')
+    page.locator('#idcFact button').click()
+    assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
+    page.reload()
+    page.locator('#idcMemoryPanel summary').click()
+    assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
+    page.locator('#idcQuestion').fill('What do you know about me?')
+    page.locator('#idcAsk').click()
+    assert 'D16' in page.locator('#idcAnswer').inner_text()
+    page.locator('#idcReady input[name=pain]').check()
+    page.locator('#idcReady button').click()
+    page.locator('#idcReview').click()
+    assert 'Decision: stop' in page.locator('#idcReport').inner_text()
+    assert page.evaluate('window.IDCPolicy.mayStart()') is False
+    page.locator('#idcReady input[name=pain]').uncheck()
+    page.locator('#idcReady button').click()
+    assert page.evaluate('window.IDCPolicy.mayStart()') is True
+    page.locator('#idcSetup input[name=name]').fill('Test setup')
+    page.locator("#idcSetup input[name='setup:weight']").fill('24g')
+    page.locator('#idcSetup button').click()
+    assert 'Test setup' in page.locator('#idcMemoryHistory').inner_text()
+    assert page.evaluate('JSON.parse(JSON.stringify(window.IDCTrainingBridge.memory())).state.setups.length')==1
+    assert page.evaluate("localStorage.getItem('dartsCoachV4')")=='CONTROL-SENTINEL'
+    assert page.evaluate("localStorage.getItem('DCI-independent:foundation:v1')")=='INDEPENDENT-SENTINEL'
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
