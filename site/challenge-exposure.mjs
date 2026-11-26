@@ -11,7 +11,7 @@ function validRound(g,s,a,now){
  else if(g.challengeTuning||g.precision)return false;
  return ['natural','partial','manual'].includes(g.completion)&&(g.completion!=='natural'||typeof g.win==='boolean');
 }
-export function extractLearningExposure(host,day,now=Date.now()){
+export function extractLearningExposure(host,day,now=Date.now(),{includeSequence=false}={}){
  if(!host||!Array.isArray(host.sessions)||!Array.isArray(host.games)||!dayValid(day)||!Number.isFinite(now))throw Error('Invalid exposure history');
  const sessions=new Map(),duplicates=new Set(),games=new Map(),conflicts=new Set(),rounds=new Map(),out=[],blockedDays=new Set();
  for(const s of host.sessions){if(!s||!id(s.id)||!dayValid(s.date)||s.date>day||dayGap(s.date,day)>180)continue;const k=String(s.id);if(sessions.has(k))duplicates.add(k);else sessions.set(k,s)}
@@ -34,7 +34,7 @@ export function extractLearningExposure(host,day,now=Date.now()){
  if(main.count/records.length<.75||main.completed<2||ranked.some(x=>baseKey(x.setting)!==baseKey(main.setting)))continue;
  // Same exercise seconds are total observed activity time, not time at a setting.
  const other=s.activities.filter(x=>x!==a).map(x=>[x.name,x.seconds]).sort((a,b)=>a[0].localeCompare(b[0])||a[1]-b[1]);
- out.push({day:s.date,sessionId:s.id,exerciseId:a.exerciseId,exerciseIndex:a.exerciseIndex,setting:main.setting,seconds:a.seconds,otherSeconds:total-a.seconds,other,rounds:records.length,dominance:main.count/records.length,completed:main.completed,wins:main.wins,sequence:records.map(({g})=>({at:g.at,completion:g.completion,win:g.completion==='natural'?g.win:null,setting:settingKey(g.learningSetting)})).sort((a,b)=>a.at-b.at)});
+ out.push({day:s.date,sessionId:s.id,exerciseId:a.exerciseId,exerciseIndex:a.exerciseIndex,setting:main.setting,seconds:a.seconds,otherSeconds:total-a.seconds,other,rounds:records.length,dominance:main.count/records.length,completed:main.completed,wins:main.wins,...(includeSequence?{sequence:records.map(({g})=>({at:g.at,completion:g.completion,win:g.completion==='natural'?g.win:null,setting:settingKey(g.learningSetting)})).sort((a,b)=>a.at-b.at)}:{})});
  }
  }
  return {exposures:out.sort((a,b)=>a.day.localeCompare(b.day)||String(a.sessionId).localeCompare(String(b.sessionId))),blockedDays:[...blockedDays].sort(),sessionDays:[...sessions.values()].filter(s=>s.quick!==true).map(s=>({day:s.date,id:s.id}))};
