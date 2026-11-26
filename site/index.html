@@ -4189,7 +4189,7 @@ function allocateRemaining(s){
     if(!e||!QUICK_GAMES.includes(o.alternative)||DC10_MEASUREMENT_GAMES.has(o.alternative)||o.alternative==='Target Mastery'||dc28GameCategory(o.alternative)!==o.skill||played.has(o.alternative)||s.plan.some(x=>x.name===o.alternative))return [];
     return [{...o,seconds:e.seconds,normalTier:dc9GameTier(o.normal),alternativeTier:dc9GameTier(o.alternative)}];
    });
-   const decision=window.IDCPolicy.methodChoice(options,s.wholeSessionAudit.policy);
+   const decision=options.length?window.IDCPolicy.methodChoice(options,s.wholeSessionAudit.policy):{status:'unchanged'};
    if(decision.status==='selected'){
     const option=options.find(o=>o.normal===decision.normal&&o.alternative===decision.alternative&&o.skill===decision.skill&&o.seconds===decision.seconds);
     const entry=option&&queue.find(e=>e.name===option.normal&&e.seconds===option.seconds&&e.wholeCoach?.category===option.skill);
@@ -4205,7 +4205,7 @@ function allocateRemaining(s){
    const cat=entry.wholeCoach?.category;
    if(!cat||entry.seconds<1500)continue;
    while(entry.seconds>=1500){
-    const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===cat&&!DC10_MEASUREMENT_GAMES.has(n)&&!s.plan.some(e=>e.name===n)&&!recent.has(n));
+    const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===cat&&!DC10_MEASUREMENT_GAMES.has(n)&&!s.plan.some(e=>e.name===n)&&!recent.has(n)&&n!==s.wholeSessionAudit?.idcMethod?.normal);
     if(!pool.length)break;
     pool.sort((a,b)=>exposure(a)-exposure(b)||a.localeCompare(b));
     const total=entry.seconds;

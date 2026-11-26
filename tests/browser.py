@@ -276,6 +276,37 @@ with sync_playwright() as p:
     assert 'Not enough comparable records' in page.locator('#idcAnswer').inner_text()
     page.evaluate("show('progress')")
     assert 'Keep recording' in page.locator('#idcProgressHighlights').inner_text()
+    # Native allocator boundary test: a stubbed independent decision checks the actual
+    # allocator and locked plan; real evidence gates are tested in Node.
+    allocation=page.evaluate("""()=>{
+      const previous=data.activeSession,policy=window.IDCPolicy,oldSessions=data.sessions;
+      try{
+       data.sessions=[];
+       const now=Date.now(),normal='Scoring Survival',alternative='Scoring Ladder';
+       const run=(mode)=>{
+        const s={id:now,start:now-1800000,pausedAt:now,pausedTotal:0,benchmarkSeconds:0,index:0,quick:false,extra:false,allocated:false,completed:[],phase:'rules',plan:[
+         {name:normal,mode:'timed',seconds:900,wholeCoach:{category:'scoring'}},
+         {name:'Doubles Survival',mode:'timed',seconds:600,wholeCoach:{category:'doubles'}},
+         {name:'Review',mode:'timed',seconds:300}
+        ],unifiedAudit:{idcMethodCandidates:[{normal,alternative,skill:'scoring',normalScore:1,alternativeScore:2}]},wholeSessionAudit:{policy:{categories:{}}}};
+        if(mode==='extra')s.extra=true;
+        if(mode==='focus')s.coachDayIntent={focus:'doubles'};
+        if(mode==='trial')s.unifiedAudit.exploration={trial:true};
+        if(mode==='wrong-category')s.unifiedAudit.idcMethodCandidates[0].alternative='Doubles Survival';
+        data.activeSession=s;dc45InitialSnapshot(s);
+        let calls=0;
+        window.IDCPolicy={...policy,transfer:()=>({status:'unchanged'}),methodChoice:options=>{calls++;return mode==='decline'?{status:'unchanged'}:{status:'selected',...options[0]}}};
+        allocateRemaining(s);
+        return {mode,calls,total:s.plan.reduce((n,e)=>n+e.seconds,0),names:s.plan.map(e=>e.name),locked:s.provenanceLocked.exercises.map(e=>e.name),method:s.wholeSessionAudit.idcMethod?.exerciseIndex??null};
+       };
+       return ['allow','decline','extra','focus','trial','wrong-category'].map(run);
+      }finally{data.activeSession=previous;data.sessions=oldSessions;window.IDCPolicy=policy}
+    }""")
+    assert allocation[0]['calls']==1 and allocation[0]['method']==0, allocation
+    assert allocation[0]['names'][0]=='Scoring Ladder' and allocation[0]['locked']==allocation[0]['names'], allocation
+    assert allocation[1]['calls']==1 and allocation[1]['names'][0]=='Scoring Survival', allocation
+    assert all(x['calls']==0 and x['names'][0]=='Scoring Survival' for x in allocation[2:]), allocation
+    assert all(x['total']==1800 for x in allocation), allocation
     # Synthetic native construction audit: same rule-builder used by timed training.
     audit=page.evaluate("""async()=>{
       const original=clone(data),oldGame=activeGame,oldUndo=undoSnapshot,oldTab=currentTab;
