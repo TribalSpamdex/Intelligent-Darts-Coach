@@ -1,8 +1,11 @@
+import {eventContext} from './competition-calendar.mjs';
 // Final clock-budget transfer only; no game replacement, no additional minutes.
 const skills=['scoring','doubles','checkout','bull'];
 export function decideTransfer({report,confirmation,edited=[],memory,session,queue,legacyTransfer,legacyPolicy,priorSessions=[],day}){
  const no=reason=>({status:'unchanged',reason});
  if(!report||report.verification?.status!=='passed'||['stop','reduce-load'].includes(report.decision))return no('Independent recommendation not currently actionable');
+ const event=eventContext(memory?.events??[],day);
+ if(['competition-day','near-event'].includes(event.phase))return no('Defer additional independent allocation near a recorded competition');
  if(report.active?.mode!=='accepted-temporary-focus')return no('No accepted independent focus');
  const i=memory.state.interventions.find(o=>o.id===report.active.intervention&&o.status==='accepted');
  if(!i||edited.includes(i.id)||!skills.includes(i.skill)||i.context!=='practice')return no('Unsupported or corrected intervention baseline');
