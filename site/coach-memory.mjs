@@ -5,11 +5,14 @@ import {recordClinic} from './engine/clinic.mjs';
 import {recordSetup,setupComparison} from './engine/equipment-profile.mjs';
 import {fullReport} from './engine/executive.mjs';
 import {review,finish} from './engine/interventions.mjs';
+import {validateReflections,saveReflection,reflectionInsights} from './reflections.mjs';
+import {validateChecks,addCheck} from './target-checks.mjs';
+import {createGoal,closeGoal} from './engine/goals.mjs';
 import {projectEvidence} from './v62-evidence.mjs';
 import {projectExposure} from './host-exposure.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
 const HOST_PREFIX='IDC:host-v62:';
-export function newMemory(){return {format:'IDC-coach-memory',version:1,state:newPlayer(),baselines:{}}}
+export function newMemory(){return {format:'IDC-coach-memory',version:1,state:newPlayer(),baselines:{},targetChecks:[],reflections:[]}}
 export function validateMemory(raw){
  if(raw==null)return newMemory();
  if(raw.format!=='IDC-coach-memory'||raw.version!==1||!raw.baselines||typeof raw.baselines!=='object'||Array.isArray(raw.baselines))throw Error('Invalid IDC coaching memory');
@@ -17,7 +20,7 @@ export function validateMemory(raw){
  if(state.observations.some(o=>o.id.startsWith(HOST_PREFIX)))throw Error('Host observations must not be stored twice');
  const baselines={};
  for(const i of state.interventions){const rows=Object.hasOwn(raw.baselines,i.id)?raw.baselines[i.id]:null;if(!Array.isArray(rows)||rows.length!==i.baselineIds.length||rows.length>50000)throw Error('Missing intervention baseline');const verified=rows.map(validObservation);if(new Set(verified.map(o=>o.id)).size!==verified.length||!i.baselineIds.every(id=>verified.some(o=>o.id===id)))throw Error('Invalid intervention baseline');Object.defineProperty(baselines,i.id,{value:verified,enumerable:true,writable:true,configurable:true})}
- return {format:'IDC-coach-memory',version:1,state,baselines};
+ return {format:'IDC-coach-memory',version:1,state,baselines,targetChecks:validateChecks(raw.targetChecks??[]),reflections:validateReflections(raw.reflections??[])};
 }
 export function assemble(host,raw,day,now=Date.now()){
  const memory=validateMemory(raw),evidence=projectEvidence(host,{today:day,now});
@@ -34,11 +37,15 @@ export function assess(host,raw,day,now=Date.now()){
  // The engine intentionally suppresses new proposals while an intervention is accepted.
  // Reassess only that proposal guard, retaining all other history and current evidence.
  const confirmation=active&&report.active.mode==='accepted-temporary-focus'?fullReport({...x.state,interventions:x.state.interventions.filter(i=>i.id!==active.id)},day):null;
- return {...x,report,confirmation};
+ return {...x,report,confirmation,reflectionReview:reflectionInsights(x.memory.reflections,host,day)};
 }
 export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  const x=assemble(host,raw,day,now),m=x.memory;let state;
+ if(type==='target-check')return validateMemory({...m,targetChecks:addCheck(m.targetChecks,payload,day)});
+ if(type==='remove-target-check')return validateMemory({...m,targetChecks:m.targetChecks.filter(x=>x.id!==payload.id)});
  if(type==='remove-fact')state=removeFact(x.state,payload.key);
+ else if(type==='goal'){if(payload.start!==day||!x.state.observations.some(o=>o.skill===payload.skill&&o.context===payload.context&&o.protocol===payload.protocol))throw Error('Choose a recorded benchmark for the goal');state=createGoal(x.state,payload)}
+ else if(type==='close-goal')state=closeGoal(x.state,payload.id);
  else if(type==='clinic'){if(payload.day!==day)throw Error('Observation must be recorded today');state=recordClinic(x.state,payload)}
  else if(type==='setup'){if(payload.day!==day)throw Error('Setup must be recorded today');state=recordSetup(x.state,payload)}
  else if(type==='remove-clinic'||type==='remove-setup'){const key=type==='remove-clinic'?'clinic':'setups';state={...x.state,[key]:x.state[key].filter(o=>o.id!==payload.id)}}
@@ -54,6 +61,9 @@ export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  state={...state,exposure:m.state.exposure,observations:state.observations.filter(o=>!o.id.startsWith(HOST_PREFIX))};
  return validateMemory({...m,state,baselines});
 }
-export function memorySummary(raw){const m=validateMemory(raw);return {facts:currentFacts(m.state),readiness:m.state.readiness,clinic:m.state.clinic,setups:m.state.setups,interventions:m.state.interventions}}
+export function memorySummary(raw){const m=validateMemory(raw);return {facts:currentFacts(m.state),readiness:m.state.readiness,clinic:m.state.clinic,setups:m.state.setups,interventions:m.state.interventions,goals:m.state.goals,targetChecks:m.targetChecks,reflections:m.reflections}}
 export function compareSetups(raw,a,b){const s=validateMemory(raw).state.setups;return setupComparison(s.find(o=>o.id===a),s.find(o=>o.id===b))}
 export function interventionReview(host,raw,id,day,adherence,confounders=[],now=Date.now()){const x=assemble(host,raw,day,now);return x.edited.includes(id)?{status:'baseline-edited'}:review(x.state,id,day,{adherence,confounders})}
+
+export function recordReflection(raw,boundary,answer,note=''){const m=validateMemory(raw);return validateMemory({...m,reflections:saveReflection(m.reflections,boundary,answer,note)})}
+export function removeReflection(raw,key){const m=validateMemory(raw);return validateMemory({...m,reflections:m.reflections.filter(o=>JSON.stringify([o.kind,o.sessionId,o.index])!==key)})}
