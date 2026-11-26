@@ -64,3 +64,18 @@ test('competition day, safety, accepted priorities and unverified evidence preve
  assert.equal(competitionPreparation({...s,interventions:[{status:'accepted'}]},[],day,{report}).status,'existing-priority');
  assert.equal(competitionPreparation(s,[],day,{report:{decision:'balanced',verification:{status:'failed'}}}).status,'unverified');
 });
+
+import {competitionSchedulePolicy} from '../site/competition-calendar.mjs';
+test('native competition constraints vary by phase and actual match evidence',()=>{
+ const s=competitionFixture();
+ for(const n of [0,1,2]){
+  const p=competitionSchedulePolicy(s,addEvent([],event(n),day),day,report);
+  assert.equal(p.familiar,true);assert.equal(p.deferEscalation,true);assert.equal(p.focus,null);
+ }
+ const p=competitionSchedulePolicy(s,addEvent([],event(5),day),day,report);
+ assert.equal(p.focus,'scoring');assert.equal(p.deferEscalation,false);
+ assert.equal(competitionSchedulePolicy(newMemory().state,addEvent([],event(5),day),day,report).focus,null);
+ assert.equal(competitionSchedulePolicy(s,addEvent([],event(5),day),day,{decision:'stop',verification:{status:'passed'}}).focus,null);
+ assert.equal(competitionSchedulePolicy(s,addEvent([],event(8),day),day,report).focus,null);
+ assert.equal(competitionSchedulePolicy(s,addEvent([],event(5),day),shift(-1),report).phase,'ordinary');
+});
