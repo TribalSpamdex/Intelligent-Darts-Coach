@@ -1,5 +1,5 @@
 // Advisory development agenda, not a second automatic session planner.
-import {dayValid,dayGap,robustTrend} from './engine/context.mjs';
+import {dayValid,dayGap,robustTrend,earlyWarning} from './engine/context.mjs';
 import {goalProgress} from './engine/goals.mjs';
 import {canonicalRows,scopeKey} from './longitudinal.mjs';
 import {abilityProfiles,progressEvidence} from './progression-evidence.mjs';
@@ -31,8 +31,9 @@ export function developmentProfile(host,state,day,now=Date.now()){
    const doseAdequate=doses.every(d=>d.seconds>=3600&&d.days>=4&&d.weeks>=3&&d.coverage>=.7&&d.blocked===0);
    const confounded=recordedConfounder(state,shift(day,-83),day);
    const plateau=p.stability.status!=='stable-measurements'?p.stability.status:doseAdequate&&!confounded?'stable-with-recorded-exposure':'stable-exposure-unconfirmed';
-   const trend=robustTrend(groups.get(JSON.stringify([skill,'practice',p.protocol]))??[],{asOf:day});
-   return {protocol:p.protocol,last:p.last,form:p.form.status,trend:trend.status,change:trend.change??null,plateau,windows,doseAdequate,confounded};
+   const comparable=groups.get(JSON.stringify([skill,'practice',p.protocol]))??[];
+   const trend=robustTrend(comparable,{asOf:day}),warning=earlyWarning(comparable,{asOf:day});
+   return {protocol:p.protocol,last:p.last,form:p.form.status,trend:trend.status,change:trend.change??null,warning,plateau,windows,doseAdequate,confounded};
   });
   return {skill,doses,protocols,confirmed:abilities.find(a=>a.skill===skill)?.confirmed??null};
  });
@@ -77,6 +78,10 @@ export function developmentAgenda(host,state,day,{now=Date.now(),report=null,pro
   for(const p of s.protocols){
    if(dayGap(p.last,day)>7){add(50,'stale',s.skill,p.protocol,'Latest comparable measurement is more than seven days old.','Repeat the same benchmark when practical.');continue}
    if(p.trend==='declining')add(80,'investigate-decline',s.skill,p.protocol,'Two separately measured periods show a sustained lower result.','Confirm conditions, technique/equipment changes and logged practice before changing training.');
+   else if(report?.verification?.status==='passed'&&p.trend!=='improving'&&p.warning?.status==='watch'){
+    const difference=(p.warning.change*(score(s.skill)?1:100)).toFixed(1)+(score(s.skill)?' average points':' percentage points');
+    add(70,'early-watch',s.skill,p.protocol,'Early watch: weekly comparable measurements are '+difference+' relative to the earlier period. This is a screening signal, not a confirmed decline.','Repeat the same familiar benchmark within normal practice; no extra workload, difficulty, equipment or technique change is indicated by this warning alone.');
+   }
    else if(p.form==='below-usual')add(68,'recent-form',s.skill,p.protocol,'Recent measured form is below the preceding window.','Use a comfortable challenge and repeat comparable checks; do not assume ability has permanently changed.');
    else if(p.plateau==='stable-with-recorded-exposure')add(62,'review-stable-training',s.skill,p.protocol,'Stable measured results across three periods with substantial classified exposure.','Review drill choice, challenge and practice conditions; test one change at a time.');
    else if(p.plateau==='stable-exposure-unconfirmed')add(48,'review-coverage',s.skill,p.protocol,'Stable measurements, but practice dose or conditions are not sufficiently verified.','Improve training records before diagnosing a plateau.');
@@ -120,10 +125,11 @@ export function recoveryPlan(host,state,day,{now=Date.now(),report=null,agenda=n
  if(a.wellbeing)return {status:'wellbeing',skill:null,steps:[a.actions[0].next],limitation};
  if(report?.verification?.status!=='passed')return {status:'unverified',skill:null,steps:['Keep ordinary practice and collect comparable fixed benchmarks before making a recovery decision.'],limitation};
  if(a.lead&&['review-intervention','active-intervention','confirmed-focus','review-goal'].includes(a.lead.kind))return {status:'existing-priority',skill:a.lead.skill,steps:[a.lead.next,'Do not introduce a competing recovery adjustment.'],limitation};
- const issue=a.actions.find(x=>['investigate-decline','recent-form'].includes(x.kind));
+ const issue=a.actions.find(x=>['investigate-decline','early-watch','recent-form'].includes(x.kind));
  if(!issue)return {status:'no-confirmed-slump',skill:null,steps:['No current supported practice slump was established. A poor visit, leg or session is not sufficient evidence.','Keep comparable fixed checks and review again when enough separate measured days are available.'],limitation};
  const p=abilityProfiles(state.observations,day).find(x=>x.skill===issue.skill)?.protocols.find(x=>x.protocol===issue.protocol);
  const change=p?.form,confounded=recordedConfounder(state,shift(day,-27),day);
+ if(issue.kind==='early-watch')return {status:'early-watch',skill:issue.skill,protocol:issue.protocol,confounded,recent:null,previous:null,steps:[issue.reason,issue.next,'Check whether normal measurement conditions changed; reassess after new comparable measurements. Do not treat this as evidence of a slump or a reason to modify training.'],limitation};
  const steps=[
   issue.reason,
   confounded?'Recent recorded conditions or training changes may affect comparison; investigate these before attributing the drop to ability.':'Check whether equipment, routine, health, fatigue or practice conditions changed; absence of a saved change does not establish identical conditions.',
