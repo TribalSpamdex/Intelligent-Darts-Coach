@@ -38,15 +38,16 @@ export function learningEpisodes(host,state,day,now=Date.now()){
  if(gap<2||gap>8||a.attempts<minAttempts[skill]||b.attempts<minAttempts[skill]){rejected.coverage++;i++;continue}
  if(recordedConfounder(state,a.day,b.day)||exposure.blockedDays.some(d=>within(d,a.day,b.day))){rejected.confounder++;i++;continue}
  const sessionDays=exposure.sessionDays.filter(x=>x.day>a.day&&x.day<b.day);
- // Endpoints are excluded from exposure, but other practice on a measurement
- // day is not safely orderable without benchmark timestamps.
+ const endpointPractice=exposure.sessionDays.filter(x=>x.day===a.day||x.day===b.day).map(x=>x.day===a.day?'before':'after').sort();
+ // Endpoint-day practice is not included in the dose. Retain its presence
+ // for matching and disclose that within-day ordering is unknown.
  if(!sessionDays.length||sessionDays.length>3){rejected.coverage++;i++;continue}
  const chosen=exposure.exposures.filter(x=>x.setting.skill===skill&&x.day>a.day&&x.day<b.day);
  if(chosen.length!==sessionDays.length||new Set(chosen.map(x=>String(x.sessionId))).size!==chosen.length||sessionDays.some(s=>!chosen.some(e=>e.sessionId===s.id))||chosen.some(x=>settingKey(x.setting)!==settingKey(chosen[0].setting))){rejected.mixed++;i++;continue}
  const first=chosen[0],seconds=chosen.reduce((n,x)=>n+x.seconds,0),otherSeconds=chosen.reduce((n,x)=>n+x.otherSeconds,0);
  // Match the remainder of the training plan by game names and total time.
  const otherGames=[...new Set(chosen.flatMap(x=>x.other.map(a=>a[0])))].sort();
- out.push({skill,protocol,setting:first.setting,key:baseKey(first.setting),from:a.day,to:b.day,gap,baseline:a.value,after:b.value,delta:b.value-a.value,attempts:[a.attempts,b.attempts],measurementIds:[...a.ids,...b.ids],sessions:chosen.length,seconds,otherSeconds,otherGames,dominance:Math.min(...chosen.map(x=>x.dominance)),rounds:chosen.reduce((n,x)=>n+x.rounds,0)});
+ out.push({skill,protocol,setting:first.setting,key:baseKey(first.setting),from:a.day,to:b.day,gap,baseline:a.value,after:b.value,delta:b.value-a.value,attempts:[a.attempts,b.attempts],measurementIds:[...a.ids,...b.ids],sessions:chosen.length,seconds,otherSeconds,otherGames,endpointPractice,dominance:Math.min(...chosen.map(x=>x.dominance)),rounds:chosen.reduce((n,x)=>n+x.rounds,0)});
  i+=2;
  }
  }
