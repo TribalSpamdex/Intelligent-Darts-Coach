@@ -1,4 +1,5 @@
-import {verifiedLearningState} from './intervention-audit.mjs';
+import {retentionReview,recordRetention} from './engine/learning.mjs';
+import {verifiedLearningState,reviewReproduction} from './intervention-audit.mjs';
 import {newPlayer,command} from './engine/coach-api.mjs';
 import {validateState} from './engine/state.mjs';
 import {validObservation,currentFacts,removeFact,plan} from './engine/engine.mjs';
@@ -51,6 +52,11 @@ export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  else if(type==='setup'){if(payload.day!==day)throw Error('Setup must be recorded today');state=recordSetup(x.state,payload)}
  else if(type==='remove-clinic'||type==='remove-setup'){const key=type==='remove-clinic'?'clinic':'setups';state={...x.state,[key]:x.state[key].filter(o=>o.id!==payload.id)}}
  else if(type==='cancel'){const i=x.state.interventions.find(i=>i.id===payload.id&&['accepted','proposed'].includes(i.status));if(!i)throw Error('No open intervention');state={...x.state,interventions:x.state.interventions.map(o=>o.id===i.id?{...o,status:'declined',responseDay:o.responseDay??day,cancelledDay:day}:o)}}
+ else if(type==='retention'){
+ const item=x.state.interventions.find(i=>i.id===payload.id);
+ if(!item||reviewReproduction(item,m.baselines[item.id]??[],x.state.observations,day).status!=='reproduced')throw Error('Original intervention review requires verification');
+ state=recordRetention(x.state,item.id,day);
+ }
  else if(type==='finish'){if(x.edited.includes(payload.id))throw Error('The original baseline was corrected; cancel and reassess instead.');state=finish(x.state,payload.id,day,{adherence:payload.adherence,confounders:payload.confounders??[]})}
  else {
  if(type==='respond'&&payload.decision==='accepted'&&x.edited.includes(payload.id))throw Error('Baseline was corrected; decline and reassess');
@@ -73,3 +79,9 @@ export function interventionReview(host,raw,id,day,adherence,confounders=[],now=
 
 export function recordReflection(raw,boundary,answer,note=''){const m=validateMemory(raw);return validateMemory({...m,reflections:saveReflection(m.reflections,boundary,answer,note)})}
 export function removeReflection(raw,key){const m=validateMemory(raw);return validateMemory({...m,reflections:m.reflections.filter(o=>JSON.stringify([o.kind,o.sessionId,o.index])!==key)})}
+
+export function previewRetention(host,raw,id,day,now=Date.now()){
+ const x=assemble(host,raw,day,now),item=x.state.interventions.find(i=>i.id===id);
+ if(!item||reviewReproduction(item,x.memory.baselines[id]??[],x.state.observations,day).status!=='reproduced')return {status:'review-needs-verification'};
+ return retentionReview(x.state,id,day);
+}
