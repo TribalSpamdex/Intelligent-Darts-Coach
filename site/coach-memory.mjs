@@ -33,10 +33,10 @@ export function assess(host,raw,day,now=Date.now()){
 export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  const x=assemble(host,raw,day,now),m=x.memory;let state;
  if(type==='remove-fact')state=removeFact(x.state,payload.key);
- else if(type==='clinic')state=recordClinic(x.state,payload);
- else if(type==='setup')state=recordSetup(x.state,payload);
+ else if(type==='clinic'){if(payload.day!==day)throw Error('Observation must be recorded today');state=recordClinic(x.state,payload)}
+ else if(type==='setup'){if(payload.day!==day)throw Error('Setup must be recorded today');state=recordSetup(x.state,payload)}
  else if(type==='remove-clinic'||type==='remove-setup'){const key=type==='remove-clinic'?'clinic':'setups';state={...x.state,[key]:x.state[key].filter(o=>o.id!==payload.id)}}
- else if(type==='cancel'){const i=x.state.interventions.find(i=>i.id===payload.id&&['accepted','proposed'].includes(i.status));if(!i)throw Error('No open intervention');state={...x.state,interventions:x.state.interventions.map(o=>o.id===i.id?{...o,status:'declined',responseDay:day}:o)}}
+ else if(type==='cancel'){const i=x.state.interventions.find(i=>i.id===payload.id&&['accepted','proposed'].includes(i.status));if(!i)throw Error('No open intervention');state={...x.state,interventions:x.state.interventions.map(o=>o.id===i.id?{...o,status:'declined',responseDay:o.responseDay??day,cancelledDay:day}:o)}}
  else if(type==='finish'){if(x.edited.includes(payload.id))throw Error('The original baseline was corrected; cancel and reassess instead.');state=finish(x.state,payload.id,day,{adherence:payload.adherence,confounders:payload.confounders??[]})}
  else {
  if(type==='respond'&&payload.decision==='accepted'&&x.edited.includes(payload.id))throw Error('Baseline was corrected; decline and reassess');
