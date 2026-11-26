@@ -3,7 +3,7 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes} from './training-outcomes.mjs';
 import {recordedConfounder} from './challenge-episodes.mjs';
 import {validSetting} from './challenge-setting.mjs';
-import {eventContext} from './competition-calendar.mjs';
+import {eventContext,validateEvents} from './competition-calendar.mjs';
 import {developmentAgenda} from './development-review.mjs';
 const slots=[['scoring',10,'Scoring Challenge'],['doubles',10,'Doubles Survival'],['checkout',10,'Focused Checkouts'],['bull',5,'Bull Accuracy'],['singles',5,'Big Singles']];
 const base=()=>slots.map(([skill,minutes,drill])=>({skill,minutes,drill,reason:'Familiar balanced practice; use your existing appropriate game rules.'}));
@@ -27,9 +27,9 @@ export function learningLines(rows){
  if(!rows.length)return ['No supported individual learning contrasts or delayed follow-ups yet.'];
  return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
 }
-export function planPreview(host,state,report,events,day,now=Date.now()){
+export function planPreview(host,state,report,events,day,now=Date.now(),existingAgenda=null){
  if(!dayValid(day))throw Error('Invalid planning date');
- const agenda=developmentAgenda(host,state,day,{report,now}),event=eventContext(events,day);
+ const agenda=existingAgenda??developmentAgenda(host,state,day,{report,now}),event=eventContext(events,day);
  if(agenda.wellbeing)return {status:'wellbeing',segments:[],reason:agenda.actions[0].next,focus:null,event};
  if(event.phase==='competition-day')return {status:'competition',segments:[],reason:'Competition day. Use a comfortable familiar warm-up and normal match routine rather than prescribing extra training.',focus:null,event};
  const rows=base(),open=(state.interventions??[]).find(i=>i.status==='accepted'&&dayValid(i.responseDay)&&i.responseDay<=day);
@@ -57,19 +57,44 @@ export function planPreview(host,state,report,events,day,now=Date.now()){
  }
  return {status:'preview',segments:[{skill:'warmup',minutes:10,drill:'Comfortable warm-up',reason:'Keep routine familiar.'},...rows,{skill:'application',minutes:10,drill:'301 or 101 application',reason:'Apply skills in normal play.'}],focus,event,reason:'Illustrative 60-minute scheduled-session preview only. Existing native planner, readiness, consent, benchmark and workload rules remain authoritative.'+(shortfall?.defer?' Existing adjustment needs delivery review before further allocation.':'')+(pending?' A proposed adjustment is awaiting consent.':'')};
 }
+const shift=(day,n)=>new Date(Date.parse(day)+n*86400000).toISOString().slice(0,10);
+function checkpoints(agenda,state,events,day,count){
+ const known=validateEvents(events).filter(e=>e.recordedDay<=day);
+ const reviews=(state.interventions??[]).filter(i=>i.status==='accepted'&&dayValid(i.responseDay)&&i.responseDay<=day&&Number.isInteger(i.reviewAfterDays)&&i.reviewAfterDays>=0).map(i=>({day:shift(i.responseDay,i.reviewAfterDays),label:i.skill+' accepted adjustment review'}));
+ const goals=agenda.goals.filter(g=>dayValid(g.review)).map(g=>({day:g.review,label:g.skill+' goal review'}));
+ return Array.from({length:count},(_,i)=>{
+  const start=shift(day,i*7),end=shift(day,i*7+6);
+  const due=[...reviews,...goals].filter(r=>r.day<=end&&(i===0||r.day>=start)).sort((a,b)=>a.day.localeCompare(b.day)||a.label.localeCompare(b.label));
+  const competitions=known.filter(e=>e.day>=start&&dayGap(end,e.day)<=2).sort((a,b)=>a.day.localeCompare(b.day));
+  return {week:i+1,start,end,reviews:due,competitions};
+ });
+}
 export function blockPreview(host,state,report,events,day,now=Date.now()){
- const p=planPreview(host,state,report,events,day,now);
- return {session:p,weeks:[
- {week:1,action:'Establish or maintain comparable benchmarks and comfortable routine.'},
- {week:2,action:'Review repeated measurements; use only an already approved eligible adjustment.'},
- {week:3,action:'Review any due intervention and compare observed training delivery and subsequent measurements.'},
- {week:4,action:'Repeat the same comparable benchmarks; review retention and decide whether to retain or revise the next block.'}
- ],limitation:'Four-week review framework, not a calendar booking or fixed prescription. Recompute after each measured change. No extra sessions or projected improvement dates.'};
+ const agenda=developmentAgenda(host,state,day,{report,now}),p=planPreview(host,state,report,events,day,now,agenda);
+ const lead=report?.verification?.status==='passed'?agenda.lead:null;
+ const focus=lead?.skill?lead.skill+(lead.protocol?' · '+lead.protocol:''):null;
+ const actions=[
+  lead?lead.next:'Establish or maintain comparable benchmarks and comfortable routine.',
+  'Review repeated measurements; use only an already approved eligible adjustment.',
+  'Review actual training delivery and later comparable measurements before changing the method.',
+  'Repeat the same comparable benchmarks; review retention and decide whether to retain or revise the next block.'
+ ];
+ const weeks=checkpoints(agenda,state,events,day,4).map((w,i)=>({...w,action:agenda.wellbeing?'Review readiness before planning practice; no training prescription while the current concern remains.':w.competitions.length?'Keep familiar match preparation and avoid introducing a demanding experiment around recorded competition.':actions[i]}));
+ return {session:p,focus,weeks,limitation:'Four-week review framework, not a calendar booking or fixed prescription. Recompute after each measured change. No extra sessions or projected improvement dates.'};
+}
+export function longProgramme(host,state,report,events,day,now=Date.now()){
+ const first=blockPreview(host,state,report,events,day,now);
+ const agenda=developmentAgenda(host,state,day,{report,now});
+ const later=checkpoints(agenda,state,events,day,12).slice(4);
+ const phases=[{weeks:'1–4',action:'Use the current four-week review framework.'},{weeks:'5–8',action:'Reassess actual benchmark change, practice delivery and current readiness before retaining or revising one adjustment.'},{weeks:'9–12',action:'Check retention on the same benchmarks and review the next development priority; do not extrapolate a promised result.'}];
+ return {first,later,phases,limitation:'Twelve-week rolling development framework. Later phases are conditional, not fixed prescriptions. Refresh after each review and competition.'};
 }
 export function planLines(p){
  return [p.reason,...p.segments.map(x=>x.minutes+' min · '+x.drill+' · '+x.reason),...(p.event.event?['Next reported competition: '+p.event.event.day+' · '+p.event.event.name+'.']:[])];
 }
-export function blockLines(b){return [...planLines(b.session),...b.weeks.map(w=>'Week '+w.week+': '+w.action),b.limitation]}
+const weekLine=w=>'Week '+w.week+' ('+w.start+' to '+w.end+'): '+w.action+(w.reviews.length?' · Review: '+w.reviews.map(r=>r.day+' '+r.label).join('; '):'')+(w.competitions.length?' · Competition: '+w.competitions.map(e=>e.day+' '+e.name).join('; '):'');
+export function blockLines(b){return [...planLines(b.session),...(b.focus?['Current review priority: '+b.focus]:[]),...b.weeks.map(weekLine),b.limitation]}
+export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases.slice(1).map(x=>'Weeks '+x.weeks+': '+x.action),...p.later.filter(w=>w.reviews.length||w.competitions.length).map(w=>weekLine({...w,action:'Review planned commitments; reassess current evidence before prescribing practice.'})),p.limitation]}
 
  // A bounded prospective choice between already eligible native near-ties.
  // This does not learn a universal optimal drill, choose a difficulty, or

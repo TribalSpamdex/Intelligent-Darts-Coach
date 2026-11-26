@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {developmentProfile,developmentAgenda,developmentLines,agendaLines,goalRunwayLines} from '../site/development-review.mjs';
+import {developmentProfile,developmentAgenda,developmentLines,agendaLines,goalRunwayLines,recoveryPlan,recoveryLines} from '../site/development-review.mjs';
 import {precisionDecisions} from '../site/progression-evidence.mjs';
 import {precisionRound} from '../site/precision-games.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
@@ -80,4 +80,20 @@ test('temporary form cap is a downward adjustment only and leaves ability estima
  assert.equal(one.temporaryFormCap,false);
  const high=precisionDecisions([...old,...[0,1,2].map(n=>obs(n,110))],day,{scoring:4}).scoring;
  assert.equal(high.temporaryFormCap,false);assert.equal(high.recentCap,high.challenge);
+});
+
+test('recovery distinguishes sustained deterioration from absent or unsafe evidence',()=>{
+ const {host,state}=fixture([50,70,70]),report={decision:'balanced',verification:{status:'passed'}};
+ const original=JSON.stringify(state);
+ const r=recoveryPlan(host,state,day,{report,now});assert.equal(r.status,'sustained-decline');assert.equal(r.skill,'scoring');
+ assert.ok(recoveryLines(r).at(-1).includes('no causal diagnosis'));assert.equal(JSON.stringify(state),original);
+ state.changes=[{day:ago(2),field:'equipment'}];assert.equal(recoveryPlan(host,state,day,{report,now}).confounded,true);
+ state.readiness=[{day,context:'practice',pain:true}];assert.equal(recoveryPlan(host,state,day,{report,now}).status,'wellbeing');
+ state.readiness=[];assert.equal(recoveryPlan(host,state,day,{report:{verification:{status:'failed'}},now}).status,'unverified');
+});
+test('one poor day and old slump records do not trigger recovery prescription',()=>{
+ const {host,state}=fixture(),report={decision:'balanced',verification:{status:'passed'}};
+ state.observations[0].hits=100;assert.equal(recoveryPlan(host,state,day,{report,now}).status,'no-confirmed-slump');
+ state.observations=fixture([50,70,70]).state.observations.filter(o=>o.day<=ago(8));
+ assert.equal(recoveryPlan(host,state,day,{report,now}).status,'no-confirmed-slump');
 });

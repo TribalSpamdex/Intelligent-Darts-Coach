@@ -113,3 +113,26 @@ export function goalRunwayLines(a){
  const format=(v,s)=>v===null?'not measured':score(s)?v.toFixed(1):(100*v).toFixed(1)+'%';
  return [...a.goals.map(g=>g.skill+' · '+g.context+' · '+g.protocol+': observed '+format(g.current,g.skill)+'; target '+format(g.target,g.skill)+'; remaining gap '+(g.gap===null?'not measured':score(g.skill)?g.gap.toFixed(1)+' points':(100*g.gap).toFixed(1)+' percentage points')+'; '+g.days+' measured days. '+(g.reviewDue?'Review due '+g.review:g.daysToReview+' days until review '+g.review)+'. '+g.status.replaceAll('-',' ')+'.'),'No projected achievement date: a remaining numerical gap does not establish a future learning rate.'];
 }
+
+export function recoveryPlan(host,state,day,{now=Date.now(),report=null,agenda=null}={}){
+ const a=agenda??developmentAgenda(host,state,day,{now,report});
+ const limitation='Advisory recovery review only: no causal diagnosis, automatic technique change, extra workload or promised recovery date.';
+ if(a.wellbeing)return {status:'wellbeing',skill:null,steps:[a.actions[0].next],limitation};
+ if(report?.verification?.status!=='passed')return {status:'unverified',skill:null,steps:['Keep ordinary practice and collect comparable fixed benchmarks before making a recovery decision.'],limitation};
+ if(a.lead&&['review-intervention','active-intervention','confirmed-focus','review-goal'].includes(a.lead.kind))return {status:'existing-priority',skill:a.lead.skill,steps:[a.lead.next,'Do not introduce a competing recovery adjustment.'],limitation};
+ const issue=a.actions.find(x=>['investigate-decline','recent-form'].includes(x.kind));
+ if(!issue)return {status:'no-confirmed-slump',skill:null,steps:['No current supported practice slump was established. A poor visit, leg or session is not sufficient evidence.','Keep comparable fixed checks and review again when enough separate measured days are available.'],limitation};
+ const p=abilityProfiles(state.observations,day).find(x=>x.skill===issue.skill)?.protocols.find(x=>x.protocol===issue.protocol);
+ const change=p?.form,confounded=recordedConfounder(state,shift(day,-27),day);
+ const steps=[
+  issue.reason,
+  confounded?'Recent recorded conditions or training changes may affect comparison; investigate these before attributing the drop to ability.':'Check whether equipment, routine, health, fatigue or practice conditions changed; absence of a saved change does not establish identical conditions.',
+  'Use familiar comfortable practice within your normal workload; do not add volume or rebuild your throw in response to the result.',
+  'Repeat '+issue.protocol+' on separate days under comparable conditions. Review once enough independent days satisfy the existing evidence rules.',
+  'If the lower results persist, review the cause and consider one bounded consented adjustment. If normal form returns, maintain the ordinary routine and confirm retention.'
+ ];
+ return {status:issue.kind==='investigate-decline'?'sustained-decline':'recent-form',skill:issue.skill,protocol:issue.protocol,confounded,recent:change?.short?.median??null,previous:change?.usual?.median??null,steps,limitation};
+}
+export function recoveryLines(p){
+ return [...(p.skill?['Recovery focus: '+p.skill+(p.protocol?' · '+p.protocol:'')]:[]),...(p.recent!==null&&p.recent!==undefined&&p.previous!==null&&p.previous!==undefined?['Recent measured median '+f(p.recent,p.skill)+'; preceding measured median '+f(p.previous,p.skill)+'. These are review references, not recovery targets.']:[]),...p.steps,p.limitation];
+}

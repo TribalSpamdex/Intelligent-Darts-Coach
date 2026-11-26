@@ -139,7 +139,7 @@ with sync_playwright() as p:
     page.locator('#idcBrief button').filter(has_text='Disable personalised drill choice').click()
     assert page.evaluate("window.IDCPolicy.methodEnabled()") is False
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=true')
-    assert page.locator('#idcAutonomyQuestions button').count()==8
+    assert page.locator('#idcAutonomyQuestions button').count()==10
     page.locator('#idcEventForm input[name=name]').fill('Synthetic league')
     event_day=page.evaluate("window.IDCTrainingBridge.day()")
     page.locator('#idcEventForm input[name=day]').fill(event_day)

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {coachBrief} from '../site/proactive-coach.mjs';
-import {planPreview,blockPreview,planLines,personalLearning} from '../site/personal-programme.mjs';
+import {planPreview,blockPreview,planLines,personalLearning,longProgramme,longProgrammeLines} from '../site/personal-programme.mjs';
 import {addEvent} from '../site/competition-calendar.mjs';
 import {newMemory} from '../site/coach-memory.mjs';
 import {integratedAsk,QUESTIONS} from '../site/integrated-dialogue.mjs';
@@ -53,7 +53,7 @@ test('accepted focus preview reallocates only five minutes, with event, safety a
  s.interventions[0].responseDay=shift(-14);assert.equal(planPreview(host,s,r,[],day,now).focus,null);
  s.readiness.push({day,context:'practice',fatigue:'high'});assert.equal(planPreview(host,s,r,[],day,now).segments.length,0);
 });
-test('all seven integrated queries work on empty validated state and do not mutate evidence',()=>{
+test('all integrated autonomy queries work on empty validated state and do not mutate evidence',()=>{
  const s=state(),before=JSON.stringify(s);
  for(const q of AUTONOMY_QUESTIONS){assert.ok(QUESTIONS.includes(q));const a=integratedAsk(host,s,q,day,now);assert.equal(a.kind,'answer',q);assert.ok(a.lines.every(x=>typeof x==='string'),q)}
  assert.equal(JSON.stringify(s),before);assert.deepEqual(personalLearning(host,s,day,now),[]);
@@ -62,4 +62,24 @@ test('near-event gate defers only an optional independent transfer',()=>{
  const memory=newMemory();memory.events=events(2);
  const d=decideTransfer({report:report(),memory,day});
  assert.equal(d.status,'unchanged');assert.ok(d.reason.includes('competition'));
+});
+
+test('four and twelve week previews include known events without future knowledge or invented training',()=>{
+ const s=state(),before=JSON.stringify(s);
+ const es=[...events(8),{id:'future',day:shift(17),recordedDay:shift(1),name:'Unknown today',kind:'league'}];
+ const b=blockPreview(host,s,report(),es,day,now);
+ assert.equal(b.weeks[0].start,day);assert.equal(b.weeks[3].end,shift(27));
+ assert.ok(b.weeks[0].competitions.some(e=>e.id==='e'));assert.ok(b.weeks[1].competitions.some(e=>e.id==='e'));
+ assert.ok(!b.weeks.flatMap(w=>w.competitions).some(e=>e.id==='future'));
+ const l=longProgramme(host,s,report(),es,day,now);
+ assert.equal(l.later.length,8);assert.equal(l.later.at(-1).end,shift(83));assert.equal(l.phases.length,3);
+ assert.ok(longProgrammeLines(l).at(-1).includes('conditional'));
+ assert.equal(JSON.stringify(s),before);
+});
+test('programme reviews accepted intervention dates and honours current safety',()=>{
+ const s=state();s.interventions.push({id:'i',...scope,status:'accepted',proposedDay:shift(-3),responseDay:shift(-2),reviewAfterDays:14});
+ const b=blockPreview(host,s,report(),[],day,now);assert.ok(b.weeks[1].reviews.some(r=>r.day===shift(12)));
+ s.readiness.push({day,context:'practice',pain:true});
+ const stopped=blockPreview(host,s,report(),events(1),day,now);
+ assert.equal(stopped.session.status,'wellbeing');assert.ok(stopped.weeks.every(w=>w.action.includes('readiness')));
 });
