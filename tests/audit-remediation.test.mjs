@@ -30,3 +30,46 @@ test('Sol M4: future or out-of-activity linked rounds cannot retroactively class
  }
  h.games=[g];assert.deepEqual(projectExposure(h,day).exposure,[{day,skill:'doubles',minutes:10}]);
 });
+
+import {finish} from '../site/engine/interventions.mjs';
+import {fullReport} from '../site/engine/executive.mjs';
+import {learningLedger} from '../site/engine/strategy.mjs';
+import {verifiedLearningState,interventionDelivery} from '../site/intervention-audit.mjs';
+import {integratedAsk} from '../site/integrated-dialogue.mjs';
+const d=n=>new Date(Date.UTC(2024,0,n)).toISOString().slice(0,10);
+function history(hits){
+ const state=newMemory().state,scope={skill:'doubles',context:'practice',protocol:'fixed'};
+ const row=(n,h)=>({id:'o'+n,day:d(n),...scope,attempts:60,hits:h});
+ const baseline=Array.from({length:7},(_,i)=>row(i+1,15));
+ state.observations=[...baseline,...Array.from({length:14},(_,i)=>row(i+9,hits))];
+ const item={id:'focus',...scope,action:'Temporary additional five minutes per balanced session',responseDay:d(8),proposedDay:d(8),status:'accepted',baselineIds:baseline.map(x=>x.id),reviewAfterDays:14,maximumDays:21};
+ state.interventions=[item];
+ return {state,item,baseline};
+}
+test('Sol H3: undelivered intervention cannot reward, penalise or retain a method',()=>{
+ for(const hits of [9,15,27]){
+  const {state,item,baseline}=history(hits),m=finish(state,item.id,d(22),{adherence:1,confounders:[]});
+  const host={sessions:[],games:[]},checked=verifiedLearningState(m,{focus:baseline},d(22),host,Date.parse(d(22)+'T12:00:00Z'));
+  const ledger=learningLedger(checked.state,item,d(22));
+  assert.equal(ledger.entries.length,1);assert.equal(ledger.entries[0].attributable,false);
+  assert.equal(ledger.promising.length,0);assert.equal(ledger.blocked.length,0);assert.equal(ledger.retained.length,0);
+  assert.equal(learningLedger(m,item,d(22)).promising.length,0);assert.equal(learningLedger(m,item,d(22)).blocked.length,0);
+  host.sessions=[{id:1,date:d(12),completed:false,quick:false,wholeSessionAudit:{idcTransfer:{status:'transferred',intervention:'focus',day:d(12),seconds:300,skill:'doubles'}}}];
+  assert.equal(interventionDelivery(host,item,d(22)).sessions,0);
+ }
+});
+test('Sol H4: later review, acceptance or cancellation cannot rewrite an earlier report',()=>{
+ const {state,item}=history(27),before=fullReport(state,d(10)).active;
+ const reviewed=finish(state,item.id,d(22),{adherence:1,confounders:[]});
+ assert.equal(before.mode,'accepted-temporary-focus');assert.deepEqual(fullReport(reviewed,d(10)).active,before);
+ const cancelled={...state,interventions:[{...item,status:'declined',cancelledDay:d(15),cancelledFrom:'accepted'}]};
+ assert.deepEqual(fullReport(cancelled,d(10)).active,before);
+ const proposed={...state,interventions:[{...item,status:'proposed',responseDay:undefined}]};
+ assert.deepEqual(fullReport(state,d(7)).active,fullReport(proposed,d(7)).active);
+});
+test('Sol H4: future facts and setup records never reach historical player memory dialogue',()=>{
+ const {state}=history(27),host={sessions:[],games:[]};
+ state.facts=[{key:'preferred double',value:'D16',kind:'reported',at:d(1)+'T00:00:00.000Z'},{key:'preferred double',value:'D20',kind:'reported',at:'2035-01-01T00:00:00.000Z'}];
+ const result=integratedAsk(host,state,'What do you know about me?',d(10));
+ assert.ok(result.lines.some(x=>x.includes('D16')));assert.ok(result.lines.every(x=>!x.includes('D20')));
+});
