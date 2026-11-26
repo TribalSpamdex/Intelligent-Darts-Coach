@@ -1,19 +1,35 @@
-import {summarise,mean,sd} from './engine.mjs';
-import {dayGap,dayValid} from './context.mjs';
+import {summarise,mean,sd,serialMargin} from './engine.mjs';
+import {dayGap,dayValid,asOfState} from './context.mjs';
+// A later cancellation does not erase practice already undertaken. The
+// historical status is projected before testing whether an interval overlaps.
+function competingAllocation(memory,item,day){
+ return memory.interventions.some(i=>{
+  if(i.id===item.id||i.skill!==item.skill||!dayValid(i.responseDay)||i.responseDay>day)return false;
+  if(i.status==='declined'&&i.cancelledFrom!=='accepted')return false;
+  const end=i.cancelledDay??i.reviewDay??day;
+  return end>=item.responseDay;
+ });
+}
 export function retentionReview(memory,id,day){
+ if(!dayValid(day))return {status:'not-eligible'};
+ memory=asOfState(memory,day);
  const item=memory.interventions.find(i=>i.id===id);
- if(!item||item.status!=='completed'||item.outcome?.status!=='observed-improvement'||!dayValid(day)||!dayValid(item.reviewDay))return {status:'not-eligible'};
+ if(!item||item.status!=='completed'||item.outcome?.status!=='observed-improvement'||!dayValid(item.reviewDay))return {status:'not-eligible'};
  const age=dayGap(item.reviewDay,day);
  if(age<14)return {status:'too-early',daysRemaining:14-age};
  const original=memory.observations.filter(o=>item.baselineIds.includes(o.id));
- if(original.length!==item.baselineIds.length||!original.length)return {status:'baseline-edited'};
- const overlapping=memory.interventions.some(i=>i.id!==id&&i.skill===item.skill&&i.status!=='declined'&&i.responseDay&&i.responseDay>item.responseDay&&i.responseDay<=day);
- const changed=(memory.changes??[]).some(x=>['equipment','technique','injury or discomfort'].includes(x.field)&&x.day>=item.responseDay&&x.day<=day)||(memory.setups??[]).some(x=>x.day>item.responseDay&&x.day<=day);
- const retained=memory.observations.filter(o=>o.skill===item.skill&&o.context===item.context&&o.protocol===item.protocol&&o.day>item.reviewDay&&o.day<=day&&dayGap(o.day,day)<28);
+ if(original.length!==item.baselineIds.length||!original.length||original.some(o=>o.day>=item.responseDay||o.skill!==item.skill||o.context!==item.context||o.protocol!==item.protocol))return {status:'baseline-edited'};
+ const overlapping=competingAllocation(memory,item,day);
+ const within=x=>x.day>=item.responseDay&&x.day<=day;
+ const changed=(memory.changes??[]).some(within)||(memory.setups??[]).some(x=>x.day>item.responseDay&&x.day<=day)||(memory.clinic??[]).some(x=>within(x)&&x.pain)||(memory.readiness??[]).some(x=>within(x)&&x.context===item.context&&(x.pain||x.fatigue==='high'||x.pressure==='high'));
+ // Exclude the immediate post-review week. Require genuinely delayed and
+ // recent measurements, not merely a delayed request to review old results.
+ const retained=memory.observations.filter(o=>o.skill===item.skill&&o.context===item.context&&o.protocol===item.protocol&&dayGap(item.reviewDay,o.day)>=7&&dayGap(o.day,day)>=0&&dayGap(o.day,day)<28);
  const a=summarise(original),b=summarise(retained);
- if(!b||b.days<7||b.attempts<60)return {status:'insufficient',days:b?.days??0};
- const delta=b.dayMean-a.dayMean,noise=2*Math.sqrt(a.daySD**2/a.days+b.daySD**2/b.days),threshold=['scoring','firstNine'].includes(item.skill)?3:.05;
- return {status:overlapping||changed?'confounded':delta>=Math.max(threshold,noise)?'observed-retention':'retention-not-established',baseline:a,followup:b,delta,noise,causality:'not established',reviewDay:day};
+ if(!a||a.days<7||a.attempts<60||!b||b.days<7||b.attempts<60||dayGap(item.reviewDay,b.daily.at(-1).day)<14||dayGap(b.daily.at(-1).day,day)>7)return {status:'insufficient',days:b?.days??0};
+ const delta=b.dayMean-a.dayMean,noise=serialMargin(a,b),threshold=['scoring','firstNine'].includes(item.skill)?3:.05;
+ const latest=b.daily.slice(-3),current=mean(latest.map(x=>x.value))-a.dayMean;
+ return {status:overlapping||changed?'confounded':delta>=Math.max(threshold,noise)&&current>=threshold?'observed-retention':'retention-not-established',baseline:a,followup:b,delta,noise,causality:'not established',reviewDay:day,method:'delayed-v2'};
 }
 export function recordRetention(memory,id,day){
  const outcome=retentionReview(memory,id,day);
