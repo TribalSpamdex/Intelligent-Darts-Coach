@@ -45,5 +45,6 @@ test('M3: held-out serial nulls and missing clustered histories are measured at 
  assert.ok(results[1].interventionFlags<=25,JSON.stringify(results[1]));
  assert.ok(results[2].interventionFlags<=30,JSON.stringify(results[2]));
  assert.ok(results[3].trendFlags>=150,JSON.stringify(results[3]));
+ assert.ok(results[3].interventionFlags>=100,JSON.stringify(results[3]));
  assert.ok(results[3].wrongDirection<=15,JSON.stringify(results[3]));
 });
