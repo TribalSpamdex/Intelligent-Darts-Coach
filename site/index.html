@@ -5042,7 +5042,7 @@ function buildGame(name,previous=null){const g=name==="Focused Checkouts"?focuse
   const a=pressureTier("doubles"),b=pressureTier("bull"),tier=Math.round((a+b)/2);Object.assign(g,{tier,doublesTier:a,bullTier:b,stages:["D20","BULL","D16"],index:0,thrown:0,allowed:[5,6,7,8,10,12,15][tier-1],hits:0});
  }
  if(name==="Double Duel"){
-  const tier=pressureTier("doubles");Object.assign(g,{tier,target:20,player:0,opponent:0,turn:0,thrown:0,matchDone:false});
+  const tier=pressureTier("doubles");Object.assign(g,{tier,target:20,player:0,opponent:0,turn:0,thrown:0,matchDone:false,opponentEvery:[2,2,3,3,4,5,6][tier-1]});
  }
  const standard=dc80Block(dcRC2Beginner(dc19ApplyTuning(dc12ApplyRecovery(applyRoundBalance(g)))),previous);
  const ss=session(),tier=Number(standard.tier)||dc9GameTier(name);
@@ -5225,7 +5225,7 @@ function new40Dart(value,checkoutDarts){
   (g.dcVisitLog??=[]).push({target:(g.tier>=6?"S":"D")+(g.sequence||[20,16,8,10,12,6])[g.turn%(g.sequence||[20,16,8,10,12,6]).length],hit:value==="hit"});
   g.turn++;g.thrown++;if(value==="hit")g.player++;
   // The opponent is a fixed published rule, not a random or secretly adjusted outcome.
-  if(g.turn%([2,2,3,3,4,5,6][g.tier-1])===0)g.opponent++;
+  if(g.turn%((Number.isInteger(g.opponentEvery)&&g.opponentEvery>=2&&g.opponentEvery<=6)?g.opponentEvery:[2,2,3,3,4,5,6][g.tier-1])===0)g.opponent++;
   const route=g.sequence||[20,16,8,10,12,6];g.target=route[g.turn%route.length];
   if(g.player>=4||g.opponent>=4||g.turn>=12){g.matchDone=true;endRound();return}
  }data.game=g;save();
@@ -5589,7 +5589,7 @@ const EXTRA_RULES={
  "Split the Difference":"Throw pairs of three-dart visits and enter each total. Each second visit must be within the displayed tolerance of the first. Match at least two of three pairs to WIN; two failed pairs means LOSE.",
  "Checkout Poker":"Pick a checkout card from the three available. You have three darts to check out on a double. Record Checkout completed or Failed 3 darts. Choose and finish two different cards within the total attempts to WIN.",
  "Double Bull Bridge":"Complete three stages in strict order: nominated double, bull, nominated double. Record one dart at a time. Hit all three stages within your total dart allowance to WIN.",
- "Double Duel":"Play first-to-four points against a fixed virtual rival. Each dart targets the shown double. Hit earns a point. The rival earns a point on its fixed turn interval, based on your doubles tier. Lower tiers aim at singles. First to four wins.",
+ "Double Duel":"Play first-to-four points against a fixed virtual rival. Each dart targets the shown double. Hit earns a point. The rival earns a point on its fixed turn interval. The shown target tells you whether to aim at singles or doubles. First to four wins.",
  "Halve It":"Six three-dart visits, each at a different called target. Record how many darts hit that EXACT target (0–3). A blank visit halves your score. Beat the required total after six visits to WIN; otherwise LOSE.",
  "Outside Doubles":"Aim at the called double. Record Double Hit, Inside Single or Outside Miss. Hitting the inside single costs a life. Clear all required doubles to WIN; run out of lives or darts to LOSE.",
  "101 Sprint":"Checkout 101, finishing on a double. You have a tier-dependent TOTAL dart allowance. Tap Miss for each failed dart; tap Checkout Hit and enter the darts actually used to finish. Finish within the allowance to WIN.",
@@ -5852,7 +5852,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Stage "+(g.index+1)+"/3 · Darts left "+(g.allowed-g.thrown);
   html=button("Hit","new40Dart('hit')")+button("Miss","new40Dart('miss')");break;
  case "Double Duel":
-  heading=(g.tier>=6?"S":"D")+g.target;detail="First to 4 points against a fixed rival";
+  heading=(g.tier>=6?"S":"D")+g.target;detail="First to 4 points · rival scores every "+(g.opponentEvery??[2,2,3,3,4,5,6][g.tier-1])+" darts";
   mini="You "+g.player+" · Rival "+g.opponent+" · Turn "+(g.turn+1)+"/12";
   html=button(g.tier>=6?"Single Hit":"Double Hit","new40Dart('hit')")+button("Miss","new40Dart('miss')");break;
  case "Bull Accuracy":heading="BULL";detail="Dart "+(g.thrown+1)+"/30";mini="Outer 25: "+g.outer+" · Bullseyes: "+g.inner;html=button("Bullseye 50","bullDart(50)")+button("Outer Bull 25","bullDart(25)")+button("Miss","bullDart(0)");break;
