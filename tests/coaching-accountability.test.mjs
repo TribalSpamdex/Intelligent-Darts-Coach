@@ -86,3 +86,44 @@ test('malformed transfer cannot mutate either clock budget',()=>{
  const q=[{name:'Scoring',seconds:900,wholeCoach:{}},{name:'Doubles',seconds:NaN,wholeCoach:{}}],d={status:'transferred',from:0,to:1,seconds:300};
  assert.throws(()=>applyTransfer(q,d),/Invalid allocation/);assert.equal(q[0].seconds,900);assert.ok(Number.isNaN(q[1].seconds));assert.equal(d.delivery,undefined);
 });
+
+import {attributableAllocation} from '../site/coaching-accountability.mjs';
+// Positive path through the same native provenance used by production. Each
+// session is independently dated, with matched locked exercise, actual
+// elapsed allocation and a completed recorded round before the activity end.
+function provenAllocation(){
+ const host={sessions:[],games:[]};
+ for(const [i,n] of [0,2,4].entries()){
+  const {s}=fixture(),id=i+1,date=ago(n),offset=n*86400000;
+  s.id=id;s.date=date;s.start-=offset;
+  s.wholeSessionAudit.idcTransfer.day=date;s.provenanceLocked.at-=offset;
+  s.provenanceLocked.exercises[3].id=id+':exercise:3';
+  const a=s.activities[0];a.exerciseId=id+':exercise:3';a.at-=offset;a.seconds=900;
+  host.sessions.push(s);
+  host.games.push({name:a.name,sessionId:id,exerciseId:a.exerciseId,exerciseIndex:3,day:date,at:a.at-1000,quick:false,extra:false,recovery:false,completion:'natural',thrown:30});
+ }
+ return host;
+}
+test('H3: actual round evidence is necessary and sufficient for allocation eligibility under the current conservative dose rule',()=>{
+ const h=provenAllocation();
+ assert.equal(attributableAllocation(h,item,day,now),true);
+ const variants=[
+  h=>{h.games=[]},
+  h=>{h.games.pop()},
+  h=>{h.sessions[0].completed=false},
+  h=>{h.sessions[0].activities[0].seconds=839},
+  h=>{h.games[0].thrown=0},
+  h=>{h.games[0].at=h.sessions[0].activities[0].at+1},
+  h=>{h.games[0].at=h.sessions[0].provenanceLocked.at-1},
+  h=>{h.games[0].day=ago(-1)},
+  h=>{h.games[0].exerciseId='different'},
+  h=>{h.games[0].extra=true},
+  h=>{h.games[0].quick=true},
+  h=>{h.games[0].recovery=true},
+  h=>{h.games.push({...h.games[0]})},
+  h=>{h.sessions.push({...h.sessions[0]})},
+ ];
+ for(const change of variants){const candidate=structuredClone(h);change(candidate);assert.equal(attributableAllocation(candidate,item,day,now),false,change.toString())}
+ assert.equal(attributableAllocation(h,{...item,reviewDay:ago(1)},day,now),false,'later practice cannot validate earlier review');
+ assert.equal(attributableAllocation(h,item,ago(1),now-86400000),false,'future session is excluded during replay');
+});
