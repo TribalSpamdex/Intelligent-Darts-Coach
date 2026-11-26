@@ -22,7 +22,7 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
  const tactical=tacticalAnswer(state,q,day);if(tactical)return tactical;
- const intelligence=intelligenceAnswer(host,state,q,day,now);if(intelligence)return intelligence;
+ const intelligence=intelligenceAnswer(host,state,q,day,now,reflections);if(intelligence)return intelligence;
  const progression=progressionAnswer(host,state,q,day);if(progression)return progression;
  const statistical=statisticsAnswer(host,state,q,day,now,checks);if(statistical)return statistical;
  if(/^(what do you know about me|show (my )?memory|player memory)$/.test(q)){
