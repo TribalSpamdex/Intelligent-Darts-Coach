@@ -1,3 +1,4 @@
+import {dayValid,dayGap} from './engine/context.mjs';
 // Only monotone scalar limits change. No target ring, timer, benchmark,
  // route, rule semantics or legacy tier is changed.
 const specs={
@@ -38,6 +39,7 @@ const specs={
 };
 export const SUPPORTED_GAMES=Object.freeze(Object.keys(specs));
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+export function validPrecisionRecord(g){const p=g?.precision;if(!p||p.version!==1||!Object.hasOwn(specs,g.name)||p.tier!==g.tierAtStart||g.challengeTuning!=='precision')return false;const [skill,field,delta,min,max]=specs[g.name];if(p.skill!==skill||p.field!==field||!Number.isInteger(p.tier)||p.tier<1||p.tier>7)return false;const valid=(a,b)=>Number.isInteger(a)&&a>=min&&a<=max&&b===Math.max(min,Math.min(max,a+delta));return !same(p.before,p.after)&&(field==='targets'?Array.isArray(p.before)&&Array.isArray(p.after)&&p.before.length>0&&p.before.length===p.after.length&&p.before.every((a,i)=>valid(a,p.after[i])):valid(p.before,p.after))}
 export function precisionRound(game,decisions,options={}){
  if(!game||typeof game!=='object'||!Object.hasOwn(specs,game.name)||game.precision||game.recovery||game.challengeTuning||!options.eligible||options.probe||options.safety||options.cooldown)return game;
  const [skill,field,delta,min,max]=specs[game.name],d=decisions?.[skill];
@@ -65,11 +67,12 @@ export function precisionRound(game,decisions,options={}){
  delete out.prospectiveForecast;
  return out;
 }
-export function precisionOptions(games,name,day,tier){
- const rows=games.filter(g=>g&&g.name===name&&!g.extra&&!g.recovery&&Number.isFinite(g.at)&&/^\d{4}-\d{2}-\d{2}$/.test(g.day)&&Number.isFinite(Date.parse(g.day))&&g.quick===false&&g.completion==='natural'&&g.day<=day&&g.tierAtStart===tier&&typeof g.win==='boolean').sort((a,b)=>b.at-a.at);
+export function precisionOptions(games,name,day,tier,now=Date.now()){
+ if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(games))throw Error('Invalid challenge history');
+ const rows=games.filter(g=>g&&g.name===name&&!g.extra&&!g.recovery&&Number.isFinite(g.at)&&g.at>0&&g.at<=now&&dayValid(g.day)&&dayGap(g.day,day)<84&&g.quick===false&&g.completion==='natural'&&g.day<=day&&g.tierAtStart===tier&&typeof g.win==='boolean').sort((a,b)=>b.at-a.at);
  const latest=rows.slice(0,3);
  const probe=latest.length===3&&latest.every(r=>!!r.challengeTuning);
- const byDay=new Map();for(const g of rows.filter(g=>g.challengeTuning==='precision'&&g.precision?.version===1)){if(!byDay.has(g.day))byDay.set(g.day,g)}
+ const byDay=new Map();for(const g of rows.filter(g=>validPrecisionRecord(g))){if(!byDay.has(g.day))byDay.set(g.day,g)}
  const recent=[...byDay.values()].slice(0,3);
  const cooldown=recent.length===3&&recent.every(r=>r.win===false)&&Date.parse(day)-Date.parse(recent[0].day)<7*86400000;
  return {probe,cooldown};
