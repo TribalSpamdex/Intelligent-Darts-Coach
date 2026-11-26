@@ -51,7 +51,7 @@ export function quarterDelta(delta,quarter){
  return Math.sign(delta)*steps[quarter-1];
 }
 const bounded=(v,delta,min,max)=>Math.max(min,Math.min(max,v+delta));
-const quarterOf=d=>Number.isInteger(d?.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:d?.half==='upper'?2:0;
+const quarterOf=d=>d?.quarter!==undefined?(Number.isInteger(d.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:0):d?.half==='upper'?2:0;
 export function validPrecisionRecord(g){
  const p=g?.precision;
  if(!p||![1,2].includes(p.version)||!Object.hasOwn(specs,g.name)||p.tier!==g.tierAtStart||g.challengeTuning!=='precision')return false;
@@ -78,7 +78,7 @@ export function precisionRound(game,decisions,options={}){
  const [skill,field,delta,min,max]=specs[game.name],d=decisions?.[skill];
  if(!Number.isInteger(d?.tier)||!Number.isInteger(game.tier)||game.tier!==d.tier)return game;
  const legacy=!Number.isInteger(d.quarter);
- let quarter=quarterOf(d);if(!quarter)return game;
+ let quarter=quarterOf(d);if(Number.isInteger(options.maxQuarter))quarter=Math.min(quarter,Math.max(0,options.maxQuarter));if(!quarter)return game;
  if(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D')return game;
  if(game.name==='Focused Checkouts'&&(!game.config?.balanced||game.config.tier!==game.tier||game.config.lives!==game.lives))return game;
  // Mixed skills never inherit an unsupported harder setting.
@@ -105,11 +105,28 @@ export function precisionRound(game,decisions,options={}){
 }
 export function precisionOptions(games,name,day,tier,now=Date.now()){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(games))throw Error('Invalid challenge history');
- const rows=games.filter(g=>g&&g.name===name&&!g.extra&&!g.recovery&&Number.isFinite(g.at)&&g.at>0&&g.at<=now&&dayValid(g.day)&&dayGap(g.day,day)<84&&g.quick===false&&g.completion==='natural'&&g.day<=day&&g.tierAtStart===tier&&typeof g.win==='boolean').sort((a,b)=>b.at-a.at);
- const latest=rows.slice(0,3);
- const probe=latest.length===3&&latest.every(r=>!!r.challengeTuning);
- const byDay=new Map();for(const g of rows.filter(g=>validPrecisionRecord(g))){if(!byDay.has(g.day))byDay.set(g.day,g)}
- const recent=[...byDay.values()].slice(0,3);
- const cooldown=recent.length===3&&recent.every(r=>r.win===false)&&Date.parse(day)-Date.parse(recent[0].day)<7*86400000;
- return {probe,cooldown};
+ const unique=new Map(),conflicts=new Set();
+ for(const g of games){
+ if(!g||g.name!==name||g.extra||g.recovery||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayValid(g.day)||g.day>day||dayGap(g.day,day)>=84||g.quick!==false||g.completion!=='natural'||g.tierAtStart!==tier||typeof g.win!=='boolean')continue;
+ const id=g.at,signature=JSON.stringify([g.day,g.win,g.challengeTuning,g.precision??null]);
+ if(unique.has(id)&&unique.get(id).signature!==signature)conflicts.add(id);
+ else unique.set(id,{g,signature});
+ }
+ const rows=[...unique].filter(([id])=>!conflicts.has(id)).map(([,r])=>r.g).sort((a,b)=>b.at-a.at);
+ const latest=rows.slice(0,3),probe=latest.length===3&&latest.every(r=>!!r.challengeTuning);
+ const configs=new Map();
+ for(const g of rows.filter(g=>validPrecisionRecord(g)&&dayGap(g.day,day)<28)){
+ const key=JSON.stringify(g.precision),c=configs.get(key)??{p:g.precision,days:new Map()};
+ const d=c.days.get(g.day)??{wins:0,losses:0};d[g.win?'wins':'losses']++;c.days.set(g.day,d);configs.set(key,c);
+ }
+ let maxQuarter=3,cooldown=false;
+ for(const {p,days} of configs.values()){
+ const recent=[...days].slice(0,3);
+ if(recent.length!==3||dayGap(recent[0][0],day)>=7||recent.some(([,r])=>r.wins>0||r.losses===0))continue;
+ // The old single modified rule has no finer recovery ladder; preserve its
+ // conservative cooldown. New configurations step back only as far as needed.
+ if(p.version===1){cooldown=true;maxQuarter=0}
+ else maxQuarter=Math.min(maxQuarter,p.quarter-1);
+ }
+ return {probe,cooldown:cooldown||maxQuarter===0,maxQuarter};
 }
