@@ -3,7 +3,7 @@ import {ask} from './engine/coach-dialogue.mjs';
 import {explainReport} from './engine/explanation.mjs';
 import {DOMAINS,OBSERVATIONS,CONDITIONS,METHODS} from './engine/clinic.mjs';
 import {SETUP_FIELDS} from './engine/equipment-profile.mjs';
-import {assess,assemble,changeMemory,memorySummary,compareSetups,interventionReview} from './coach-memory.mjs';
+import {assess,assemble,changeMemory,memorySummary,compareSetups,interventionReview,validateMemory} from './coach-memory.mjs';
 import {decideTransfer,applyTransfer} from './coach-policy.mjs';
 const $=id=>document.getElementById(id);
 const host=window.IDCTrainingBridge;
@@ -36,5 +36,5 @@ form('idcClinic',(d,f)=>{if(!d.scope)throw Error('Record a comparable benchmark 
 form('idcSetup',d=>mutate('setup',{id:crypto.randomUUID(),day:host.day(),name:d.name,comfort:d.comfort,values:Object.fromEntries(SETUP_FIELDS.map(k=>[k,d['setup:'+k]?.trim()]).filter(([,v])=>v))}));
 let scheduled=false;function queueRefresh(){if(scheduled||$('home').classList.contains('hidden'))return;scheduled=true;setTimeout(()=>{scheduled=false;if(!$('home').classList.contains('hidden')){refresh()}},150)}
 window.addEventListener('idc-training-saved',queueRefresh);window.addEventListener('idc-view-changed',queueRefresh);
-window.IDCPolicy=Object.freeze({mayStart:()=>{try{const d=data();if(!d.raw)return true;return !['stop','reduce-load'].includes(assess(d.host,d.raw,d.day).report.decision)}catch{return true}},transfer:(session,queue,legacyTransfer,legacyPolicy)=>{const d=data();if(!d.raw)return {status:'unchanged',reason:'No independent player memory'};const x=assess(d.host,d.raw,d.day),decision=decideTransfer({...x,session,queue,legacyTransfer,legacyPolicy,priorSessions:d.host.sessions,day:d.day});applyTransfer(queue,decision);return decision}});
+window.IDCPolicy=Object.freeze({validateMemory:raw=>validateMemory(raw),mayStart:()=>{try{const d=data();if(!d.raw)return true;return !['stop','reduce-load'].includes(assess(d.host,d.raw,d.day).report.decision)}catch{return true}},transfer:(session,queue,legacyTransfer,legacyPolicy)=>{const d=data();if(!d.raw)return {status:'unchanged',reason:'No independent player memory'};const x=assess(d.host,d.raw,d.day),decision=decideTransfer({...x,session,queue,legacyTransfer,legacyPolicy,priorSessions:d.host.sessions,day:d.day});applyTransfer(queue,decision);return decision}});
 refresh();
