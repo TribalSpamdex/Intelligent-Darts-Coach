@@ -19,7 +19,16 @@ export function autonomyAnswer(host,state,q,day,now=Date.now(),reflections=[],ba
  if(/^(how accurate are your predictions|forecast validation|test your predictions)$/.test(q))return reply('forecast-validation',forecastValidationLines(forecastValidation(state.observations,day)));
  if(/^(how do i learn best|my learning profile|personal learning profile)$/.test(q))return reply('personal-learning',learningLines(personalLearning(host,state,day,now)));
  if(q==='upcoming competitions')return reply('competition-preparation',eventLines(events,day));
- if(/^(how should i prepare for competition|competition preparation)$/.test(q))return reply('competition-preparation',[...eventLines(events,day),...competitionPreparationLines(competitionPreparation(state,events,day,{report:reviewForAutonomy(state,baselines,day,host,now)}))]);
+ const preparation=q.match(/^(?:how (?:do|should|can) i (?:prepare|get ready) for (?:a |an |my |the )?(competition|tournament|league match)|competition preparation)(?: in (\d{1,3}) days?)?$/);
+ if(preparation?.[2]){
+  const days=Number(preparation[2]);
+  if(days>366)return reply('competition-preparation',['Choose an event within the next year.']);
+  const eventDay=new Date(Date.parse(day)+days*86400000).toISOString().slice(0,10);
+  const scenario=[{id:'preview',name:preparation[1]||'Competition',kind:preparation[1]==='tournament'?'tournament':'other',day:eventDay,recordedDay:day}];
+  const prep=competitionPreparation(state,scenario,day,{report:reviewForAutonomy(state,baselines,day,host,now)});
+  return reply('competition-preparation',['Preparation preview for '+eventDay+' ('+days+' days away).',prep.action,'To use this date in scheduled training, add the event to your competition calendar.']);
+ }
+ if(preparation)return reply('competition-preparation',[...eventLines(events,day),...competitionPreparationLines(competitionPreparation(state,events,day,{report:reviewForAutonomy(state,baselines,day,host,now)}))]);
  if(/^(how effective has my coaching been|coaching accountability|audit my coaching)$/.test(q))return reply('coaching-accountability',[...accountabilityLines(coachingAccountability(host,state,baselines,day,now)),...methodReviewLines(methodReviews(host,state,day,now),day)]);
  if(/^(what is my next coaching priority|coach brief|preview my next session|plan my next four weeks|how should i recover from a slump|plan my next three months)$/.test(q)){
   const report=reviewForAutonomy(state,baselines,day,host,now);

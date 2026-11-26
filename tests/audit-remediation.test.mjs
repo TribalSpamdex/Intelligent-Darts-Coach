@@ -224,3 +224,29 @@ test('H4/H6: native benchmark chronology must be consistent with original record
  assert.equal(projectEvidence(host,{today:date,now:start+60000}).observations.length,0,'not-yet-completed native measurement cannot leak');
  assert.equal(projectEvidence(host,{today:date,now:end+60000}).observations.length,0,'replaying yesterday after midnight must not leak the completed benchmark');
 });
+
+test('recorded local offsets preserve travel dates and withhold cross-midnight completions',()=>{
+ const start=Date.parse('2026-11-25T23:30:00Z'), at=start+86400000;
+ const session={id:'travel',quick:false,start,startOffsetMinutes:-60,date:'2026-11-26'};
+ const daily={day:session.date,at,offsetMinutes:-60,sessionId:session.id,complete:true,hits:20,perNumber:Array(20).fill(1)};
+ const bull={at:start,offsetMinutes:-60,name:'Bull Accuracy',day:session.date,completion:'natural',benchmark:true,quick:false,thrown:30,outer:20,inner:5,misses:5};
+ const host={sessions:[session],games:[bull],bigSingles:[daily]};
+ const rows=today=>projectEvidence(host,{today,now:at+1}).observations.map(x=>x.skill).sort();
+ assert.deepEqual(rows('2026-11-26'),['bull']);
+ assert.deepEqual(rows('2026-11-27'),['bull','singles']);
+ for(const offset of [null,'-60',1000,1.5]){bull.offsetMinutes=offset;assert.deepEqual(rows('2026-11-27'),['singles'])}
+});
+
+test('reported numbers and event horizons produce readable, read-only coaching',()=>{
+ const host={sessions:[],games:[]}, state=newMemory().state, before=JSON.stringify(state);
+ const ask=q=>integratedAsk(host,state,q,'2026-11-26');
+ const comparison=ask('Doubles: earlier 35/100, recently 20/100; equipment/technique unchanged.');
+ assert.match(comparison.lines[0],/^doubles: earlier 35\/100/);
+ assert.ok(comparison.lines.some(s=>s.includes('reported unchanged')));
+ for(const [horizon,date] of [[0,'2026-11-26'],[10,'2026-12-06'],[40,'2027-01-05']]){
+  const result=ask('How do I prepare for a tournament in '+horizon+' days?');
+  assert.equal(result.type,'competition-preparation');
+  assert.ok(result.lines[0].includes(date));
+ }
+ assert.equal(JSON.stringify(state),before);
+});

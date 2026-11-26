@@ -98,3 +98,20 @@ The relative reduction in the serial cohort is 123/131 (93.9%). These are scenar
 - H4/H6: `site/v62-evidence.mjs` now requires the native Big Singles session date/start to agree with its recorded benchmark date, rejects a timestamp before session start or after the as-of day, and rejects fixed-game dates inconsistent with recorded timestamps. Genuine cross-midnight Big Singles may still be attributed to the session start day once the benchmark is available. Raw records are not rewritten. Direct execution of 15 targeted assertions against the fetched source (no assessment/checkout path exercised) produced **5/15 on 30ed82f and 15/15 on a3c5df4**. Tests added to audit-remediation suite; full new-SHA CI not yet established.
 - Date consistency uses current browser local timezone; travelling or changing device timezone can exclude otherwise genuine old native records from the derived coaching dataset. Legacy Big Singles without a timestamp are still accepted when the original native session identity and start chronology agree; exact completion time is unknown. Arbitrary local JSON is not authenticated and cannot be made tamper-proof solely by field validation. Sol should review native provenance coverage and timezone migration before declaring H4/H6 closed.
 - Offline worker cache generation advanced to dev5 for the source changes. Full new-SHA verification and independent re-audit remain release gates. No merge or publication authorised.
+
+### Independent follow-up, 26 November 2026
+
+Incoming 3f30332 failed run 45884742547 at the Node stage (449/450 locally).
+The mirror/deletion fixture lacked native session start and date. Repaired
+the fixture and retained the strict negative chronology tests. New native
+session starts, Big Singles completions, game results and assessment completions
+carry their event-time UTC offset for fixed evidence projection across travel.
+Legacy timestamps still use the reader timezone; no offset is invented.
+Chromium quota injection at finishSession(false) reproduced a false saved
+confirmation. Completion now reports the primary write outcome, preserves
+in-memory export and checkpoints only after success. A browser regression
+uses a fresh profile and an injected primary-only QuotaExceededError.
+The original independent tournament-in-ten-days question was unsupported,
+and reported comparisons printed a regular expression as part of the skill
+name. Bounded dated preparation previews are read-only, respect wellbeing
+and do not register an event. Targeted Node suite passed 29/29.

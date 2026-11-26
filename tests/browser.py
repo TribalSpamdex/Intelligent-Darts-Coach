@@ -476,6 +476,14 @@ with sync_playwright() as p:
     vp.reload()
     vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     assert vp.evaluate("!idcRecoveryBlocked && data.__solRecoveryMarker==='keep'")
+    # Complete an interrupted native session while the primary write fails.
+    vp.wait_for_function("!!window.IDCPolicy")
+    quota=vp.evaluate("""()=>{document.getElementById('quickStartAverage').value='q60';
+      startQuickFromAverage();beginTraining(true,true);const previous=Storage.prototype.setItem;
+      try{Storage.prototype.setItem=function(k,v){if(k===KEY)throw new DOMException('Full','QuotaExceededError');return previous.call(this,k,v)};
+        finishSession(false);return {failed:dc17SaveFailed,message:$('finishedText').textContent,retained:data.sessions.length};
+      }finally{Storage.prototype.setItem=previous}}""")
+    assert quota['failed'] and quota['retained'] and 'backup' in quota['message'].lower(),quota
     valid_recovery.close()
     print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors

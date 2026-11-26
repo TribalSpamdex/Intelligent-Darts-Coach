@@ -31,10 +31,10 @@ export function reportedComparison(q){
  if(n1<=0||n2<=0||h1>n1||h2>n2||n1>100000||n2>100000)return reply('reported-comparison',['The reported hit counts and attempts are inconsistent. Check the two figures before comparing them. Nothing has been saved.']);
  const p1=100*h1/n1,p2=100*h2/n2,change=p2-p1;
  return reply('reported-comparison',[
-  skills[0]+': earlier '+h1+'/'+n1+' ('+p1.toFixed(1)+'%); recent '+h2+'/'+n2+' ('+p2.toFixed(1)+'%). Change '+(change>0?'+':'')+change.toFixed(1)+' percentage points.',
+  skills[0][0]+': earlier '+h1+'/'+n1+' ('+p1.toFixed(1)+'%); recent '+h2+'/'+n2+' ('+p2.toFixed(1)+'%). Change '+(change>0?'+':'')+change.toFixed(1)+' percentage points.',
   'This is a reported comparison, not a recorded independent-day trend. Attempts within a session can be correlated.',
   'How many separate practice days did each period cover? Were the target sequence, rules and practice or match context identical?',
-  /equipment and technique unchanged|same equipment and technique/.test(q)?'You reported unchanged equipment and technique. That reduces one possible explanation but does not establish the cause.':'Did equipment, technique, fatigue, or practice conditions change?',
+  /equipment(?: and |\/)technique unchanged|same equipment and technique/.test(q)?'You reported unchanged equipment and technique. That reduces one possible explanation but does not establish the cause.':'Did equipment, technique, fatigue, or practice conditions change?',
   'Repeat the same measured check on separate days before changing your training or throw. No player data or training allocation has been changed.'
  ]);
 }
