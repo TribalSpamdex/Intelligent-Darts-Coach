@@ -5438,6 +5438,7 @@ function gameResult(g,completion){const e={practiceBlock:g.practiceBlock?clone(g
  }
  if(g.name==="Scoring Challenge"){e.win=null;e.loss=null;}
  if(g.recovery&&completion==="natural")e.result="RECOVERY · "+e.result;
+ if(g.learningSetting)e.learningSetting=clone(g.learningSetting);
  if(g.precision&&g.challengeTuning==='precision'){e.precision=clone(g.precision);e.benchmark=false;}
  if(g.challengeTuning&&g.challengeTuning!=='precision'&&completion==="natural")e.result=(g.challengeTuning==="stretch"?"STRETCH":"STEPPING STONE")+" · "+e.result;
  if(completion!=="natural"){e.win=null;e.loss=null;e.benchmark=false;e.result="INCOMPLETE · "+e.result.replace(/^(WIN|LOSE) · /, "")}
