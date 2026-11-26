@@ -18,7 +18,7 @@ export function retentionReview(memory,id,day){
  const age=dayGap(item.reviewDay,day);
  if(age<14)return {status:'too-early',daysRemaining:14-age};
  const original=memory.observations.filter(o=>item.baselineIds.includes(o.id));
- if(original.length!==item.baselineIds.length||!original.length||original.some(o=>o.day>=item.responseDay||o.skill!==item.skill||o.context!==item.context||o.protocol!==item.protocol))return {status:'baseline-edited'};
+ if(original.length!==item.baselineIds.length||!original.length||original.some(o=>o.day>item.responseDay||o.skill!==item.skill||o.context!==item.context||o.protocol!==item.protocol))return {status:'baseline-edited'};
  const overlapping=competingAllocation(memory,item,day);
  const within=x=>x.day>=item.responseDay&&x.day<=day;
  const changed=(memory.changes??[]).some(within)||(memory.setups??[]).some(x=>x.day>item.responseDay&&x.day<=day)||(memory.clinic??[]).some(x=>within(x)&&x.pain)||(memory.readiness??[]).some(x=>within(x)&&x.context===item.context&&(x.pain||x.fatigue==='high'||x.pressure==='high'));
