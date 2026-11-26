@@ -64,3 +64,27 @@ export function forecastLines(rows){
  if(!rows.length)return ['No comparable measured history to estimate a future performance range.'];
  return [...rows.slice(0,24).map(r=>r.skill+' · '+r.context+' · '+r.protocol+': '+(r.status==='insufficient'?'Need at least 16 consecutive adequately measured weekly blocks; currently '+r.blocks+'.':'Next comparable seven-day daily-mean estimate '+fmt(r.point,r.skill)+'; historical error range '+r.range.map(v=>fmt(v,r.skill)).join(' to ')+'. '+r.calibrationBlocks+' chronological calibration blocks, mean absolute error '+fmt(r.calibrationMAE,r.skill)+'. Method: '+r.method+'.')),'Historical conditional range, not a guaranteed result, calibrated probability, match prediction or goal date. Missing weeks break the evidence chain. No automatic difficulty changes from forecasts.'];
 }
+
+export function backtestBlocks(blocks,skill){
+ const results=[];
+ for(let i=16;i<blocks.length;i++){
+  const actual=blocks[i];if(actual.value===null)continue;
+  const history=blocks.slice(0,i),estimate=forecastBlocks(history,skill);
+  if(estimate.status!=='historical-range')continue;
+  const naive=history.at(-1).value;
+  results.push({start:actual.start,end:actual.end,point:estimate.point,actual:actual.value,range:estimate.range,absoluteError:Math.abs(actual.value-estimate.point),naiveError:Math.abs(actual.value-naive),within:actual.value>=estimate.range[0]&&actual.value<=estimate.range[1],method:estimate.method});
+ }
+ const n=results.length,mae=distribution(results.map(r=>r.absoluteError)).mean,naiveMAE=distribution(results.map(r=>r.naiveError)).mean;
+ return {n,mae,naiveMAE,within:results.filter(r=>r.within).length,rangeCoverage:n?results.filter(r=>r.within).length/n:null,status:n<8?'insufficient':mae<naiveMAE-floor(skill)*.25?'lower-historical-error':mae>naiveMAE+floor(skill)*.25?'higher-historical-error':'similar-historical-error',results};
+}
+export function forecastValidation(observations,day){
+ if(!dayValid(day))throw Error('Invalid validation date');
+ const groups=new Map();
+ for(const o of canonicalRows(observations,day)){const k=scopeKey(o),g=groups.get(k)??[];g.push(o);groups.set(k,g)}
+ return [...groups.values()].map(rows=>{const {skill,context,protocol}=rows[0];return {skill,context,protocol,...backtestBlocks(measuredBlocks(rows,day,skill),skill)}}).sort((a,b)=>scopeKey(a).localeCompare(scopeKey(b)));
+}
+export function forecastValidationLines(rows){
+ const f=(v,s)=>v===null?'not measured':score(s)?v.toFixed(1):(100*v).toFixed(1)+' percentage points';
+ if(!rows.length)return ['No comparable recorded history for forecast validation.'];
+ return [...rows.slice(0,20).map(r=>r.skill+' · '+r.context+' · '+r.protocol+': '+r.n+' walk-forward evaluations, model mean absolute error '+f(r.mae,r.skill)+', last-block baseline error '+f(r.naiveMAE,r.skill)+'. '+r.within+'/'+r.n+' later observed results inside historical ranges. '+(r.status==='insufficient'?'At least eight evaluations needed for a descriptive comparison.':r.status.replaceAll('-',' ')+'.')),'Each prediction is reconstructed using only earlier blocks. Overlapping training histories and current data corrections may affect results. Historical coverage is not calibrated future confidence; no automatic coaching change.'];
+}
