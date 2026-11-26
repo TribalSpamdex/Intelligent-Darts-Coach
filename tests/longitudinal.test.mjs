@@ -83,3 +83,13 @@ test('two later comfortable days retire a recurring prompt, but a new report can
  const recurring=saveReflection(improved,boundary(2,2),'timing');
  assert.equal(contextualQuestions(recurring,h,boundary(9,0))[0].topic,'timing');
 });
+
+test('baseline evidence cannot come from another task, competition context or after proposal',()=>{
+ for(const b of [row(20,{protocol:'different'}),row(20,{context:'competition'}),row(20,{skill:'bull'}),row(20,{day:ago(12)})]){
+ const i={...item,baselineIds:[b.id]};assert.equal(baselineIntegrity(i,[b],[b],day).status,'baseline-edited');
+ }
+});
+test('outcomes cannot be reproduced before minimum agreed review interval',()=>{
+ const i={...item,reviewDay:ago(1),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}};
+ assert.equal(reviewReproduction(i,[row(20)],[row(20)],day).status,'unverifiable');
+});
