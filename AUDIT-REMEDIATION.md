@@ -124,3 +124,10 @@ matching days enable the save; absent delivery preserves historic raw records
 without endorsing them. Duplicate donor/recipient names and impossible elapsed
 time also disqualify attribution. The former empty-host positive fixture now
 tests both the negative case and a full three-session positive case.
+
+A third Chromium probe injected a primary-only write failure after a valid
+checkpoint. The durable primary was intact but the recovery fence advanced,
+disabling the last good checkpoint. Roll back only this writer's pending
+fence when the stored primary still exactly matches the loaded value.
+If rollback itself fails, recovery remains fenced. A browser test corrupts
+the prior primary after the failed save and recovers its committed contents.

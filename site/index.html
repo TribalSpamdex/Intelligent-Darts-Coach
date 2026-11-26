@@ -1261,8 +1261,21 @@ function idcPrimaryWrite(payload,allowRecovery=false){
  if(payload===idcLoadedPrimary&&!idcRecoveryBlocked)return;
  // Invalidate old checkpoints BEFORE replacing primary: a deleted fact must
  // never return through an earlier automatic checkpoint after a crash.
- localStorage.setItem(RECOVERY_FENCE,crypto.randomUUID());
- localStorage.setItem(KEY,payload);idcLoadedPrimary=payload;idcRecoveryBlocked=false;
+ const previousFence=localStorage.getItem(RECOVERY_FENCE),pendingFence=crypto.randomUUID();
+ localStorage.setItem(RECOVERY_FENCE,pendingFence);
+ try{localStorage.setItem(KEY,payload)}
+ catch(error){
+  // A failed atomic setItem leaves the prior primary intact. Its current
+  // checkpoint remains valid only while both the old primary and our fence match.
+  try{
+   if(localStorage.getItem(KEY)===idcLoadedPrimary&&localStorage.getItem(RECOVERY_FENCE)===pendingFence){
+    if(previousFence===null)localStorage.removeItem(RECOVERY_FENCE);
+    else localStorage.setItem(RECOVERY_FENCE,previousFence);
+   }
+  }catch(_){/* Storage may refuse rollback too. Keep recovery fenced. */}
+  throw error;
+ }
+ idcLoadedPrimary=payload;idcRecoveryBlocked=false;
 }
 function idcAcquireWriter(){
  if(!navigator.locks||typeof crypto.randomUUID!=='function'){idcWriter='unavailable';storageSaveError='Exclusive storage protection unavailable. Use a supported browser and export a backup.';return}

@@ -484,6 +484,16 @@ with sync_playwright() as p:
         finishSession(false);return {failed:dc17SaveFailed,message:$('finishedText').textContent,retained:data.sessions.length};
       }finally{Storage.prototype.setItem=previous}}""")
     assert quota['failed'] and quota['retained'] and 'backup' in quota['message'].lower(),quota
+    # Failed primary writes must preserve an already-current checkpoint.
+    assert vp.evaluate("""()=>{data.__probe='committed';save(false);checkpointData();
+      const fence=localStorage.getItem(RECOVERY_FENCE),previous=Storage.prototype.setItem;
+      data.__probe='pending';try{Storage.prototype.setItem=function(k,v){if(k===KEY)throw Error('quota');return previous.call(this,k,v)};
+      return !save(false)&&localStorage.getItem(RECOVERY_FENCE)===fence;
+      }finally{Storage.prototype.setItem=previous}}""")
+    vp.evaluate("localStorage.setItem(KEY,'damaged-after-failed-write')")
+    vp.reload()
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert vp.evaluate("data.__probe==='committed' && !idcRecoveryBlocked")
     valid_recovery.close()
     print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
