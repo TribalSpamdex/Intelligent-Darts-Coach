@@ -22,3 +22,35 @@ test('contradictory protocols cap the subdivision at the highest boundary both s
 test('fine visible milestone is a measured boundary, not a promotion from a single point',()=>{assert.equal(progressEvidence(sample(39.5),day)[0].confirmedMilestone,37.5);assert.equal(progressEvidence(sample(38),day)[0].confirmedMilestone,35);assert.equal(progressEvidence(sample(39.5).slice(0,1),day)[0].confirmedMilestone,null)});
 
 test('large-single and treble challenge gates use real ring-specific independent evidence',()=>{const a=ages.map(n=>row(n,0,{id:'s'+n,skill:'singles',protocol:'IDC V6.2 daily large singles 60',attempts:60,hits:51}));const b=ages.map(n=>row(n,0,{id:'t'+n,skill:'trebles',protocol:'IDC precision fixed trebles',attempts:60,hits:15}));const r=precisionDecisions([...a,...b],day,{scoring:7,doubles:7});assert.equal(r.singles.quarter,3);assert.equal(r.trebles.quarter,2);assert.equal(r.scoring.quarter,0);assert.equal(r.doubles.quarter,0);assert.equal(precisionDecisions(sample(180),day,{scoring:1}).trebles.quarter,0)});
+
+test('continuous ability preserves fractional evidence and never invents evidence from an unmeasured skill',()=>{
+ const a=decision(sample(71.4)),b=decision(sample(72.2));
+ assert.ok(Math.abs(a.confirmedAbility-69.4)<1e-7);
+ assert.ok(Math.abs(b.confirmedAbility-70.2)<1e-7);
+ assert.ok(a.challenge<b.challenge);
+ assert.equal(a.quarter,b.quarter);
+ const r=precisionDecisions(sample(72),day,{scoring:4,doubles:4});
+ assert.equal(r.doubles.confirmedAbility,null);
+ assert.equal(r.doubles.challenge,0);
+ assert.equal(r.scoring.evidence[0].days,8);
+ assert.equal(r.scoring.evidence[0].attempts,240);
+});
+test('continuous ability uses the weakest adequate protocol and recomputes after a correction',()=>{
+ const a=sample(80),b=ages.map(n=>row(n,66,{id:'b'+n,protocol:'IDC V6.2 Scoring Challenge fixed 30 darts'}));
+ const p=decision([...a,...b]);assert.ok(Math.abs(p.confirmedAbility-64)<1e-7);
+ assert.ok(p.challenge<2);
+ assert.equal(decision(a.slice(0,7)).challenge,0);
+ const bad={...a[0],hits:20};
+ assert.equal(decision([...a,bad]).challenge,0);
+});
+test('continuous confirmed challenge is bounded and monotonic across all scoring ability ranges',()=>{
+ for(let t=1;t<=7;t++){
+ let previous=0;
+ for(let v=0;v<=180;v+=.5){
+  const d=decision(sample(v),t);
+  assert.ok(d.challenge>=previous-1e-8&&d.challenge>=0&&d.challenge<=3);
+  assert.equal(Math.floor(d.challenge+1e-8),d.quarter);
+  previous=d.challenge;
+ }
+ }
+});
