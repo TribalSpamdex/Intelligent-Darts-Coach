@@ -48,9 +48,13 @@ export function matchedContext(obs,readiness,field,high='high',low='normal'){
 }
 export function robustTrend(obs,{asOf=null}={}){
  if(!obs.length)return {status:'insufficient'};
- if(new Set(obs.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
  const end=asOf??obs.map(o=>o.day).sort().at(-1);if(!dayValid(end))throw Error('Invalid analysis date');
- const current=obs.filter(o=>dayGap(o.day,end)>=0&&dayGap(o.day,end)<28),previous=obs.filter(o=>dayGap(o.day,end)>=28&&dayGap(o.day,end)<56);
+ // Scope validation must also be retrospective: a protocol introduced
+ // tomorrow cannot make yesterday's otherwise comparable history unusable.
+ const known=obs.filter(o=>dayValid(o.day)&&o.day<=end);
+ if(!known.length)return {status:'insufficient'};
+ if(new Set(known.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
+ const current=known.filter(o=>dayGap(o.day,end)<28),previous=known.filter(o=>dayGap(o.day,end)>=28&&dayGap(o.day,end)<56);
  const a=summarise(previous),b=summarise(current),base={earlier:a,recent:b,asOf:end,method:'Nonoverlapping 28-day windows; weekly and fortnightly block dispersion plus conservative daily dependence allowance. Exploratory, not a calibrated confidence interval.'};
  if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {...base,status:'insufficient'};
  function blocks(s,width=7){const bins=new Map();for(const d of s.daily){const k=Math.floor(dayGap(d.day,end)/width);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(d.value)}return [...bins.values()].map(mean)}
@@ -58,7 +62,7 @@ export function robustTrend(obs,{asOf=null}={}){
  const u=blocks(a,14),v=blocks(b,14);
  if(u.length<2||v.length<2)return {...base,status:'insufficient'};
  const change=mean(y)-mean(x),weekly=2.5*Math.sqrt(sd(x)**2/x.length+sd(y)**2/y.length),fortnightly=2.5*Math.sqrt(sd(u)**2/u.length+sd(v)**2/v.length),daily=serialMargin(a,b);
- const noise=Math.max(weekly,fortnightly,daily),floor=['scoring','firstNine'].includes(obs[0].skill)?3:.05;
+ const noise=Math.max(weekly,fortnightly,daily),floor=['scoring','firstNine'].includes(known[0].skill)?3:.05;
  const signs=y.map(v=>v-mean(x));const consistent=signs.filter(v=>Math.sign(v)===Math.sign(change)).length>=3;
  return {...base,change,noise,consistent,blocks:[x.length,y.length],status:consistent&&Math.abs(change)>=Math.max(floor,noise)?change>0?'improving':'declining':'unclear'};
 }
