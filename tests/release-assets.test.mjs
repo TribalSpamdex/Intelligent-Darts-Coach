@@ -42,9 +42,41 @@ test('autonomous coaching modules are available offline',()=>{for(const n of ["p
 import vm from 'node:vm';
 test('activated offline generation retires old IDC caches without touching unrelated caches',async()=>{
  const handlers={},deleted=[],events=[];
- const names=['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2','IDC:assets:2.0.0-dev3','dartsCoachV4','IDC:player-backups','other-app:assets:1.0.0'];
+ const active=sw.match(/const CACHE='([^']+)'/)[1];
+ const old=['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2','IDC:assets:2.0.0-dev3'].filter(n=>n!==active);
+ const names=[...old,active,'dartsCoachV4','IDC:player-backups','other-app:assets:1.0.0'];
  vm.runInNewContext(sw,{self:{addEventListener:(name,fn)=>{handlers[name]=fn},clients:{claim:async()=>events.push('claimed')}},caches:{keys:async()=>names,delete:async n=>{deleted.push(n);events.push(n);return true}},Set,Promise});
  let task;handlers.activate({waitUntil:p=>task=p});await task;
- assert.deepEqual(deleted.sort(),['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2']);
+ assert.deepEqual(deleted.sort(),old.sort());
  assert.equal(events.at(-1),'claimed');
+});
+
+test('offline worker serves an internally consistent cached shell while a later network release is waiting',async()=>{
+ const handlers={},calls=[],scope='https://example.test/site/';
+ const cached={'./index.html':'old shell','./idc.mjs?v=2.0.0-dev':'old module'};
+ vm.runInNewContext(sw,{
+  self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn},
+  caches:{open:async name=>({match:async request=>cached[typeof request==='string'?request:'./'+new URL(request.url).pathname.split('/').at(-1)+new URL(request.url).search]})},
+  fetch:async req=>{calls.push(req.url);return 'new network release'},URL,Set,Promise
+ });
+ const dispatch=async (url,mode='navigate',method='GET')=>{let response;handlers.fetch({request:{url,mode,method},respondWith:p=>response=p});return response};
+ assert.equal(await dispatch(scope+'index.html'),'old shell');
+ assert.equal(await dispatch(scope),'old shell');
+ assert.equal(await dispatch(scope+'index.html?source=home'),'old shell');
+ assert.equal(await dispatch(scope+'idc.mjs?v=2.0.0-dev','cors'),'old module');
+ assert.equal(await dispatch(scope+'other.html'),undefined);
+ assert.equal(await dispatch('https://other.test/site/index.html'),undefined);
+ assert.equal(await dispatch(scope+'index.html','navigate','POST'),undefined);
+ assert.deepEqual(calls,[]);
+});
+test('failed install cannot activate, claim clients or delete the previous complete generation',async()=>{
+ const handlers={},effects=[],scope='https://example.test/site/';
+ vm.runInNewContext(sw,{
+  self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn,clients:{claim:async()=>effects.push('claim')}},
+  caches:{open:async()=>({addAll:async requests=>{assert.ok(requests.length>=160);assert.ok(requests.every(r=>r.cache==='reload'));throw Error('simulated precache failure')}}),keys:async()=>['IDC:assets:1.9.0-dev'],delete:async n=>effects.push(n)},
+  URL,Request,Set,Promise
+ });
+ let install;handlers.install({waitUntil:p=>install=p});
+ await assert.rejects(install,/simulated precache failure/);
+ assert.deepEqual(effects,[]);
 });
