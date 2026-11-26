@@ -38,3 +38,13 @@ test('challenge learning dependency graph is versioned and offline',()=>{for(con
 test('new independent intelligence modules are versioned and cached offline',()=>{for(const n of ["training-ledger","training-outcomes","match-stages","development-review","coaching-intelligence","tactical-learning","session-learning","trial-planning"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=2.0.0-dev')});
 
 test('autonomous coaching modules are available offline',()=>{for(const n of ["performance-forecast","competition-calendar","coaching-accountability","proactive-coach","personal-programme","autonomy-dialogue"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=2.0.0-dev')});
+
+import vm from 'node:vm';
+test('activated offline generation retires old IDC caches without touching unrelated caches',async()=>{
+ const handlers={},deleted=[],events=[];
+ const names=['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2','IDC:assets:2.0.0-dev3','dartsCoachV4','IDC:player-backups','other-app:assets:1.0.0'];
+ vm.runInNewContext(sw,{self:{addEventListener:(name,fn)=>{handlers[name]=fn},clients:{claim:async()=>events.push('claimed')}},caches:{keys:async()=>names,delete:async n=>{deleted.push(n);events.push(n);return true}},Set,Promise});
+ let task;handlers.activate({waitUntil:p=>task=p});await task;
+ assert.deepEqual(deleted.sort(),['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2']);
+ assert.equal(events.at(-1),'claimed');
+});
