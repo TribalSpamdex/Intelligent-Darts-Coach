@@ -12,18 +12,18 @@ export function deliveryEvidence(host,item,day,now=Date.now()){
  }
  for(const [id,s] of seen){
   const t=s.wholeSessionAudit?.idcTransfer;if(t?.status!=='transferred'||t.intervention!==item.id)continue;
-  const a=s.provenanceInitial,b=s.provenanceLocked,initial=a?.exercises,locked=b?.exercises;
+  const b=s.provenanceLocked,locked=b?.exercises,p=t.delivery;
   const base={id,day:s.date,planned:0,observedBeyondOriginal:null,status:'unverified'};
   const reject=reason=>rows.push({...base,reason});
   if(dupes.has(id)||t.skill!==item.skill||t.day!==s.date||t.seconds!==300||!Number.isInteger(t.from)||!Number.isInteger(t.to)||t.from===t.to||t.from<0||t.to<0){reject('invalid transfer identity');continue}
-  if(!Number.isFinite(s.start)||s.start<=0||s.start>now||a?.kind!=='initial-selection'||b?.kind!=='post-allocation'||!Number.isFinite(a.at)||!Number.isFinite(b.at)||a.at<s.start||b.at<a.at||b.at>now||!Array.isArray(initial)||!Array.isArray(locked)||initial.length!==locked.length){reject('missing comparable native plan snapshots');continue}
-  const donor=locked[t.from],receiver=locked[t.to],oldDonor=initial[t.from],oldReceiver=initial[t.to];
-  const valid=(x,y,i)=>x&&y&&x.index===i&&y.index===i&&x.name===y.name&&x.mode==='timed'&&y.mode==='timed'&&integer(x.proposedSeconds)&&integer(y.plannedSeconds)&&y.id===id+':exercise:'+i;
-  if(!valid(oldDonor,donor,t.from)||!valid(oldReceiver,receiver,t.to)||donor.plannedSeconds!==oldDonor.proposedSeconds-300||receiver.plannedSeconds!==oldReceiver.proposedSeconds+300||donor.plannedSeconds<300||receiver.plannedSeconds>1200){reject('transfer not reproduced by locked budgets');continue}
-  const candidates=(s.activities??[]).filter(x=>x.exerciseIndex===t.to||x.exerciseId===receiver.id);
+  if(!Number.isFinite(s.start)||s.start<=0||s.start>now||b?.kind!=='post-allocation'||!Number.isFinite(b.at)||b.at<s.start||b.at>now||!Array.isArray(locked)||!p||p.version!==1||!Number.isInteger(p.receiverIndex)||p.receiverIndex<0){reject('missing exact transfer provenance; older planned allocations cannot establish delivery');continue}
+  const receiver=locked[p.receiverIndex],oldReceiver={proposedSeconds:p.receiver?.before};
+  const valid=x=>x&&typeof x.name==='string'&&x.name.length>0&&integer(x.before)&&integer(x.after);
+  if(!valid(p.donor)||!valid(p.receiver)||p.donor.before-p.donor.after!==300||p.receiver.after-p.receiver.before!==300||p.donor.after<300||p.receiver.before<300||p.receiver.after>1200||!receiver||receiver.index!==p.receiverIndex||receiver.id!==id+':exercise:'+p.receiverIndex||receiver.mode!=='timed'||receiver.name!==p.receiver.name||receiver.plannedSeconds!==p.receiver.after){reject('transfer not reproduced by immediate budgets and locked receiver');continue}
+  const candidates=(s.activities??[]).filter(x=>x.exerciseIndex===p.receiverIndex||x.exerciseId===receiver.id);
   if(candidates.length!==1){rows.push({...base,planned:300,status:'planned-only',reason:'receiver completion not uniquely recorded'});continue}
   const x=candidates[0];
-  if(x.exerciseId!==receiver.id||x.exerciseIndex!==t.to||x.name!==receiver.name||x.plannedSeconds!==receiver.plannedSeconds||!integer(x.seconds)||!Number.isFinite(x.at)||x.at<b.at||x.at>now){rows.push({...base,planned:300,status:'planned-only',reason:'receiver activity inconsistent with locked plan'});continue}
+  if(x.exerciseId!==receiver.id||x.exerciseIndex!==p.receiverIndex||x.name!==receiver.name||x.plannedSeconds!==receiver.plannedSeconds||!integer(x.seconds)||!Number.isFinite(x.at)||x.at<b.at||x.at>now){rows.push({...base,planned:300,status:'planned-only',reason:'receiver activity inconsistent with locked plan'});continue}
   const observed=Math.min(300,Math.max(0,x.seconds-oldReceiver.proposedSeconds));
   rows.push({...base,planned:300,observedBeyondOriginal:observed,status:'matched-activity',completedSession:s.completed===true,actualSeconds:x.seconds,originalSeconds:oldReceiver.proposedSeconds,allocatedSeconds:receiver.plannedSeconds});
  }
