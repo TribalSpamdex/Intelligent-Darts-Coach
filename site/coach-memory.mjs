@@ -68,11 +68,11 @@ export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  }
  else if(type==='remove-fact')state=removeFact(x.state,payload.key);
  else if(type==='goal'){if(payload.start!==day||!x.state.observations.some(o=>o.skill===payload.skill&&o.context===payload.context&&o.protocol===payload.protocol))throw Error('Choose a recorded benchmark for the goal');state=createGoal(x.state,payload)}
- else if(type==='close-goal')state=closeGoal(x.state,payload.id);
+ else if(type==='close-goal')state=closeGoal(x.state,payload.id,day);
  else if(type==='clinic'){if(payload.day!==day)throw Error('Observation must be recorded today');state=recordClinic(x.state,payload)}
  else if(type==='setup'){if(payload.day!==day)throw Error('Setup must be recorded today');state=recordSetup(x.state,payload)}
  else if(type==='remove-clinic'||type==='remove-setup'){const key=type==='remove-clinic'?'clinic':'setups';state={...x.state,[key]:x.state[key].filter(o=>o.id!==payload.id)}}
- else if(type==='cancel'){const i=x.state.interventions.find(i=>i.id===payload.id&&['accepted','proposed'].includes(i.status));if(!i)throw Error('No open intervention');state={...x.state,interventions:x.state.interventions.map(o=>o.id===i.id?{...o,status:'declined',responseDay:o.responseDay??day,cancelledDay:day}:o)}}
+ else if(type==='cancel'){const i=x.state.interventions.find(i=>i.id===payload.id&&['accepted','proposed'].includes(i.status));if(!i)throw Error('No open intervention');state={...x.state,interventions:x.state.interventions.map(o=>o.id===i.id?{...o,status:'declined',responseDay:o.responseDay??day,cancelledDay:day,cancelledFrom:i.status}:o)}}
  else if(type==='retention'){
  const item=x.state.interventions.find(i=>i.id===payload.id);
  if(!item||reviewReproduction(item,m.baselines[item.id]??[],x.state.observations,day).status!=='reproduced')throw Error('Original intervention review requires verification');
