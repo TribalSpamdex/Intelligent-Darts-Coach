@@ -53,3 +53,19 @@ export function outcomeAudit(host,state,baselines,day){
 export function outcomeLines(rows){
  return rows.length?rows.slice(-15).flatMap(r=>[r.skill+' | '+r.protocol+' | '+r.status,r.delivery.sessions+' completed sessions with recorded five-minute allocation ('+r.delivery.plannedMinutes+' planned minutes). '+r.delivery.limitation,'Historical review check: '+r.reproduction.status+'.',r.limitation]):['No accepted intervention history recorded.'];
 }
+
+// A transient learning view: preserve the stored history, but block automatic repetition
+// when a previous outcome is no longer reproducible. Never turn an invalid negative
+// outcome into a positive recommendation.
+export function verifiedLearningState(state,baselines,day){
+ const questionable=[];
+ const interventions=state.interventions.map(item=>{
+  if(!['completed','unsuccessful'].includes(item.status)||!item.reviewDay||item.reviewDay>day)return item;
+  const b=Object.hasOwn(baselines,item.id)?baselines[item.id]:[];
+  const check=reviewReproduction(item,b,state.observations,day);
+  if(check.status==='reproduced')return item;
+  questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:check.status});
+  return {...item,outcome:{status:'unclear'},retentionHistory:[]};
+ });
+ return {state:{...state,interventions},questionable};
+}
