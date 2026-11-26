@@ -103,7 +103,7 @@ export function delayedFollowups(episodes,state,host,day,blockedDays=[]){
 }
 export function trainingOutcomes(host,state,day,now=Date.now()){
  const history=learningEpisodes(host,state,day,now);
- return {...history,comparisons:methodComparisons(history.episodes,day),followups:delayedFollowups(history.episodes,state,host,day),limitation:'Matched observational comparisons, not causal effects. Unlogged practice, different conditions, selection bias and regression to the mean may remain. No automatic changes to exercise choice, time or difficulty.'};
+ return {...history,comparisons:methodComparisons(history.episodes,day),followups:delayedFollowups(history.episodes,state,host,day,history.blockedDays),limitation:'Matched observational comparisons, not causal effects. Unlogged practice, different conditions, selection bias and regression to the mean may remain. No automatic changes to exercise choice, time or difficulty.'};
 }
 export function outcomeReportLines(report,kind=null){
  const f=n=>n===null?'not measured':(n>0?'+':'')+n.toFixed(1);
