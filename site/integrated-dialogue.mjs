@@ -1,3 +1,4 @@
+import {autonomyAnswer,AUTONOMY_QUESTIONS} from './autonomy-dialogue.mjs';
 import {intelligenceAnswer,INTELLIGENCE_QUESTIONS} from './coaching-intelligence.mjs';
 import {tacticalAnswer} from './tactical-learning.mjs';
 import {progressionAnswer,PROGRESSION_QUESTIONS} from './progression-dialogue.mjs';
@@ -15,12 +16,13 @@ import {nextActions} from './engine/next-actions.mjs';
 import {fullReport} from './engine/executive.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
-export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={}){
+export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={},events=[]){
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
+ const autonomy=autonomyAnswer(host,state,q,day,now,reflections,baselines,events);if(autonomy)return autonomy;
  const tactical=tacticalAnswer(state,q,day);if(tactical)return tactical;
  const intelligence=intelligenceAnswer(host,state,q,day,now,reflections);if(intelligence)return intelligence;
  const progression=progressionAnswer(host,state,q,day);if(progression)return progression;
