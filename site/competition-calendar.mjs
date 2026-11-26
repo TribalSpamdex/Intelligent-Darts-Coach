@@ -70,6 +70,16 @@ export function competitionPreparation(state,events,day,{report=null}={}){
  const focus=candidates[0];
  return {...base,status:'measured-priority',focus,alternatives:candidates.slice(1),action:focus.action};
 }
+// Shared planning constraint for the actual native scheduler. A dated
+// competition can change eligible choices, not create a second session.
+export function competitionSchedulePolicy(state,events,day,report){
+ const event=eventContext(events,day),phase=event.phase;
+ if(phase==='ordinary')return {phase,focus:null,familiar:false,deferEscalation:false,eventId:null};
+ const prep=competitionPreparation(state,events,day,{report});
+ const close=phase==='near-event'||phase==='competition-day';
+ const focus=phase==='event-week'&&prep.status==='measured-priority'?(prep.focus.skill==='setup'?'checkout':prep.focus.skill):null;
+ return {phase,focus,familiar:close,deferEscalation:close,eventId:event.event.id,reason:prep.action};
+}
 export function competitionPreparationLines(p){
  const x=p.focus;
  return [...(p.event.event?['Next competition: '+p.event.event.day+' · '+p.event.event.name+'.']:['No upcoming competition recorded.']),...(x?[x.start+' straight-in · '+x.metric+': competition minus practice '+(x.units==='points'?x.difference:100*x.difference).toFixed(1)+' '+x.units+' across '+x.pairedWeeks+' matched weeks and '+x.daysA+'/'+x.daysB+' measured days. The logged leg format may differ from the next event.']:[]),p.action,p.limitation,'Observed context differences do not establish pressure or technique as the cause.'];
