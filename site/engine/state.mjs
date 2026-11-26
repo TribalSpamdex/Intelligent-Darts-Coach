@@ -21,6 +21,7 @@ export function validateState(raw){
   if(i.status==='proposed'&&i.responseDay!=null||i.status!=='proposed'&&(!dayValid(i.responseDay)||i.responseDay<i.proposedDay))throw Error('Invalid intervention response');
   if(['completed','unsuccessful'].includes(i.status)&&(!dayValid(i.reviewDay)||i.reviewDay<i.responseDay||!i.outcome||!Number.isFinite(i.adherence)||i.adherence<0||i.adherence>1))throw Error('Invalid intervention review');
   if(i.cancelledDay!=null&&(!dayValid(i.cancelledDay)||i.status!=='declined'||i.cancelledDay<i.responseDay))throw Error('Invalid cancellation');
+  if(i.cancelledFrom!=null&&(i.cancelledDay==null||!['proposed','accepted'].includes(i.cancelledFrom)))throw Error('Invalid cancellation origin');
  }
  if(s.interventions.filter(i=>['proposed','accepted'].includes(i.status)).length>1)throw Error('Multiple open interventions');
  for(const [key,validator,id] of [['readiness',validateReadiness,x=>x.day+'/'+x.context],['difficulty',validateDifficulty,x=>x.id]]){const rows=s[key]??[];if(!Array.isArray(rows)||rows.length>50000)throw Error('Invalid '+key+' history');const unique=new Set();s[key]=rows.map(raw=>{const o=validator(raw),k=id(o);if(unique.has(k))throw Error('Duplicate '+key+' record');unique.add(k);return o})}
