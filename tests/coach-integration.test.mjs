@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newMemory,assemble,assess,changeMemory,memorySummary,validateMemory,interventionReview} from '../site/coach-memory.mjs';
+import {newMemory,assemble,assess,changeMemory,memorySummary,validateMemory,interventionReview,previewRetention} from '../site/coach-memory.mjs';
 import {decideTransfer,applyTransfer} from '../site/coach-policy.mjs';
 const day='2026-11-15',now=Date.parse(day+'T12:00:00Z');
 const empty=()=>({sessions:[],games:[],assessmentHistory:[],bigSingles:[]});
@@ -20,3 +20,34 @@ test('seeded allocation fuzz preserves total, minimum and consent constraints',(
 
 import {projectExposure} from '../site/host-exposure.mjs';
 test('actual practice exposure excludes Quick Play, mixed games and unverified double variants',()=>{const h=empty();h.sessions=[{id:1,date:day,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0},{name:'Doubles Survival',seconds:900,exerciseIndex:1,exerciseId:'e'},{name:'Warm-up',seconds:600,exerciseIndex:2},{name:'Shanghai Combo',seconds:300,exerciseIndex:3}]},{id:2,date:day,quick:true,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0}]}];let x=projectExposure(h,day);assert.deepEqual(x.exposure,[{day,skill:'bull',minutes:10}]);assert.equal(x.unclassifiedSeconds,1200);h.games=[{name:'Doubles Survival',sessionId:1,exerciseId:'e',quick:false,variant:'doubles'}];x=projectExposure(h,day);assert.equal(x.exposure.find(e=>e.skill==='doubles').minutes,15);assert.equal(x.complete,false);assert.equal(assemble(h,null,day,now).state.exposure.length,2);assert.equal(change(h,null,'fact',{key:'grip',value:'front',evidence:'reported'}).state.exposure.length,0)});
+
+test('historical invalid intervention cannot drive a new allocation or rewrite stored history',()=>{
+ const h=fixture(),obs=assemble(h,null,day,now).state.observations,scope=obs[0],base=Array.from({length:7},(_,n)=>({...scope,id:'historical-'+n,day:'2026-10-'+(10+n),hits:40}));
+ const i={id:'past',skill:scope.skill,context:scope.context,protocol:scope.protocol,action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:'2026-10-17',responseDay:'2026-10-17',reviewAfterDays:14,maximumDays:21,reviewDay:'2026-10-31',baselineIds:base.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.25,noise:0}};
+ const m=newMemory();m.state.observations=base;m.state.interventions=[i];m.baselines.past=base;
+ const before=JSON.stringify(m),result=assess(h,m,day,now);
+ assert.equal(result.questionableOutcomes[0].id,'past');
+ assert.notEqual(result.report.decision,'temporary-focus');
+ assert.throws(()=>change(h,m,'propose',{id:'new'}));
+ assert.equal(JSON.stringify(m),before);
+ const updated=change(h,m,'fact',{key:'grip',value:'front',evidence:'reported'});
+ assert.equal(updated.state.interventions[0].outcome.status,'observed-improvement');
+});
+
+test('retention preview and explicit save round-trip through real coach memory',()=>{
+ const h=empty(),m=newMemory(),scope={skill:'doubles',context:'practice',protocol:'fixed'};
+ const shift=n=>new Date(now-n*86400000).toISOString().slice(0,10);
+ const make=(start,hits)=>Array.from({length:7},(_,i)=>({id:'test-'+(start+i),day:shift(start+i),...scope,attempts:60,hits}));
+ const before=make(40,18),after=make(22,30),delayed=make(2,30);
+ m.state.observations=[...before,...after,...delayed];
+ m.state.interventions=[{...scope,id:'reviewed',action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:shift(36),responseDay:shift(36),reviewDay:shift(18),reviewAfterDays:14,maximumDays:21,baselineIds:before.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}}];m.baselines.reviewed=before;
+ assert.equal(previewRetention(h,m,'reviewed',day,now).status,'observed-retention');
+ const saved=changeMemory(h,m,day,'retention',{id:'reviewed'},now);
+ assert.equal(saved.state.interventions[0].retentionHistory.length,1);
+ assert.equal(assess(h,validateMemory(JSON.parse(JSON.stringify(saved))),day,now).questionableOutcomes.length,0);
+ assert.equal(m.state.interventions[0].retentionHistory,undefined);
+ assert.equal(changeMemory(h,saved,day,'retention',{id:'reviewed'},now).state.interventions[0].retentionHistory.length,1);
+ const edited=JSON.parse(JSON.stringify(saved));edited.state.observations=edited.state.observations.filter(o=>o.id!==before[0].id);
+ assert.equal(previewRetention(h,edited,'reviewed',day,now).status,'review-needs-verification');
+ assert.throws(()=>changeMemory(h,edited,day,'retention',{id:'reviewed'},now));
+});
