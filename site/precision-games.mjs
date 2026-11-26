@@ -32,9 +32,7 @@ const specs={
  'Neighbour Trap':['scoring','allowed',-1,2,120],
  'Double Jackpot':['doubles','allowed',-1,2,120],
  'Dartboard Bingo':['doubles','maxCalls',-1,5,100],
- 'High-Low':['scoring','diff',1,1,60],
  'Split the Difference':['scoring','tolerance',-1,1,100],
- 'Pressure Cricket':['scoring','allowed',-1,5,120],
  '301 Pressure':['scoring','maxDarts',-1,12,75],
  '501 Pressure':['scoring','maxDarts',-1,18,105]
 };
@@ -54,6 +52,9 @@ export function precisionRound(game,decisions,options={}){
  if(game.name==='Neighbour Trap'&&game.allowed+delta<game.goal)return game;
  if(['301 Pressure','501 Pressure'].includes(game.name)&&decisions.checkout?.half!=='upper')return game;
  if(game.name==='Double Bull Bridge'&&decisions.bull?.half!=='upper')return game;
+ if(game.name==='Dartboard Bingo'&&!game.singleLineRound&&game.maxCalls+delta<20)return game;
+ if(game.name==='Switchback'&&game.allowed+delta<game.sequence?.length)return game;
+ if(game.name==='Cricket Countdown'&&game.allowed+delta<game.targets?.length)return game;
  const old=game[field];
  const adjust=v=>Math.max(min,Math.min(max,v+delta));
  const next=field==='targets'&&Array.isArray(old)&&old.length&&old.every(v=>Number.isInteger(v)&&v>=min&&v<=max)?old.map(adjust):Number.isInteger(old)&&old>=min&&old<=max?adjust(old):old;
