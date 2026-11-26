@@ -35,4 +35,4 @@ test('all precision progression modules are versioned and cached',()=>{for(const
 
 test('challenge learning dependency graph is versioned and offline',()=>{for(const n of ['challenge-setting','challenge-exposure','challenge-episodes','challenge-learning'])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=1.9.0-dev')});
 
-test('new independent intelligence modules are versioned and cached offline',()=>{for(const n of ["training-ledger","training-outcomes","match-stages","development-review","coaching-intelligence","tactical-learning"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=1.9.0-dev')});
+test('new independent intelligence modules are versioned and cached offline',()=>{for(const n of ["training-ledger","training-outcomes","match-stages","development-review","coaching-intelligence","tactical-learning","session-learning","trial-planning"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=1.9.0-dev')});
