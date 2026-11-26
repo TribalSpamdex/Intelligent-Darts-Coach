@@ -1,3 +1,4 @@
+import {legalFinishCount} from './finish-validation.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {routes,mean,sd} from './engine/engine.mjs';
 const validCount=(x,n)=>Number.isInteger(x)&&x>=0&&x<=n;
@@ -10,9 +11,9 @@ export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  const map=new Map(),bad=new Set();
  function put(key,value){if(bad.has(key))return;if(map.has(key)&&JSON.stringify(map.get(key))!==JSON.stringify(value)){bad.add(key);map.delete(key)}else map.set(key,value)}
  for(const a of [...(host.assessmentHistory??[]),host.assessment].filter(Boolean)){
- if(a.version!==6||!a.finished||a.quickStart||a.carriedForward||!Number.isFinite(a.completedAt)||a.completedAt<=0||a.completedAt>now)continue;
+ if(a.version!==6||a.finished!==true||a.quickStart||a.carriedForward||!Number.isFinite(a.completedAt)||a.completedAt<=0||a.completedAt>now)continue;
  const d=localDay(a.completedAt);if(!within(d))continue;
- const rows=Array.isArray(a.checkout)&&a.checkout.length===12&&a.checkout.every((x,i)=>x?.target===finishes[i]&&typeof x.hit==='boolean'&&[1,2,3].includes(x.darts)&&(x.hit||x.darts===3))?a.checkout.map(x=>({score:x.target,success:x.hit,allowance:3,used:x.darts})):[];
+ const rows=Array.isArray(a.checkout)&&a.checkout.length===12&&a.checkout.every((x,i)=>x?.target===finishes[i]&&typeof x.hit==='boolean'&&[1,2,3].includes(x.darts)&&(x.hit?legalFinishCount(x.target,x.darts):x.darts===3))?a.checkout.map(x=>({score:x.target,success:x.hit,allowance:3,used:x.darts})):[];
  put('assessment:'+a.completedAt,{day:d,protocol:'Fixed checkout assessment',rows});
  }
  for(const g of host.games){
@@ -23,7 +24,7 @@ export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  if(x&&Number.isInteger(x.finish)&&typeof x.success==='boolean'&&x.allowance===3&&[1,2,3].includes(x.dartsUsed))return {score:x.finish,success:x.success,allowance:3,used:x.dartsUsed};
  return null;
  });
- if(rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(routes(x.score,x.used??3).length>0):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:'Checkout Climb (adaptive)',rows});
+ if(rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(x.used===null?routes(x.score,3).length>0:legalFinishCount(x.score,x.used)):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:'Checkout Climb (adaptive)',rows});
  }
  if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+g.at,{day:g.day,protocol:'Scoring Challenge fixed 30',scores:[...g.scores]});
  }
