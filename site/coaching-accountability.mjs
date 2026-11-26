@@ -34,6 +34,25 @@ export function deliveryEvidence(host,item,day,now=Date.now()){
  }
  return {rows,plannedSeconds:rows.reduce((n,x)=>n+x.planned,0),observedBeyondOriginal:rows.reduce((n,x)=>n+(x.observedBeyondOriginal??0),0),matched:rows.filter(x=>x.status==='matched-activity').length,unverified:rows.filter(x=>x.status==='unverified').length,limitation:'Observed elapsed activity beyond original budget is capped at five minutes per transfer. Not actual throwing time, proof of extra training, or player-reported adherence.'};
 }
+// Conservative eligibility policy, not a scientifically validated dose threshold.
+// Require three separate completed, attributable exercises, each with at least
+// four of the additional five minutes and a real recorded throwing round.
+export function attributableAllocation(host,item,day,now=Date.now()){
+ if(!Array.isArray(host?.games)||!Array.isArray(host?.sessions)||item.context!=='practice')return false;
+ const evidence=deliveryEvidence(host,item,day,now),days=new Set();
+ for(const row of evidence.rows){
+  if(row.status!=='matched-activity'||row.completedSession!==true||row.observedBeyondOriginal<240)continue;
+  const session=host.sessions.find(s=>String(s.id)===row.id);
+  const index=session?.wholeSessionAudit?.idcTransfer?.delivery?.receiverIndex;
+  const receiver=session?.provenanceLocked?.exercises?.[index],activity=session?.activities?.find(a=>a.exerciseId===receiver?.id);
+  if(!receiver||!activity)continue;
+  const rounds=host.games.filter(g=>g.sessionId===session.id&&g.exerciseId===receiver.id&&g.exerciseIndex===index&&g.name===receiver.name&&g.quick===false&&g.extra===false&&!g.recovery&&['natural','partial'].includes(g.completion)&&g.day===session.date&&Number.isFinite(g.at)&&g.at>=session.provenanceLocked.at&&g.at<=activity.at);
+  const unique=new Set(rounds.map(g=>g.at));
+  if(rounds.length!==unique.size||!rounds.some(g=>[g.thrown,g.visits,g.attempts,g.dartsUsed,g.darts].some(n=>Number.isInteger(n)&&n>0)))continue;
+  days.add(row.day);
+ }
+ return days.size>=3;
+}
 export function coachingAccountability(host,state,baselines,day,now=Date.now()){
  const rows=[];
  for(const i of state.interventions??[]){
@@ -41,7 +60,7 @@ export function coachingAccountability(host,state,baselines,day,now=Date.now()){
   const base=Object.hasOwn(baselines,i.id)?baselines[i.id]:[];
   const integrity=baselineIntegrity(i,base,state.observations,day),review=reviewReproduction(i,base,state.observations,day),retention=verifiedRetention(state,i,base,day),delivery=deliveryEvidence(host,i,day,now);
   const due=dayGap(i.responseDay,day)>=i.reviewAfterDays;
-  const status=integrity.status!=='intact'?'baseline-edited':review.status==='reproduced'?delivery.matched===0?'review-reproduced-delivery-unverified':'review-reproduced':review.status==='not-reviewed'?due?'review-due':'awaiting-review':'review-needs-verification';
+  const status=integrity.status!=='intact'?'baseline-edited':review.status==='reproduced'?!attributableAllocation(host,i,day,now)?'review-reproduced-delivery-unverified':'review-reproduced':review.status==='not-reviewed'?due?'review-due':'awaiting-review':'review-needs-verification';
   rows.push({id:i.id,skill:i.skill,protocol:i.protocol,status,observedOutcome:review.status==='reproduced'?i.outcome.status:null,retentionChecks:retention.valid.length,invalidRetention:retention.invalid,reportedAdherence:i.reviewDay&&i.reviewDay<=day?i.adherence??null:null,delivery});
  }
  return rows;
