@@ -1,6 +1,6 @@
 # Intelligent Darts Coach (IDC)
 
-V1.3.0-dev work in progress: longitudinal evidence and coaching follow-up candidate. Not ready for publication. V1.2.0-dev remains on main until release verification and the cumulative development batch are complete. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
+V1.3.0-dev: longitudinal evidence and coaching follow-up candidate, intended for personal testing after successful verification. Not a production release. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
 
 - Training platform: exact V6.2 source at TribalSpamdex/darts-coach commit b248a1caa169c9a45a6beda3954dc067cbfbe6e1, with separate storage keys, new local Coach panel, share URL and offline asset cache.
 - Independent engine: pinned V0.4.0 at TribalSpamdex/DCI-independent commit a39210419869ecf1160471997b10300d57c93ef1. The original engine regression suite is carried over.
@@ -26,11 +26,14 @@ Only known comparable benchmarks and unambiguous completed exercise minutes are 
 ## Integrated Coach workflow
 The original Home and About guide remain in place; the former Technique navigation tab is labelled Coach and contains the independent engine plus the original technique library. Optional readiness is available on Train before starting. Scheduled and extra training present a voluntary question at completed exercise boundaries (excluding warm-up and review) while the exercise clock is stopped, and at the saved session summary. Automatically restarting rounds and Quick Play remain uninterrupted. Reflection answers and optional notes are stored in the existing IDC backup, separately from scored performance. The session question can refer to an exercise answer. Repeated concerns on different days with corresponding saved session records are surfaced as investigations, not a diagnosis or a new automatic allocation rule. Skips are excluded from evidence. The current release also corrects the native Checkout Climb target/hit log adapter; successful-dart counts remain unknown when not recorded.
 
-## V1.3.0 development in progress
+## V1.3.0 longitudinal intelligence
 - Separate comparable benchmark histories for 7, 28, 84 and 365 calendar days. Missing days are not misses; pooled rates and daily means stay distinct. Recent trend uses the existing conservative weekly-block method.
 - Optional exercise follow-up prompts refer only to recurring reported concerns on at least two earlier days with matching saved exercise identity. Two subsequent comfortable days suppress the recurring prompt. These are not mechanical diagnoses.
 - Readiness questions use matched weeks within identical skill/context/protocol scopes. Technical observations remain separated by condition and preserve contrary observations. These are descriptive reports, not diagnostic or automatic equipment changes.
 - Refresh synchronization protects freshly rendered Coach answers from delayed invalidation. Browser regression checks cover this and the new dialogue.
-- Intervention audit separates logged allocation from actual adherence. Historical numerical reviews are reproduced against current authoritative records, with scope/date and baseline integrity checks. Unreproducible outcomes are downgraded to unclear only in the transient coaching decision view; originals remain in backup. The integrated review, dialogue, and proposal/acceptance gates use that view. Stored retention records are not independently reproduced yet.
-- Offline module cache includes the unversioned URLs used by module imports. The physical iPhone and browser offline behaviour still require verification.
+- Intervention audit separates logged allocation from actual adherence. Historical numerical reviews are reproduced against current authoritative records, with scope/date and baseline integrity checks. Unreproducible outcomes are downgraded to unclear only in the transient coaching decision view; originals remain in backup. The integrated review, dialogue, and proposal/acceptance gates use that view. Delayed retention reviews can be previewed and explicitly saved in Coach history; saved retention statistics are independently reproduced against current evidence before use. Unverifiable retention invalidates the transient outcome, not stored history.
+- Offline module cache includes the unversioned URLs used by module imports. Versioned imports and offline cache manifests are synchronized and covered by dependency and browser tests. Actual iPhone offline behaviour requires personal testing.
 - No changes to game rules, session allocation policy, original V6.2 or the independent engine's pinned source.
+
+### Release acceptance
+The complete Node regression suite and both Chromium and WebKit smoke tests must pass on the final candidate commit before merge. Physical iPhone use, long-term real-world player effectiveness and automatic update behaviour on an existing installed iPhone remain unverified. Simulations are synthetic evidence tests, not proof of coaching efficacy. The original V6.2 and independent engine source repositories are unchanged.
