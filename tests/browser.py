@@ -127,6 +127,12 @@ with sync_playwright() as p:
     assert page.evaluate("window.IDCTrainingBridge.memory().reflections.length")==2
     page.evaluate("finishView()")
     page.locator('#navTechnique').click()
+    assert page.evaluate("""async()=>{const m=await import('./training-ledger.mjs?v=1.9.0-dev');const x=m.trainingLedger(window.IDCTrainingBridge.snapshot(),window.IDCTrainingBridge.day());return x.sessions.length>=1&&x.sessions.some(s=>!s.completed)}""")
+    page.locator('#idcDeepPanel').evaluate('(e)=>e.open=true')
+    assert page.locator('#idcDeepQuestions button').count()==13
+    page.locator('#idcDeepQuestions button').filter(has_text='Recovery from 81 after S19').click()
+    assert 'Remaining score 62' in page.locator('#idcAnswer').inner_text()
+    page.locator('#idcDeepPanel').evaluate('(e)=>e.open=false')
     page.locator('#idcQuestion').fill('How did my practice feel?')
     page.locator('#idcAsk').click()
     assert '1 recent player-reported reflections' in page.locator('#idcAnswer').inner_text()
@@ -190,7 +196,7 @@ with sync_playwright() as p:
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
         assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.9.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.9.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.9.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.9.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.9.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=1.9.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=1.9.0-dev'))}""")
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning'])if(!await c.match('./'+n+'.mjs?v=1.9.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning','session-learning','trial-planning'])if(!await c.match('./'+n+'.mjs?v=1.9.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
         ctx.set_offline(True)
         page.reload()
         page.locator('#navTechnique').click()
@@ -205,7 +211,7 @@ with sync_playwright() as p:
         assert 'doubles' in page.locator('#idcAnswer').inner_text()
         page.locator('#idcReview').click()
         assert 'Current development priorities' in page.locator('#idcReport').inner_text()
-        for question, expected in [('How much have I actually trained?', 'Unlogged practice is unknown'), ('Which drills help me improve?', 'eligible exercise exposures'), ('Does longer practice help me?', 'eligible exercise exposures'), ('Have my gains lasted?', 'delayed follow-ups'), ('Where do I lose performance in legs?', '101 straight-in'), ('How does practice transfer to competition?', 'actual practice and competition'), ('Model checkout 81 with 2 darts', 'Standard legal route'), ('Recovery from 81 after S19', 'Remaining score 62')]:
+        for question, expected in [('How much have I actually trained?', 'Unlogged practice is unknown'), ('Which drills help me improve?', 'eligible exercise exposures'), ('Does longer practice help me?', 'eligible exercise exposures'), ('Have my gains lasted?', 'delayed follow-ups'), ('Where do I lose performance in legs?', '101 straight-in'), ('How does practice transfer to competition?', 'actual practice and competition'), ('Model checkout 81 with 2 darts', 'Standard legal route'), ('Recovery from 81 after S19', 'Remaining score 62'), ('Do I lose consistency during practice?', 'six or more complete'), ('What should I test next?', 'Not enough comparable training contrasts')]:
             page.locator('#idcQuestion').fill(question)
             page.locator('#idcAsk').click()
             assert expected.lower() in page.locator('#idcAnswer').inner_text().lower(), question
@@ -277,6 +283,13 @@ with sync_playwright() as p:
        if(g.target!==68||g.precision?.quarter!==3)throw Error('Actual round did not use confirmed quarter');
        if(g.learningSetting?.before!==60||g.learningSetting?.after!==68||g.learningSetting?.quarter!==3)throw Error('Native learning configuration not captured');
        const observed=[];for(const [value,target,quarter] of [[61,60,0],[64,61,.5],[66,62,1],[68,63,1+1/3],[70,65,2],[72,67,2+2/3],[75,68,3]]){for(const o of data.idcCoachMemory.state.observations)if(o.skill==='scoring')o.hits=value*10;window.IDCPrecision.invalidate();const v=buildGame('Scoring Survival');if(v.target!==target||(v.precision?.quarter??0)!==quarter||v.learningSetting?.after!==target||v.learningSetting?.quarter!==quarter)throw Error('Real scoring quarter '+quarter+' expected '+target+' got '+v.target);observed.push(v.target)}
+       // Native continuous ability remains high but repeated recent lower form limits challenge.
+       const savedObservations=clone(data.idcCoachMemory.state.observations);
+       data.idcCoachMemory.state.observations=savedObservations.filter(o=>o.skill!=='scoring');
+       for(const n of [...Array.from({length:21},(_,i)=>i+7),0,1,2])data.idcCoachMemory.state.observations.push({id:'IDC:precision-check:scoring:'+day(n),day:day(n),skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:(n<7?70:90)*10});
+       window.IDCPrecision.invalidate();const capped=buildGame('Scoring Survival');
+       if(capped.target!==65)throw Error('Expected temporary form cap 65; got '+capped.target);
+       data.idcCoachMemory.state.observations=savedObservations;window.IDCPrecision.invalidate();
        const e=gameResult(g,'natural');data.games=[e];
        if(skillSamples().scoring.length!==0||completedRows('scoring').length!==0)throw Error('Modified round polluted benchmark evidence');
        data.activeSession.quick=true;const q=buildGame('Scoring Survival');if(q.precision||q.learningSetting)throw Error('Quick Play altered or counted as learning exposure');
