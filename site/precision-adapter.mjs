@@ -13,7 +13,7 @@ export function snapshotPrecision(host,state,day,tiers,assessmentDay=null,now=Da
 }
 export function applyPrecision(game,profile,games,day,opts={}){
  if(!SUPPORTED_GAMES.includes(game?.name)||!profile)return game;
- const options=precisionOptions(games,game.name,day,game.tier,opts.now??Date.now());
+ const options=precisionOptions(games,game.name,day,game.tier,opts.now??Date.now(),game);
  return precisionRound(game,profile.decisions,{...options,eligible:opts.eligible===true,safety:profile.safety||opts.safety,probe:options.probe||opts.probe,cooldown:options.cooldown||opts.cooldown});
 }
 export function createPrecisionAdapter(getData,getHistory=null){
