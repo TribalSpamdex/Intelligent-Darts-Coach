@@ -9,7 +9,7 @@ export function makeTargetSample(input,today){
  return actual.map((s,i)=>validThrow({id:prefix+input.id+':'+i,day:today,context:'practice',protocol,aim:input.aim,actual:s}));
 }
 export function manualSamples(throws){
- const groups=new Map();
+ const groups=new Map(),dayTargets=new Set();
  for(const raw of throws??[]){
  if(!raw?.id?.startsWith(prefix))continue;
  const o=validThrow(raw),m=o.id.match(/^idc-fixed20:([a-zA-Z0-9-]{1,50}):(\d{1,2})$/);
@@ -19,6 +19,7 @@ export function manualSamples(throws){
  return [...groups].map(([id,rows])=>{
  const first=rows[0];
  if(rows.length!==20||new Set(rows.map(o=>o.index)).size!==20||rows.some(o=>o.index<0||o.index>19||o.day!==first.day||o.aim!==first.aim||o.protocol!==protocol||o.context!=='practice'))throw Error('Incomplete or conflicting fixed target sample');
+ const key=JSON.stringify([first.day,first.aim]);if(dayTargets.has(key))throw Error('Duplicate daily fixed target sample');dayTargets.add(key);
  const ordered=rows.sort((a,b)=>a.index-b.index).map(({index,...o})=>o);
  const s=targetSummaries(ordered)[0];
  return {id,day:first.day,aim:first.aim,hits:s.hits,attempts:20,throws:ordered};
