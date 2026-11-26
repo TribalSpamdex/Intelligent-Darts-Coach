@@ -156,3 +156,16 @@ test('H4: out-of-order fact imports cannot override the latest effective value',
  assert.equal(currentFacts(asOfState(m,d(5)))[0].value,'front');
  assert.throws(()=>setFact(m,'grip','rear','reported','invalid'));
 });
+
+test('M5: independent exhaustive exact-dart checkout oracle including zero-score misses',()=>{
+ const scores=[...new Set([0,25,50,...Array.from({length:20},(_,i)=>i+1).flatMap(n=>[n,2*n,3*n])])];
+ const doubles=[50,...Array.from({length:20},(_,i)=>2*(i+1))];
+ let possible=new Set(doubles),cases=0;
+ for(let darts=1;darts<=3;darts++){
+  for(let score=2;score<=170;score++){
+   assert.equal(legalFinishCount(score,darts),possible.has(score),score+' in '+darts+' darts');cases++;
+  }
+  possible=new Set([...possible].flatMap(n=>scores.map(x=>n+x)));
+ }
+ assert.equal(cases,507);
+});
