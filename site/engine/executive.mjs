@@ -1,5 +1,5 @@
 import {plan} from './engine.mjs';
-import {dayGap,dayValid} from './context.mjs';
+import {dayGap,dayValid,asOfState} from './context.mjs';
 import {executive} from './reasoning.mjs';
 import {selectCoaching} from './player-intelligence.mjs';
 import {deepenReport} from './diagnosis.mjs';
@@ -53,6 +53,7 @@ export function actionOptions(m,i,day){
 }
 export function fullReport(m,day){
  if(!dayValid(day))throw Error('Invalid report date');
+ m=asOfState(m,day);
  const derived=legEvidence(m,day),reserved=new Set(derived.map(o=>o.id));const observations=[...m.observations.filter(o=>!reserved.has(o.id)),...derived];
  const visible={...m,observations:observations.filter(o=>dayGap(o.day,day)>=0&&dayGap(o.day,day)<84),exposure:combinedExposure(m).filter(o=>o.day<=day),interventions:m.interventions.filter(i=>i.proposedDay<=day||!i.proposedDay)};
  let report=deepenReport(visible,selectCoaching(visible,executive(visible),day),day);
