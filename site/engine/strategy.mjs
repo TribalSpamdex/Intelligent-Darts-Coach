@@ -1,4 +1,4 @@
-import {SKILLS,plan,summarise} from './engine.mjs';
+import {SKILLS,plan,summarise,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine.mjs';
 import {dayValid,dayGap} from './context.mjs';
 import {goalProgress} from './goals.mjs';
 import {trialOutcome} from './experiments.mjs';
@@ -14,11 +14,12 @@ export function learningLedger(m,i,day){
  const trials=(m.trials??[]).filter(x=>same(x,i)&&x.status==='completed'&&x.pairs.every(p=>p.day<=day));
  const entries=rows.map(x=>{
  const later=(x.retentionHistory??[]).filter(o=>o.reviewDay<=day).sort((a,b)=>b.reviewDay.localeCompare(a.reviewDay))[0];
- return {id:x.id,kind:'training-allocation',outcome:x.outcome?.status??'unknown',retention:later?.status??'not-assessed',reviewDay:x.reviewDay,adherence:x.adherence??null};
+ return {id:x.id,kind:'training-allocation',outcome:x.outcome?.status??'unknown',retention:later?.status??'not-assessed',reviewDay:x.reviewDay,adherence:x.adherence??null,attributable:x[ALLOCATION_PROOF]===true,reviewUnverified:x[REVIEW_UNVERIFIED]===true};
  });
  for(const t of trials){const out=trialOutcome(t),delayed=followupReview(m,t,day),retention=delayed.find(x=>x.kind==='retention')?.status??'not-assessed';entries.push({id:t.id,kind:t.approach,outcome:out.status,baseline:t.baseline,alternative:t.alternative,retention,delayed:delayed.map(x=>({kind:x.kind,protocol:x.protocol,context:x.context,status:x.status})),reviewDay:t.pairs.at(-1)?.day??t.start})}
- const blocked=entries.filter(x=>x.outcome==='observed-decline'||x.outcome==='unclear'&&x.kind==='training-allocation'||['retention-not-established','benefit-not-established','observed-decline'].includes(x.retention)||x.outcome==='baseline-favoured');
- const promising=entries.filter(x=>x.outcome==='observed-improvement'||x.outcome==='alternative-favoured');
+ const eligible=entries.filter(x=>x.kind!=='training-allocation'||x.attributable===true);
+ const blocked=eligible.filter(x=>x.outcome==='observed-decline'||x.outcome==='unclear'&&x.kind==='training-allocation'||['retention-not-established','benefit-not-established','observed-decline'].includes(x.retention)||x.outcome==='baseline-favoured');
+ const promising=eligible.filter(x=>x.outcome==='observed-improvement'||x.outcome==='alternative-favoured');
  return {entries,blocked,promising,retained:promising.filter(x=>['observed-retention','observed-benefit'].includes(x.retention)&&!blocked.some(b=>b.id===x.id)),policy:blocked.length?'review-previous-outcomes':'no-established-causal-effect'};
 }
 export function questionAgenda(m,issues,day){
@@ -45,8 +46,9 @@ export function resolvePriorities(m,report,day){
  const goals=(m.goals??[]).filter(g=>g.status==='active'&&same(g,i)&&g.start<=day).map(g=>({id:g.id,...goalProgress(m,g,day)}));
  const severity=Math.abs(i.evidence?.change??0)/(['scoring','firstNine'].includes(i.skill)?5:.08);
  const previous=ledger.blocked.some(x=>x.kind==='training-allocation');
- const action=previous?'investigate':i.action;
- return {...i,action,strategy:{severity,goalRelevant:goals.some(g=>g.status!=='target-observed'),goals,ledger,reason:previous?'A prior focused-training outcome was unsuccessful or not retained; investigate an alternative rather than repeat it automatically.': 'Prioritise confirmed current change and relevant measured goals.'}};
+ const unverified=ledger.entries.some(x=>x.reviewUnverified);
+ const action=previous||unverified?'investigate':i.action;
+ return {...i,action,strategy:{severity,goalRelevant:goals.some(g=>g.status!=='target-observed'),goals,ledger,reason:previous?'A prior focused-training outcome was unsuccessful or not retained; investigate an alternative rather than repeat it automatically.':unverified?'Correct or verify an inconsistent historical review; its outcome is not learning evidence.':'Prioritise confirmed current change and relevant measured goals.'}};
  }).sort((a,b)=>Number(b.action==='temporary-focus')-Number(a.action==='temporary-focus')||Number(b.strategy.goalRelevant)-Number(a.strategy.goalRelevant)||b.strategy.severity-a.strategy.severity||id(a).localeCompare(id(b)));
  const clusters=[];
  for(const i of issues){const matches=clusters.filter(g=>g.context===i.context&&g.skills.some(s=>s===i.skill||related[s]?.includes(i.skill)||related[i.skill]?.includes(s)));const group={context:i.context,skills:[...new Set([i.skill,...matches.flatMap(g=>g.skills)])],issues:[id(i),...matches.flatMap(g=>g.issues)]};for(const g of matches)clusters.splice(clusters.indexOf(g),1);clusters.push(group)}
