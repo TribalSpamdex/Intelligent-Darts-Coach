@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {canonicalRows,longitudinal,investigationQueue,profileLines} from '../site/longitudinal.mjs';
-import {interventionDelivery,baselineIntegrity,outcomeAudit,outcomeLines,reviewReproduction} from '../site/intervention-audit.mjs';
+import {interventionDelivery,baselineIntegrity,outcomeAudit,outcomeLines,reviewReproduction,verifiedLearningState} from '../site/intervention-audit.mjs';
 import {contextualQuestions} from '../site/contextual-questions.mjs';
 import {saveReflection} from '../site/reflections.mjs';
 import {newMemory,assemble} from '../site/coach-memory.mjs';
@@ -59,4 +59,27 @@ test('historical outcome audit marks corrected follow-up results unverified',()=
 test('no empty baseline or invalid historical adherence can be treated as verified',()=>{
  assert.equal(baselineIntegrity({...item,baselineIds:[]},[],[],day).status,'baseline-edited');
  assert.equal(reviewReproduction({...item,reviewDay:day,adherence:-1,outcome:{status:'observed-improvement'}},[],[],day).status,'unverifiable');
+});
+
+test('invalid historical outcomes are downgraded in transient view only',()=>{
+ const before=Array.from({length:7},(_,i)=>row(20+i));
+ const after=Array.from({length:7},(_,i)=>row(5+i,{hits:30}));
+ const i={...item,baselineIds:before.map(o=>o.id),status:'completed',reviewDay:day,adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0},retentionHistory:[{status:'observed-retention',reviewDay:day}]};
+ const state={interventions:[i],observations:[...before,...after.slice(1)]};
+ const snapshot=JSON.stringify(state),v=verifiedLearningState(state,{focus:before},day);
+ assert.equal(v.questionable[0].reason,'outcome-changed');
+ assert.equal(v.state.interventions[0].outcome.status,'unclear');
+ assert.deepEqual(v.state.interventions[0].retentionHistory,[]);
+ assert.equal(JSON.stringify(state),snapshot);
+ const valid=verifiedLearningState({...state,observations:[...before,...after]},{focus:before},day);
+ assert.equal(valid.questionable.length,0);assert.equal(valid.state.interventions[0].outcome.status,'observed-improvement');
+});
+test('two later comfortable days retire a recurring prompt, but a new report can reopen it',()=>{
+ const h={sessions:sessions(1,2,3,4,5,6)};
+ const history=[6,5].reduce((r,n)=>saveReflection(r,boundary(n,n),'timing'),[]);
+ const improved=[4,3].reduce((r,n)=>saveReflection(r,boundary(n,n),'comfortable'),history);
+ assert.equal(contextualQuestions(history,h,boundary(9,0)).length,1);
+ assert.equal(contextualQuestions(improved,h,boundary(9,0)).length,0);
+ const recurring=saveReflection(improved,boundary(2,2),'timing');
+ assert.equal(contextualQuestions(recurring,h,boundary(9,0))[0].topic,'timing');
 });
