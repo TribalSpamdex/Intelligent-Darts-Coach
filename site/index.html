@@ -8070,7 +8070,7 @@ window.casualGames=(()=>{
     ?Math.max(.02,Math.min(.85,estimate.value/100)):defaults[levels[key]-1];
   };
   return {singles:[.96,.93,.89,.84,.77,.67,.55][levels.scoring-1],
-   average:means[levels.scoring-1],checkout:[1.08,1.04,1,.95,.9,.85,.8][levels.checkout-1],doubles:rate('doubles',[.65,.52,.4,.31,.23,.16,.09]),
+   average:window.IDCPrecision?.botAverage(means[levels.scoring-1],data.assessment?.quickStart?Number(data.assessment.profile?.selfReportedAverage):null)??means[levels.scoring-1],precisionVersion:window.IDCPrecision?1:0,checkout:[1.08,1.04,1,.95,.9,.85,.8][levels.checkout-1],doubles:rate('doubles',[.65,.52,.4,.31,.23,.16,.09]),
    bull:rate('bull',[.75,.62,.5,.39,.28,.17,.1])};
  }
  function random(){
@@ -8115,6 +8115,7 @@ window.casualGames=(()=>{
    return r<chance?[number,2]:r<chance+.48?[number,1]:[0,0];
   }
   if(ring===1)return r<profile.singles?[number,1]:[0,0];
+  if(profile.precisionVersion===1&&window.IDCPrecision){const p=window.IDCPrecision.botScoring(profile.average,profile.singles);return r<p.treble?[number,3]:r<p.treble+p.single?[number,1]:[0,0];}
   const singles=Math.min(profile.singles,profile.average/60);
   const treble=Math.max(0,Math.min(.8,(profile.average/3-20*singles)/40));
   return r<treble?[number,3]:r<singles?[number,1]:[0,0];
