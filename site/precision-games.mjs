@@ -82,10 +82,11 @@ export function precisionRound(game,decisions,options={}){
  const [skill,field,delta,min,max]=specs[game.name],d=decisions?.[skill];
  if(!Number.isInteger(d?.tier)||!Number.isInteger(game.tier)||game.tier!==d.tier)return game;
  const legacy=!Number.isInteger(d.quarter);
- const basis=ringBasis(game);
+ const basis=legacy?null:ringBasis(game);
  let quarter=basis&&!legacy?quarterOf(decisions[basis]):quarterOf(d);
  if(Number.isInteger(options.maxQuarter))quarter=Math.min(quarter,Math.max(0,options.maxQuarter));if(!quarter)return game;
- if(basis&&legacy||legacy&&game.beginner&&!basis&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.name==='Number Lock'&&game.ring!=='D'&&!basis)return game;
+ if(legacy&&(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D'))return game;
+ if(!legacy&&game.name==='Number Lock'&&game.ring!=='D'&&!basis)return game;
  if(!legacy&&['Bull Survival','Bull Streak'].includes(game.name)&&game.target!=='25/50')return game;
  if(game.name==='Focused Checkouts'&&(!game.config?.balanced||game.config.tier!==game.tier||game.config.lives!==game.lives))return game;
  // Mixed skills never inherit an unsupported harder setting.
@@ -110,7 +111,7 @@ export function precisionRound(game,decisions,options={}){
  }
  return game;
 }
-export function precisionOptions(games,name,day,tier,now=Date.now()){
+export function precisionOptions(games,name,day,tier,now=Date.now(),game=null){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(games))throw Error('Invalid challenge history');
  const unique=new Map(),conflicts=new Set();
  for(const g of games){
@@ -123,6 +124,7 @@ export function precisionOptions(games,name,day,tier,now=Date.now()){
  const latest=rows.slice(0,3),probe=latest.length===3&&latest.every(r=>!!r.challengeTuning);
  const configs=new Map();
  for(const g of rows.filter(g=>validPrecisionRecord(g)&&dayGap(g.day,day)<28)){
+ if(game&&g.precision.version===2&&((g.precision.basis??null)!==ringBasis(game)||!same(g.precision.before,game[g.precision.field])))continue;
  const key=JSON.stringify(g.precision),c=configs.get(key)??{p:g.precision,days:new Map()};
  const d=c.days.get(g.day)??{wins:0,losses:0};d[g.win?'wins':'losses']++;c.days.set(g.day,d);configs.set(key,c);
  }
