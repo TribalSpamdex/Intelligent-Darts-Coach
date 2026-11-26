@@ -121,3 +121,12 @@ test('Sol M7: spoken doubles comparison asks for independent days and does not c
  assert.ok(invalid.lines[0].includes('inconsistent'));
  assert.equal(JSON.stringify(state),before);
 });
+
+test('H6: manual observations cannot impersonate authoritative native fixed benchmarks',()=>{
+ for(const protocol of ['IDC V6.2 assessment D1-D20 fixed 60','IDC V6.2 assessment scoring 60 darts','IDC V6.2 Bull Accuracy any bull 30']){
+  const m=newMemory();m.state.observations=[{id:'ordinary',day,skill:'doubles',context:'practice',protocol,attempts:1000,hits:1000}];
+  assert.throws(()=>validateMemory(m),/original host records/);
+ }
+ const m=newMemory();m.state.observations=[{id:'ordinary',day,skill:'doubles',context:'practice',protocol:'player-reported sample',attempts:1000,hits:500}];
+ assert.equal(validateMemory(m).state.observations.length,1);
+});
