@@ -68,7 +68,9 @@ const bounded=(v,delta,min,max)=>Math.max(min,Math.min(max,v+delta));
 const quarterOf=d=>d?.quarter!==undefined?(Number.isInteger(d.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:0):d?.half==='upper'?2:0;
 const levelOf=d=>{
  const q=quarterOf(d),v=d?.challenge;
- return Number.isInteger(d?.quarter)&&Number.isFinite(v)&&v>=0&&v<=3&&Math.floor(v+1e-8)===q?v:q;
+ const supported=Number.isInteger(d?.quarter)&&Number.isFinite(v)&&v>=0&&v<=3&&Math.floor(v+1e-8)===q?v:q;
+ const cap=d?.recentCap;
+ return d?.temporaryFormCap===true&&Number.isFinite(cap)&&cap>=0&&cap<=supported?cap:supported;
 };
 const hasContinuous=d=>Number.isFinite(d?.challenge)&&Number.isInteger(d?.quarter)&&d.quarter===Math.floor(d.challenge+1e-8)&&d.challenge>=0&&d.challenge<=3;
 export function validPrecisionRecord(g){
