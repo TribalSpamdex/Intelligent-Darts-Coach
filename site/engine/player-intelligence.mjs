@@ -72,8 +72,14 @@ export function selectCoaching(memory,base,day){
  const review=evidenceReview(memory,day);
  if(['stop','reduce-load'].includes(review.decision))return {...base,decision:review.decision,focus:null,plan:[],review};
  const existing=[...base.issues];
- for(const i of review.issues){if(i.action!=='candidate-focus'||existing.some(x=>x.skill===i.skill&&x.context===i.context&&x.protocol===i.protocol)||memory.interventions.some(x=>x.skill===i.skill&&x.protocol===i.protocol&&x.context===i.context&&(x.status==='accepted'||x.status==='unsuccessful'&&x[ALLOCATION_PROOF]===true||x[REVIEW_UNVERIFIED]===true)))continue;
- existing.push({skill:i.skill,context:i.context,protocol:i.protocol,evidence:i.trend,hypotheses:i.hypotheses,knowledge:i.knowledge,action:'temporary-focus',review:'Repeat the same benchmark on later days and evaluate adherence.'})}
+ for(const i of review.issues){
+  if(existing.some(x=>x.skill===i.skill&&x.context===i.context&&x.protocol===i.protocol))continue;
+  const blocked=memory.interventions.some(x=>x.skill===i.skill&&x.protocol===i.protocol&&x.context===i.context&&(x.status==='accepted'||x.status==='unsuccessful'&&x[ALLOCATION_PROOF]===true||x[REVIEW_UNVERIFIED]===true));
+  // A robust long-window concern is still useful when a competing context,
+  // prior outcome, or active intervention prevents a new prescription.
+  // Preserve it as investigation instead of silently discarding the signal.
+  existing.push({skill:i.skill,context:i.context,protocol:i.protocol,evidence:i.trend,hypotheses:i.hypotheses,knowledge:i.knowledge,action:i.action==='candidate-focus'&&!blocked?'temporary-focus':'investigate',review:'Repeat the same benchmark on later days and evaluate adherence.'})
+ }
  const eligible=existing.filter(i=>i.action==='temporary-focus').map(i=>{
  const p=review.profiles.find(q=>q.skill===i.skill&&q.context===i.context&&q.protocol===i.protocol);
  const longIssue=review.issues.find(q=>q.skill===i.skill&&q.context===i.context&&q.protocol===i.protocol);
