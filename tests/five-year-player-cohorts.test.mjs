@@ -28,8 +28,8 @@ function player(index,avg){
   const scoringAverage=clamp(avg+gain*90+form*35+slump*75,10,150);
   // A real discrete 30-dart score, not an impossible aggregate.
   let points=0;for(let dart=0;dart<30;dart++){
-   const p=clamp((scoringAverage/3-12)/48,0,.8);
-   points+=random()<p?60:random()<.65?20:5;
+   const mean=scoringAverage/3,u=random();
+   points+=mean<=5?(u<mean/5?5:0):mean<=20?(u<(mean-5)/15?20:5):(u<(mean-20)/40?60:20);
   }
   state.observations.push(makeCheck('scoring',points,date(i)));
   state.observations.push(makeCheck('doubles',binomial(60,doubleBase+gain+form+slump),date(i)));
