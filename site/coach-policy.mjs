@@ -1,4 +1,5 @@
 import {deliveryGate} from './coaching-accountability.mjs';
+import {dayValid} from './engine/context.mjs';
 import {eventContext} from './competition-calendar.mjs';
 // Final clock-budget transfer only; no game replacement, no additional minutes.
 const skills=['scoring','doubles','checkout','bull'];
@@ -10,7 +11,7 @@ export function decideTransfer({report,confirmation,edited=[],memory,session,que
  if(report.active?.mode!=='accepted-temporary-focus')return no('No accepted independent focus');
  const i=memory.state.interventions.find(o=>o.id===report.active.intervention&&o.status==='accepted');
  if(!i||edited.includes(i.id)||!skills.includes(i.skill)||i.context!=='practice')return no('Unsupported or corrected intervention baseline');
- if(deliveryGate({sessions:priorSessions},i,day).defer)return no('Repeated measured delivery shortfall; review existing adjustment');
+ if(dayValid(i.responseDay)&&i.responseDay<=day&&deliveryGate({sessions:priorSessions},i,day).defer)return no('Repeated measured delivery shortfall; review existing adjustment');
  if(!confirmation||confirmation.verification?.status!=='passed'||confirmation.decision!=='temporary-focus'||confirmation.focus!==i.skill||confirmation.focusProtocol!==i.protocol||confirmation.focusContext!==i.context)return no('Current measurements no longer support the same focus');
  if(!session||session.quick||session.extra||session.allocated||session.unifiedAudit?.exploration?.trial||queue.some(e=>e.name==='Target Mastery'||e.dc47TrialId))return no('Preserve existing special session or trial');
  if(session.coachDayIntent?.focus||legacyTransfer?.status==='transferred'||legacyTransfer?.status!=='no-transfer')return no('Existing coaching adjustment takes priority');
@@ -19,7 +20,7 @@ export function decideTransfer({report,confirmation,edited=[],memory,session,que
  if(previous.length>=4)return no('Independent weekly allocation cap');
  const categories=legacyPolicy?.categories??{},target=categories[i.skill];
  if(!target||target.policySafety||target.overexposed||target.learning?.protect)return no('Existing workload protection');
- const eligible=queue.map((e,index)=>({e,index})).filter(({e})=>e.mode==='timed'&&e.wholeCoach&&skills.includes(e.wholeCoach.category)&&Number.isFinite(e.seconds)&&e.seconds>=300);
+ const eligible=queue.map((e,index)=>({e,index})).filter(({e})=>e.mode==='timed'&&e.wholeCoach&&skills.includes(e.wholeCoach.category)&&Number.isInteger(e.seconds)&&e.seconds>=300);
  const receiver=eligible.find(({e})=>e.wholeCoach.category===i.skill&&e.seconds<=900);
  const donor=eligible.filter(({e})=>e.wholeCoach.category!==i.skill&&e.seconds>=600&&categories[e.wholeCoach.category]&&!categories[e.wholeCoach.category].policySafety&&!categories[e.wholeCoach.category].learning?.protect&&!categories[e.wholeCoach.category].learning?.permissionToEscalate).sort((a,b)=>b.e.seconds-a.e.seconds||a.index-b.index)[0];
  if(!receiver||!donor)return no('No eligible five-minute transfer');
@@ -29,7 +30,7 @@ export function decideTransfer({report,confirmation,edited=[],memory,session,que
 }
 export function applyTransfer(queue,decision){
  if(decision.status!=='transferred')return false;
- const a=queue[decision.from],b=queue[decision.to];if(!a||!b||a===b||a.seconds<600||b.seconds<300||b.seconds>900||decision.seconds!==300)throw Error('Invalid allocation');
+ const a=queue[decision.from],b=queue[decision.to];if(!a||!b||a===b||!a.wholeCoach||!b.wholeCoach||!Number.isInteger(a.seconds)||!Number.isInteger(b.seconds)||a.seconds<600||b.seconds<300||b.seconds>900||decision.seconds!==300)throw Error('Invalid allocation');
  decision.delivery={version:1,donor:{name:a.name,before:a.seconds,after:a.seconds-300},receiver:{name:b.name,before:b.seconds,after:b.seconds+300}};
  a.seconds-=300;b.seconds+=300;a.wholeCoach.plannedMinutes=a.seconds/60;b.wholeCoach.plannedMinutes=b.seconds/60;return true;
 }
