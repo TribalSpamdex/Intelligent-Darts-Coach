@@ -76,3 +76,28 @@ test('cancelled accepted allocations and active trial intervals still confound o
  const r=methodReviews(host,{observations:obs,interventions:[{...base,status:'declined',cancelledFrom:'accepted',cancelledDay:'2026-11-25'}]},day,now);
  assert.equal(r[0].outcome,'confounded');
 });
+
+test('optional drill gains need distinct delayed checks; repeated losses defer the method without inferring cause',()=>{
+ const dates=['2026-10-04','2026-11-01'],a=session(dates[0],1),b=session(dates[1],2);
+ const host={sessions:[a.s,b.s],games:[...a.games,...b.games]};
+ const immediate=dates.flatMap((d,i)=>measurements(d,[50,51,65,66],'immediate'+i));
+ const delayed=dates.flatMap((d,i)=>[12,15].map((n,j)=>observation(shift(d,n),50,'delay'+i+j)));
+ const state={observations:[...immediate,...delayed]};
+ const r=methodReviews(host,state,day,now);
+ assert.deepEqual(r.map(x=>x.outcome),['observed-higher','observed-higher']);
+ assert.deepEqual(r.map(x=>x.retention),['gain-not-maintained','gain-not-maintained']);
+ assert.equal(methodReviewGate(r,day).length,1);
+ assert.ok(methodReviewGate(r,day)[0].reason.includes('not maintained'));
+ assert.equal(new Set(r.flatMap(x=>[...x.baselineDays,...x.followupDays,...x.retentionDays])).size,12);
+ const retained=methodReviews(host,{observations:[...immediate,...delayed.map(x=>({...x,hits:650}))]},day,now);
+ assert.deepEqual(retained.map(x=>x.retention),['gain-still-observed','gain-still-observed']);
+ assert.equal(methodReviewGate(retained,day).length,0);
+ const missing=methodReviews(host,{observations:immediate},day,now);
+ assert.ok(missing.every(x=>x.retention==='insufficient-delayed-checks'));
+ assert.equal(methodReviewGate(missing,day).length,0);
+ const confounded=methodReviews(host,{...state,changes:[{day:shift(dates[1],10),field:'routine'}]},day,now);
+ assert.equal(confounded[1].retention,'confounded');
+ assert.equal(methodReviewGate(confounded,day).length,0);
+ assert.equal(methodReviewGate(r,'2026-11-13').length,0,'future delayed review cannot veto an earlier selection');
+ assert.ok(methodReviewLines(r,day).some(x=>x.includes('Delayed follow-up')));
+});
