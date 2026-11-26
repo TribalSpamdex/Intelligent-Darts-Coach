@@ -60,3 +60,19 @@ test('impossible review chronology cannot manufacture a repeat-method veto',()=>
  const broken={...rows[0],id:'bad',day:'2026-10-20',baselineDays:['2026-11-12','2026-10-10'],followupDays:['2026-10-21','2026-10-22']};
  assert.equal(methodReviewGate([broken,...rows],day).length,0);
 });
+
+import {recordedConfounder} from '../site/challenge-episodes.mjs';
+test('cancelled accepted allocations and active trial intervals still confound overlapping method reviews',()=>{
+ const from='2026-11-14',to='2026-11-22',base={responseDay:'2026-11-15',status:'accepted'};
+ assert.equal(recordedConfounder({interventions:[base]},from,to),true);
+ assert.equal(recordedConfounder({interventions:[{...base,status:'declined',cancelledFrom:'accepted',cancelledDay:'2026-11-25'}]},from,to),true);
+ assert.equal(recordedConfounder({interventions:[{...base,status:'declined',cancelledFrom:'accepted',cancelledDay:'2026-11-18'}]},from,to),true);
+ assert.equal(recordedConfounder({interventions:[{...base,status:'declined',cancelledFrom:'proposed',cancelledDay:'2026-11-18'}]},from,to),false);
+ assert.equal(recordedConfounder({interventions:[{...base,responseDay:'2026-11-01',status:'declined',cancelledFrom:'accepted',cancelledDay:'2026-11-10'}]},from,to),false);
+ assert.equal(recordedConfounder({interventions:[{...base,responseDay:'2026-11-23'}]},from,to),false);
+ assert.equal(recordedConfounder({trials:[{start:'2026-11-15',status:'active'}]},from,to),true);
+ assert.equal(recordedConfounder({trials:[{start:'2026-11-01',finishDay:'2026-11-10',status:'completed'}]},from,to),false);
+ const {host,s}=fixture(),obs=measurements(s.date);
+ const r=methodReviews(host,{observations:obs,interventions:[{...base,status:'declined',cancelledFrom:'accepted',cancelledDay:'2026-11-25'}]},day,now);
+ assert.equal(r[0].outcome,'confounded');
+});
