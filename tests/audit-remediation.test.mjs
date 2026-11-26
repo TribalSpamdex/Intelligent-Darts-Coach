@@ -169,3 +169,30 @@ test('M5: independent exhaustive exact-dart checkout oracle including zero-score
  }
  assert.equal(cases,507);
 });
+
+import {assess as assessHistorical} from '../site/coach-memory.mjs';
+import {outcomeAudit as auditHistorical} from '../site/intervention-audit.mjs';
+import {coachingAccountability as accountabilityHistorical} from '../site/coaching-accountability.mjs';
+import {ALLOCATION_PROOF as proofSymbol,REVIEW_UNVERIFIED as reviewSymbol} from '../site/engine/engine.mjs';
+test('H4: native assessment and both audit views reconstruct historical intervention status',()=>{
+ const {state,item,baseline}=history(27),host={sessions:[],games:[]},baselines={focus:baseline};
+ const raw={...newMemory(),state,baselines},date=d(10),timestamp=Date.parse(date+'T12:00:00Z');
+ const before=assessHistorical(host,raw,date,timestamp);
+ assert.equal(before.report.active.mode,'accepted-temporary-focus');
+ assert.ok(before.confirmation);
+ const reviewed=finish(state,item.id,d(22),{adherence:1,confounders:[]});
+ const cancelled={...state,interventions:[{...item,status:'declined',cancelledDay:d(15),cancelledFrom:'accepted'}]};
+ for(const later of [reviewed,cancelled]){
+  const after=assessHistorical(host,{...raw,state:later},date,timestamp);
+  assert.deepEqual(after.report.active,before.report.active);
+  assert.deepEqual(after.confirmation,before.confirmation);
+  assert.deepEqual(auditHistorical(host,later,baselines,date),auditHistorical(host,state,baselines,date));
+  assert.deepEqual(accountabilityHistorical(host,later,baselines,date,timestamp),accountabilityHistorical(host,state,baselines,date,timestamp));
+  const corrected={...later,observations:later.observations.filter(o=>o.id!==baseline[0].id)};
+  assert.equal(assessHistorical(host,{...raw,state:corrected},date,timestamp).report.active.mode,'baseline-edited');
+ }
+ const later={...reviewed,interventions:reviewed.interventions.map(i=>({...i,[proofSymbol]:true,[reviewSymbol]:true}))};
+ const earlier=asOfState(later,date).interventions[0];
+ assert.equal(earlier[proofSymbol],undefined);
+ assert.equal(earlier[reviewSymbol],undefined);
+});
