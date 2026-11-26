@@ -39,6 +39,12 @@ export function precisionDecisions(observations,day,tiers){
  const qualifying=quarter?eligible.filter(r=>r.confirm(quarters[quarter-1])):[];
  out[skill]={tier,quarter,half:quarter>=2?'upper':'foundation',midpoint,quarters,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
  }
+ // Ring-specific foundation exercises require actual single/treble measurements.
+ for(const [skill,boundaries] of [['singles',[50,65,80]],['trebles',[10,20,30]]]){
+ const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&r.adequate&&dayGap(r.last,day)<=7&&(r.protocol==='IDC precision fixed '+skill||skill==='singles'&&['IDC V6.2 assessment large singles 60','IDC V6.2 daily large singles 60'].includes(r.protocol)));
+ const quarter=eligible.length?boundaries.filter(boundary=>eligible.every(r=>r.confirm(boundary))).length:0;
+ out[skill]={quarter,protocols:quarter?eligible.map(r=>r.protocol):[],reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
+ }
  return out;
 }
 export function progressionLines(rows,skill=null){
