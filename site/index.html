@@ -4171,7 +4171,8 @@ function allocateRemaining(s){
  else if(review)review.seconds=300;
  // Calculate actual final minutes, after the scheduler has met the clock budget.
  const legacyTransfer=dc43LearningTransfer(s,queue);
- if(window.IDCPolicy){try{const result=window.IDCPolicy.transfer(s,queue,legacyTransfer,s.wholeSessionAudit?.policy);if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer=result;}catch(e){if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer={status:"unchanged",reason:"Independent allocation unavailable"};}}
+ let idcReceiver=null;
+ if(window.IDCPolicy){try{const result=window.IDCPolicy.transfer(s,queue,legacyTransfer,s.wholeSessionAudit?.policy);if(s.wholeSessionAudit){s.wholeSessionAudit.idcTransfer=result;if(result.status==='transferred'&&result.delivery)idcReceiver=queue[result.to]??null;}}catch(e){if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer={status:"unchanged",reason:"Independent allocation unavailable"};}}
  if(!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.dc47TrialId)){
   // Split long practice into complementary games while preserving category time.
   const recent=dc22GamesPlayedToday();
@@ -4195,6 +4196,7 @@ function allocateRemaining(s){
   for(const e of s.plan.slice(s.index))if(e.wholeCoach)e.wholeCoach.plannedMinutes=e.seconds/60;
   if(s.wholeSessionAudit)s.wholeSessionAudit.actualScheduledChoices=s.plan.slice(s.index).filter(e=>e.wholeCoach).map(e=>({game:e.name,category:e.wholeCoach.category,minutes:e.seconds/60}));
  }
+ if(idcReceiver&&s.wholeSessionAudit?.idcTransfer?.delivery){const i=s.plan.indexOf(idcReceiver);if(i>=0)s.wholeSessionAudit.idcTransfer.delivery.receiverIndex=i;}
  s.allocated=true;dc45LockAllocation(s);
 }
 function startExercise(){const s=session();if(!s)return;if(s.index>=s.plan.length){finishSession(true);return}let item=currentExercise();if(item.name!=="Warm-up"&&item.name!=="Big Singles"&&!s.allocated)allocateRemaining(s);item=currentExercise();if(!item){finishSession(true);return}s.phase="rules";if(!s.pausedAt)s.pausedAt=Date.now();s.activityStarted=null;s.activityAccumulated=0;s.round=1;s.roundsCompleted=0;s.lastRoundUndo=null;dc45EnsureProvenance(s);activeGame=buildGame(item.name);data.game=activeGame;undoSnapshot=null;save(false)}
