@@ -127,7 +127,7 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
    // A supported difference between methods at one dose cannot justify a
    // substantially different dose. Require most recorded matched durations
    // on BOTH arms to be close to the actual final native clock budget.
-   const compatibleDose=c=>Array.isArray(c.matched)&&c.matched.length===c.pairs&&c.matched.every(m=>m&&Number.isInteger(m.aSeconds)&&Number.isInteger(m.bSeconds)&&m.aSeconds>=300&&m.bSeconds>=300&&m.aSeconds<=7200&&m.bSeconds<=7200)&&c.matched.filter(m=>[m.aSeconds,m.bSeconds].every(n=>Math.abs(n-o.seconds)<=.25*Math.max(n,o.seconds))).length>=Math.ceil(.75*c.pairs);
+   const compatibleDose=c=>Array.isArray(c.matched)&&c.matched.length===c.pairs&&c.matched.every(m=>m&&Number.isInteger(m.aSeconds)&&Number.isInteger(m.bSeconds)&&m.aSeconds>=300&&m.bSeconds>=300&&m.aSeconds<=7200&&m.bSeconds<=7200)&&c.matched.filter(m=>m.aSessions===1&&m.bSessions===1&&[m.aSeconds,m.bSeconds].every(n=>Math.abs(n-o.seconds)<=.25*Math.max(n,o.seconds))).length>=Math.ceil(.75*c.pairs);
    const doseMatched=pair.filter(compatibleDose);
    if(!doseMatched.length)continue;
    // Adequately sampled, recent uncertainty in the exact same comparison

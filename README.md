@@ -121,3 +121,5 @@ Learned choice requires a fresh fixed protocol and a matching final clock durati
 Personalised competition preparation uses fresh measured same-rule actual-leg stage differences only, including scoring, finishing, setup and busts; it excludes sparse/stale measurements, conflicting cross-format directions and any new focus near a recorded event, with safety and accepted interventions taking priority. Event rules are not inferred from historic leg format.
 
 Independent allocation now validates a unique accepted intervention and its active date window, competing native complement, valid native timed budgets, and a distinct donor/receiver category at the final mutation boundary. Replaying a transfer is rejected before any clock mutation. Newly created scheduled sessions explicitly record quick:false.
+
+Method-dose activation is restricted to single-session matched episodes on both arms; an aggregate multi-session dose does not justify a single exercise. End-to-end synthetic native history regression now exercises the full exposure → episode → comparison → choice chain, including backup round-trip, corrections and beginner-to-elite benchmark ranges.

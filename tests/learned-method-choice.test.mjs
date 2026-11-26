@@ -5,7 +5,7 @@ import {newMemory,validateMemory,changeMemory} from '../site/coach-memory.mjs';
 const day='2026-11-26',prev='2026-11-20';
 const scoring=(name,field,before)=>({version:1,name,skill:'scoring',tier:3,rule:null,field,before,after:before,quarter:0,variant:{}});
 const a=scoring('Scoring Survival','target',60),b=scoring('Scoring Ladder','targets',[40,50,60]);
-const comparison={kind:'method',skill:'scoring',protocol:'IDC precision fixed scoring',status:'second-associated',pairs:8,weeks:8,latest:prev,firstSetting:a,secondSetting:b,matched:Array.from({length:8},()=>({aSeconds:600,bSeconds:600}))};
+const comparison={kind:'method',skill:'scoring',protocol:'IDC precision fixed scoring',status:'second-associated',pairs:8,weeks:8,latest:prev,firstSetting:a,secondSetting:b,matched:Array.from({length:8},()=>({aSeconds:600,bSeconds:600,aSessions:1,bSessions:1}))};
 const opt={normal:a.name,alternative:b.name,skill:'scoring',normalTier:3,alternativeTier:3,seconds:600,normalScore:10,alternativeScore:11};
 const fixture=()=>({memory:{learnedMethods:true},state:newMemory().state,report:{decision:'balanced',verification:{status:'passed'}},events:[],history:[],policy:{categories:{scoring:{}}},options:[{...opt}],comparisons:[structuredClone(comparison)],day});
 const pick=patch=>learnedMethodChoice({...fixture(),...patch});
@@ -66,4 +66,9 @@ test('unknown benchmark and a well-sampled unclear contradictory comparison prev
  assert.equal(pick({comparisons:[{...comparison,protocol:'unrecognised'}]}).status,'unchanged');
  assert.equal(pick({comparisons:[comparison,{...comparison,status:'unclear'}]}).status,'unchanged');
  assert.equal(pick({comparisons:[comparison,{...comparison,status:'unclear',pairs:2}]}).status,'selected');
+});
+
+test('aggregate multi-session doses cannot be applied to one native exercise',()=>{
+ const matched=comparison.matched.map(x=>({...x,aSessions:2,bSessions:2}));
+ assert.equal(pick({comparisons:[{...comparison,matched}]}).status,'unchanged');
 });

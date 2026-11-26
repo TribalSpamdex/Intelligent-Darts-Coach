@@ -32,7 +32,7 @@ function summary(matches,day,skill){
  const leaveOneOut=n>=2?Math.min(...matches.map((_,i)=>direction*distribution(matches.filter((_,j)=>i!==j).map(m=>m.a.delta-m.b.delta)).median)):null;
  const adequate=n>=6&&weeks>=6&&aFirst>=2&&bFirst>=2&&latest&&dayGap(latest,day)<=28;
  const supported=adequate&&direction!==0&&agreement>=.75&&direction*d.median>=Math.max(threshold,noise)&&leaveOneOut>=threshold&&(direction>0?a.median:b.median)>=threshold;
- return {pairs:n,weeks,latest,aFirst,bFirst,a,b,difference:d,noise,agreement,leaveOneOut,status:!adequate?'insufficient':supported?(direction>0?'first-associated':'second-associated'):'unclear',matched:matches.map(m=>({a:[m.a.from,m.a.to],b:[m.b.from,m.b.to],aSeconds:m.a.seconds,bSeconds:m.b.seconds,aChange:m.a.delta,bChange:m.b.delta}))};
+ return {pairs:n,weeks,latest,aFirst,bFirst,a,b,difference:d,noise,agreement,leaveOneOut,status:!adequate?'insufficient':supported?(direction>0?'first-associated':'second-associated'):'unclear',matched:matches.map(m=>({a:[m.a.from,m.a.to],b:[m.b.from,m.b.to],aSeconds:m.a.seconds,bSeconds:m.b.seconds,aSessions:m.a.sessions,bSessions:m.b.sessions,aChange:m.a.delta,bChange:m.b.delta}))};
 }
 // One episode per side and per comparison. Greedy baseline/time matching
 // is deterministic and does not inspect outcome to choose a pair.
