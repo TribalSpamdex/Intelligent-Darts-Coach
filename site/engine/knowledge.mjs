@@ -51,9 +51,50 @@ export const knowledge = [
     "investigation": "Compare otherwise matched short blocks with one cue at a time, then retest on a later day.",
     "intervention": "Aim attention at the target or intended dart trajectory.",
     "expected": "Potential performance or learning improvement.",
-    "limitations": "Cross-task evidence does not establish the optimal cue for this individual dart player.",
+    "limitations": "The earlier cross-task review favoured external focus, but a subsequent reporting-bias-adjusted synthesis found evidence compatible with little or no average advantage. Darts-specific findings vary by task and learner. No universal cue or preferred direction is established.",
     "related": [
       "single-variable",
+      "retention",
+      "attention-reporting-bias",
+      "darts-focus-review"
+    ]
+  },
+  {
+    "id": "attention-reporting-bias",
+    "skill": [
+      "grouping",
+      "scoring",
+      "doubles",
+      "singles",
+      "switching",
+      "trebles",
+      "bull"
+    ],
+    "principle": "Do not prescribe an external cue solely because an earlier pooled review favoured it.",
+    "level": "cross-sport systematic review and bias-adjusted Bayesian meta-analysis",
+    "source": "McKay et al. (2024), Reporting bias, not external focus",
+    "url": "https://doi.org/10.1037/bul0000451",
+    "support": "After adjustment for possible selective reporting, the analyses favoured the null on average, with substantial between-study heterogeneity.",
+    "conditions": [
+      "Player wants to compare attentional cues and has comparable baseline measures"
+    ],
+    "contraindications": [
+      "Pain or discomfort",
+      "A stable routine without an identified reason to change"
+    ],
+    "alternatives": [
+      "Keep the usual cue",
+      "Test an external target cue",
+      "Test an internal or holistic cue where appropriate"
+    ],
+    "investigation": "Use counterbalanced matched blocks and later retention checks; keep equipment and task conditions stable.",
+    "intervention": "Treat cue choice as an individual comparison, not an automatic technique change.",
+    "expected": "More informative individual evidence; either cue may help, make no difference, or impair performance.",
+    "limitations": "Cross-sport synthesis and model-based reporting-bias adjustments are not a direct test of an individual dart player; heterogeneity remains unresolved.",
+    "related": [
+      "external-focus",
+      "attention-null",
+      "darts-focus-review",
       "retention"
     ]
   },
@@ -416,7 +457,8 @@ knowledge.push(...[
     "limitations": "Study-specific task and instructions limit transfer.",
     "related": [
       "external-focus",
-      "attention-null"
+      "attention-null",
+      "attention-reporting-bias"
     ]
   },
   {
