@@ -8,11 +8,12 @@ export function retentionReview(memory,id,day){
  const original=memory.observations.filter(o=>item.baselineIds.includes(o.id));
  if(original.length!==item.baselineIds.length||!original.length)return {status:'baseline-edited'};
  const overlapping=memory.interventions.some(i=>i.id!==id&&i.skill===item.skill&&i.status!=='declined'&&i.responseDay&&i.responseDay>item.responseDay&&i.responseDay<=day);
+ const changed=(memory.changes??[]).some(x=>['equipment','technique','injury or discomfort'].includes(x.field)&&x.day>=item.responseDay&&x.day<=day)||(memory.setups??[]).some(x=>x.day>item.responseDay&&x.day<=day);
  const retained=memory.observations.filter(o=>o.skill===item.skill&&o.context===item.context&&o.protocol===item.protocol&&o.day>item.reviewDay&&o.day<=day&&dayGap(o.day,day)<28);
  const a=summarise(original),b=summarise(retained);
  if(!b||b.days<7||b.attempts<60)return {status:'insufficient',days:b?.days??0};
  const delta=b.dayMean-a.dayMean,noise=2*Math.sqrt(a.daySD**2/a.days+b.daySD**2/b.days),threshold=['scoring','firstNine'].includes(item.skill)?3:.05;
- return {status:overlapping?'confounded':delta>=Math.max(threshold,noise)?'observed-retention':'retention-not-established',baseline:a,followup:b,delta,noise,causality:'not established',reviewDay:day};
+ return {status:overlapping||changed?'confounded':delta>=Math.max(threshold,noise)?'observed-retention':'retention-not-established',baseline:a,followup:b,delta,noise,causality:'not established',reviewDay:day};
 }
 export function recordRetention(memory,id,day){
  const outcome=retentionReview(memory,id,day);
