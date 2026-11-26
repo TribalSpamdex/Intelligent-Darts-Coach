@@ -8,6 +8,7 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.add_init_script("""if(!localStorage.getItem('dartsCoachV4'))localStorage.setItem('dartsCoachV4','CONTROL-SENTINEL');if(!localStorage.getItem('DCI-independent:foundation:v1'))localStorage.setItem('DCI-independent:foundation:v1','INDEPENDENT-SENTINEL');""")
     page.goto('http://127.0.0.1:8765/index.html')
+    assert 'V1.3.0-dev' in page.title()
     assert page.locator('#home').is_visible()
     assert not page.locator('#idcCoach').is_visible()
     assert page.locator('.homeWelcome').is_visible()
@@ -142,7 +143,7 @@ with sync_playwright() as p:
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.3.0-dev1');return !!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.3.0-dev2');return !!(await c.match('./context-profile.mjs?v=1.3.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))}""")
         ctx.set_offline(True)
         page.reload()
         page.locator('#navTechnique').click()
