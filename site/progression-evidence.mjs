@@ -5,6 +5,35 @@ import {distribution} from './statistics.mjs';
 import {measurementBand,tierRange,SKILL_THRESHOLDS,bandEdges} from './progression-bands.mjs';
 const isScore=s=>['scoring','firstNine'].includes(s);
 const scale=s=>isScore(s)?1:100;
+// Disjoint calendar windows keep a hot or cold week separate from the
+// longer baseline. Pooled measurements use actual denominators; daily
+// medians give each recorded day one vote.
+function windowStats(rows,day,skill,from,to,minDays,minWeeks,minAttempts){
+ const s=summarise(rows.filter(o=>{const age=dayGap(o.day,day);return age>=from&&age<to}));
+ const daily=(s?.daily??[]).map(x=>({day:x.day,value:x.value*scale(skill)}));
+ const d=distribution(daily.map(x=>x.value)),weeks=new Set(daily.map(x=>Math.floor(dayGap(x.day,day)/7))).size,attempts=s?.attempts??0;
+ return {from,to,days:d.n,weeks,attempts,median:d.median,pooled:s?s.value*scale(skill):null,iqr:d.iqr,daily,adequate:d.n>=minDays&&weeks>=minWeeks&&attempts>=minAttempts};
+}
+function formAndStability(rows,day,skill,minAttempts,lastDay){
+ const floor=isScore(skill)?3:5;
+ const short=windowStats(rows,day,skill,0,7,3,1,Math.ceil(minAttempts/3));
+ const usual=windowStats(rows,day,skill,7,28,5,2,Math.ceil(minAttempts*2/3));
+ const periods=[0,28,56].map(n=>windowStats(rows,day,skill,n,n+28,8,3,minAttempts));
+ let status='insufficient',change=null;
+ if(short.adequate&&usual.adequate){
+  change=short.median-usual.median;
+  const margin=Math.max(floor,(usual.iqr??0)/2),direction=Math.sign(change);
+  const supporting=short.daily.filter(x=>direction*(x.value-usual.median)>=floor).length;
+  status=Math.abs(change)>=margin&&supporting>=Math.ceil(short.days*2/3)?(direction>0?'above-usual':'below-usual'):'no-clear-shift';
+ }
+ let stability='insufficient',weeklyChange=null;
+ if(periods.every(p=>p.adequate)&&dayGap(lastDay,day)<=7){
+  const medians=periods.map(p=>p.median),spread=Math.max(...medians)-Math.min(...medians);
+  weeklyChange=(medians[0]-medians[2])/8;
+  stability=periods.some(p=>p.iqr>2*floor)?'variable':spread<floor?'stable-measurements':'changing';
+ }
+ return {form:{status,change,short,usual},stability:{status:stability,periods,weeklyChange}};
+}
 export function progressEvidence(observations,day){
  const groups=new Map();
  for(const o of canonicalRows(observations,day)){const k=scopeKey(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)}
@@ -23,7 +52,7 @@ export function progressEvidence(observations,day){
  let achieved=null;
  if(band&&adequate){const edges=bandEdges(skill).filter(x=>x<=value);for(let i=edges.length-1;i>=0;i--){const candidate=edges[i];if(candidate===0||confirm(candidate)){achieved=candidate;break}}}
  const nextMilestone=achieved===null?null:bandEdges(skill).find(v=>v>achieved)??null;
- return {skill,context,protocol,nextMilestone,days:d.n,weeks,attempts:b?.attempts??0,value,band,prior:old,change:old===null||value===null?null:value-old,confirmedMilestone:achieved,adequate,daily,confirm,margin,last:rows.at(-1).day};
+ return {skill,context,protocol,nextMilestone,days:d.n,weeks,attempts:b?.attempts??0,value,band,prior:old,change:old===null||value===null?null:value-old,confirmedMilestone:achieved,adequate,daily,confirm,margin,last:rows.at(-1).day,...formAndStability(rows,day,skill,minAttempts,rows.at(-1).day)};
  }).sort((a,b)=>a.skill.localeCompare(b.skill)||a.protocol.localeCompare(b.protocol)||a.context.localeCompare(b.context));
 }
 // Only identical fixed practice protocols can justify a harder half. Any
@@ -45,7 +74,7 @@ export function confirmedAbility(rows,max){
 const continuous=(ability,lower,width)=>ability===null?0:Math.max(0,Math.min(3,4*(ability-lower)/width));
 function model(rows,day,max,lower,width){
  const ability=confirmedAbility(rows,max);
- return {confirmedAbility:ability,challenge:continuous(ability,lower,width),evidence:rows.map(r=>({protocol:r.protocol,days:r.days,attempts:r.attempts,weeks:r.weeks,median28:r.value,median7:distribution(r.daily.filter(x=>dayGap(x.day,day)<7).map(x=>x.value)).median}))};
+ return {confirmedAbility:ability,challenge:continuous(ability,lower,width),evidence:rows.map(r=>({protocol:r.protocol,days:r.days,attempts:r.attempts,weeks:r.weeks,median28:r.value,median7:r.form.short.median,form:r.form.status,stability:r.stability.status}))};
 }
 export function precisionDecisions(observations,day,tiers){
  const rows=progressEvidence(observations,day),out={};
