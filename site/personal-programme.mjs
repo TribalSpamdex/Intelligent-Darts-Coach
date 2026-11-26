@@ -1,4 +1,4 @@
-import {deliveryGate} from './coaching-accountability.mjs';
+import {deliveryGate,methodReviews,methodReviewGate} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes} from './training-outcomes.mjs';
 import {recordedConfounder} from './challenge-episodes.mjs';
@@ -74,7 +74,7 @@ export function blockLines(b){return [...planLines(b.session),...b.weeks.map(w=>
  // A bounded prospective choice between already eligible native near-ties.
  // This does not learn a universal optimal drill, choose a difficulty, or
  // attribute a causal effect. Historical exact settings remain descriptive.
- export function learnedMethodChoice({memory,state,report,events,history,policy,options,comparisons,day}){
+ export function learnedMethodChoice({memory,state,report,events,history,policy,options,comparisons,day,reviews=[]}){
   const no=reason=>({status:'unchanged',reason});
   if(memory?.learnedMethods!==true)return no('Player has not enabled learned method selection');
   if(!dayValid(day)||!Array.isArray(history)||!Array.isArray(options)||!Array.isArray(comparisons))return no('Invalid planning evidence');
@@ -85,6 +85,7 @@ export function blockLines(b){return [...planLines(b.session),...b.weeks.map(w=>
   if(history.some(s=>dayValid(s?.date)&&dayGap(s.date,day)>=0&&dayGap(s.date,day)<7&&s.wholeSessionAudit?.idcMethod?.status==='selected'))return no('One learned method selection per rolling seven days');
   const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&typeof c.protocol==='string'&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
    .map(c=>({...c,favoured:c.status==='first-associated'?c.firstSetting:c.secondSetting,other:c.status==='first-associated'?c.secondSetting:c.firstSetting}));
+  const deferred=methodReviewGate(reviews,day);
   const eligible=[];
   for(const o of options){
    if(!o||!core.has(o.skill)||typeof o.normal!=='string'||typeof o.alternative!=='string'||o.normal===o.alternative||!Number.isFinite(o.normalScore)||!Number.isFinite(o.alternativeScore)||o.alternativeScore<o.normalScore||o.alternativeScore-o.normalScore>2.5||!Number.isInteger(o.seconds)||o.seconds<300||o.seconds>1200||!Number.isInteger(o.normalTier)||!Number.isInteger(o.alternativeTier)||o.normalTier<1||o.normalTier>7||o.alternativeTier<1||o.alternativeTier>7)continue;
@@ -94,11 +95,11 @@ export function blockLines(b){return [...planLines(b.session),...b.weeks.map(w=>
    // Conflicting favoured names, protocols or exact settings veto a switch.
    if(!rows.length||rows.some(r=>r.favoured.name!==o.alternative||r.protocol!==rows[0].protocol||r.favoured.tier!==o.alternativeTier))continue;
    const pair=rows.filter(r=>r.other.name===o.normal&&r.other.tier===o.normalTier);
-   if(!pair.length||rows.some(r=>recordedConfounder(state,r.latest,day)))continue;
+   if(!pair.length||rows.some(r=>recordedConfounder(state,r.latest,day))||deferred.some(r=>r.skill===o.skill&&r.protocol===rows[0].protocol&&r.alternative===o.alternative))continue;
    const exact=JSON.stringify(pair[0].favoured);
    if(rows.some(r=>JSON.stringify(r.favoured)!==exact)||pair.some(r=>JSON.stringify(r.other)!==JSON.stringify(pair[0].other)))continue;
    const best=[...pair].sort((a,b)=>b.pairs-a.pairs||b.weeks-a.weeks||b.latest.localeCompare(a.latest))[0];
-   eligible.push({status:'selected',normal:o.normal,alternative:o.alternative,skill:o.skill,seconds:o.seconds,protocol:best.protocol,pairs:best.pairs,weeks:best.weeks,latest:best.latest,scoreGap:o.alternativeScore-o.normalScore,day,reason:'Player-enabled native near-tie; matched observational evidence supports trying this method. Native rules and minutes are unchanged.'});
+   eligible.push({status:'selected',normal:o.normal,alternative:o.alternative,skill:o.skill,seconds:o.seconds,protocol:best.protocol,pairs:best.pairs,weeks:best.weeks,latest:best.latest,expectedSetting:JSON.parse(JSON.stringify(best.favoured)),scoreGap:o.alternativeScore-o.normalScore,day,reason:'Player-enabled native near-tie; matched observational evidence supports trying this method. Native rules and minutes are unchanged.'});
   }
   return eligible.sort((a,b)=>a.scoreGap-b.scoreGap||b.pairs-a.pairs||a.normal.localeCompare(b.normal)||a.alternative.localeCompare(b.alternative))[0]??no('No sufficiently supported native near-tie');
  }
@@ -107,5 +108,5 @@ export function blockLines(b){return [...planLines(b.session),...b.weeks.map(w=>
   // The history is reconstructed on demand: correction/deletion cannot
   // leave a cached preference behind.
   const comparisons=trainingOutcomes(host,context.state,day,now).comparisons;
-  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons,day});
+  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons,day,reviews:methodReviews(host,context.state,day,now)});
  }

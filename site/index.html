@@ -4193,7 +4193,7 @@ function allocateRemaining(s){
    if(decision.status==='selected'){
     const option=options.find(o=>o.normal===decision.normal&&o.alternative===decision.alternative&&o.skill===decision.skill&&o.seconds===decision.seconds);
     const entry=option&&queue.find(e=>e.name===option.normal&&e.seconds===option.seconds&&e.wholeCoach?.category===option.skill);
-    if(entry){entry.name=option.alternative;entry.wholeCoach.reason='Player-enabled personalised drill choice';s.wholeSessionAudit.idcMethod=decision;}
+    if(entry){entry.name=option.alternative;entry.wholeCoach.reason='Player-enabled personalised drill choice';s.wholeSessionAudit.idcMethod={...decision,at:Date.now()};}
    }
   }catch(e){/* Preserve normal training if method selection is unavailable. */}
  }
@@ -4221,6 +4221,7 @@ function allocateRemaining(s){
   if(s.wholeSessionAudit)s.wholeSessionAudit.actualScheduledChoices=s.plan.slice(s.index).filter(e=>e.wholeCoach).map(e=>({game:e.name,category:e.wholeCoach.category,minutes:e.seconds/60}));
  }
  if(idcReceiver&&s.wholeSessionAudit?.idcTransfer?.delivery){const i=s.plan.indexOf(idcReceiver);if(i>=0)s.wholeSessionAudit.idcTransfer.delivery.receiverIndex=i;}
+ if(s.wholeSessionAudit?.idcMethod?.status==='selected'){const d=s.wholeSessionAudit.idcMethod,idx=s.plan.findIndex(e=>e.name===d.alternative&&e.seconds===d.seconds&&e.mode==='timed');if(idx>=0)d.exerciseIndex=idx;}
  s.allocated=true;dc45LockAllocation(s);
 }
 function startExercise(){const s=session();if(!s)return;if(s.index>=s.plan.length){finishSession(true);return}let item=currentExercise();if(item.name!=="Warm-up"&&item.name!=="Big Singles"&&!s.allocated)allocateRemaining(s);item=currentExercise();if(!item){finishSession(true);return}s.phase="rules";if(!s.pausedAt)s.pausedAt=Date.now();s.activityStarted=null;s.activityAccumulated=0;s.round=1;s.roundsCompleted=0;s.lastRoundUndo=null;dc45EnsureProvenance(s);activeGame=buildGame(item.name);data.game=activeGame;undoSnapshot=null;save(false)}
