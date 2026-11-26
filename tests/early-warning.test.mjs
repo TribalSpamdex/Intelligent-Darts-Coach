@@ -45,6 +45,15 @@ test('early warning is surfaced as a read-only advisory and cannot allocate a ne
  state.readiness=[{day,context:'practice',pain:true,fatigue:'normal',pressure:'normal',confidence:'normal',note:''}];
  assert.equal(coachBrief(host,state,fullReport(state,day),events,[],day,now).kind,'wellbeing');
 });
+test('simultaneous watches remain available in profiles but surface a single advisory priority',()=>{
+ const state=newMemory().state;state.observations=fixture();
+ for(let i=0;i<56;i++)state.observations.push(makeCheck('bull',[6,24,6,24,6,24,15][i%7]-(i>=28?2:0),date(i)));
+ const report=fullReport(state,day);assert.equal(report.decision,'balanced');
+ const agenda=developmentAgenda(host,state,day,{report,now});
+ assert.equal(agenda.actions.filter(a=>a.kind==='early-watch').length,1);
+ assert.equal(earlyWarning(state.observations.filter(o=>o.skill==='bull'),{asOf:day}).status,'watch');
+ assert.equal(earlyWarning(state.observations.filter(o=>o.skill==='doubles'),{asOf:day}).status,'watch');
+});
 test('early warning held-out calibration: 5,000 histories, separate seed and variable denominators',()=>{
  const cases=[['stable-beginner',.12,.8,0,.15],['stable-elite',.72,.8,0,.15],['clustered-elite',.72,.96,0,.25],['small-decline',.48,.8,-.08,.15],['large-decline',.48,.8,-.18,.15],['gradual-improve',.30,.85,.16,.15],['recovered-slump',.42,.8,-.2,.15],['missing-stable',.42,.9,0,.45],['gradual-decline',.48,.85,-.16,.15],['recent-decline',.48,.8,-.10,.15]];
  const results=[];
