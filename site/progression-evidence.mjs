@@ -34,7 +34,7 @@ export function precisionDecisions(observations,day,tiers){
  for(const skill of Object.keys(SKILL_THRESHOLDS)){
  const tier=tiers[skill];if(!Number.isInteger(tier)||tier<1||tier>7)continue;
  const {midpoint}=tierRange(skill,tier);
- const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixed(skill,r.protocol)&&r.adequate);
+ const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixed(skill,r.protocol)&&r.adequate&&dayGap(r.last,day)<=7);
  const qualifying=eligible.filter(r=>r.confirm(midpoint)),contrary=eligible.some(r=>!r.confirm(midpoint));
  out[skill]={tier,half:qualifying.length&&!contrary?'upper':'foundation',midpoint,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':contrary?'not-confirmed':'confirmed'};
  }
