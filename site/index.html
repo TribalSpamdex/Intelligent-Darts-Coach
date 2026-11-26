@@ -1257,6 +1257,8 @@ function idcAssertWriter(allowRecovery=false){
 }
 function idcPrimaryWrite(payload,allowRecovery=false){
  idcAssertWriter(allowRecovery);
+ // Unchanged writes cannot invalidate a still-current recovery snapshot.
+ if(payload===idcLoadedPrimary&&!idcRecoveryBlocked)return;
  // Invalidate old checkpoints BEFORE replacing primary: a deleted fact must
  // never return through an earlier automatic checkpoint after a crash.
  localStorage.setItem(RECOVERY_FENCE,crypto.randomUUID());
@@ -1268,7 +1270,10 @@ function idcAcquireWriter(){
   if(!lock){idcWriter='readonly';storageSaveError=idcConflictMessage;return}
   idcWriter='held';
   if(localStorage.getItem(KEY)!==idcLoadedPrimary){idcWriter='readonly';storageSaveError=idcConflictMessage;return}
-  if(!idcRecoveryBlocked)save(false);
+  if(!idcRecoveryBlocked){
+   const recovered=recoveryNotice.startsWith('A local recovery copy was loaded');
+   if(save(false)&&recovered)checkpointData();
+  }
   // Keep the exclusive lock for the document lifetime. The browser releases
   // it when the owning document is closed; a second tab is deliberately read-only.
   return new Promise(()=>{});
