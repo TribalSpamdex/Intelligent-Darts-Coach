@@ -140,3 +140,26 @@ the prior primary after the failed save and recovers its committed contents.
 - Additional direct held-out trend-component simulations at ba5dd2c: 2,400 series, eight cohorts of 300, with variable 15/30/60/90-dart denominators and 15–45% missing days. Stable beginner 0/300 flags; stable elite 0/300; strongly correlated elite (.96) 20/300 flags; missing stable 0/300. Eight-point decline detected 20/300; 18-point decline 223/300; gradual 16-point improvement across 56 days 13/300; recovered slump 1/300 improving and zero declining. These are trend-component results, not full decision-layer sensitivities. Persisted as `tests/serial-calibration.test.mjs`. Mild/gradual sensitivity and strongly correlated elite form remain research priorities; do not simply reduce intervention thresholds.
 - New `tests/five-year-player-cohorts.test.mjs` models 11 synthetic ability profiles, four fixed skills, irregular practice, injury, equipment change, slump and recovery, with 66 horizon checkpoints and separate injury checks. Tests compare retrospective full reports and precision settings, conserved session time, distinct abilities and read-only memory. A direct attempt to execute the complete module graph exceeded the connector call limit; rely on the actual Node workflow, not an assumed pass. Simulated scoring mixtures are simplified discrete dart outcomes, not realistic mechanical player models; this suite does not execute native daily games for five years.
 - Offline generation dev9 covers revised reasoning sources. All later changes need fresh exact-SHA verification. No independent score or publication claimed.
+
+### Five-year verification and advisory early-warning development
+
+- Fully verified fallback `f847c286ec61e26f582bdfa78515423d3c29a10b`, Actions run 45907868765: **456/456 Node tests**, both browser suites passed, 169 offline cache entries. The five-year cohort test passed at e688a26 and f847c28. Eleven profiles generated 12,831 practice days and 51,324 fixed measurements, with 66 successful horizon comparisons and separate injury checks. The nominal 85-average mixed profile had supported doubles 20.4%, versus 37.1% for the nominal 75-average profile, producing different doubles selections. These are generated inputs and walk-forward checks, not closed-loop five-year actual play or evidence of training efficacy.
+- New `earlyWarning` in `site/engine/context.mjs` is a diagnostic-only weekly comparison. Four disjoint weeks per period, at least three adequate weeks each, both latest weeks adequate, recent measurement within three days, at least three supporting lower weeks and lower latest three measured days. A five-percentage-point (three scoring average point) minimum and a weekly dispersion margin are engineering heuristics, not calibrated error probabilities.
+- Candidate design was explored on the prior seed; separate direct holdout seed 0x4f69d1a7 with 10 cohorts of 500 and variable 15–90 attempts produced the following **declining robustTrend / advisory watch / either** counts. Only the trend component is compared; neither column proves actual intervention eligibility.
+
+| Synthetic scenario | Declining trend | Advisory watch | Either |
+| --- | ---: | ---: | ---: |
+| Stable beginner | 3 | 13 | 13 |
+| Stable elite | 0 | 17 | 17 |
+| Strongly correlated elite | 13 | 68 | 68 |
+| Mild 8pp decline | 38 | 229 | 229 |
+| Severe 18pp decline | 376 | 494 | 495 |
+| Gradual improvement | 0 | 1 | 1 |
+| Recovered slump | 0 | 0 | 0 |
+| Missing stable | 3 | 24 | 24 |
+| Gradual decline | 43 | 245 | 246 |
+| Recent 14-day decline | 7 | 109 | 109 |
+
+The highly correlated null produced 13.6% advisory false flags (versus 2.6% declining-trend flags); missing stable had 179/500 insufficient screens. These are material limitations, not permission to loosen the confirmed-decline or allocation gate. No proof of optimal clinical or coaching sensitivity. Multi-scope family-wise false-warning probability is not controlled by merely limiting displays.
+- Integrate the screen in fixed-benchmark development profile, agenda, recovery guidance and proactive coach only after verified report. Do not add it to the confirmed decision, native allocator or difficulty adjustment path. Show at most one advisory watch per action agenda; safety, existing intervention reviews and near-event brief take precedence. The selection tie-break is deterministic, not a validated utility model. User advice is repeat the same benchmark in normal practice, not increase dose, change equipment or rebuild technique.
+- Direct deterministic fixture: recurring daily variation with 6.67pp lower weekly means was watch despite both short and long trend unclear; last-three-day recovery removed watch. Added four integration/calibration tests in `tests/early-warning.test.mjs`; fresh complete CI pending. Cache generation advanced to dev10. Original release remains unchanged.
