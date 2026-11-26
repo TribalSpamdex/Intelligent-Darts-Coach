@@ -19,6 +19,6 @@ export function botScoring(average,singles=.85){
  if(!Number.isFinite(average)||!Number.isFinite(singles))throw Error('Invalid bot calibration');
  const target=clamp(average,0,180)/60;
  // Expected points on T20: 60*t+20*s; three-dart target=180*t+60*s.
- const t=clamp((target-clamp(singles,0,1))/2,0,1),s=clamp(target-3*t,0,1-t);
+ const hit=clamp(singles,target/3,Math.min(1,target)),t=(target-hit)/2,s=hit-t;
  return {treble:t,single:s,miss:1-t-s,expected:180*t+60*s};
 }
