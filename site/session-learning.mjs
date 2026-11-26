@@ -9,7 +9,7 @@ const rate=xs=>xs.reduce((n,x)=>n+Number(x.win),0)/xs.length;
 export function exerciseSequences(host,state,reflections,day,now=Date.now()){
  if(!dayValid(day))throw Error('Invalid exercise review date');
  const history=extractLearningExposure(host,day,now),ref=validateReflections(reflections??[]),groups=new Map(),rejected={partialOrMixed:0,tooFew:0,duplicateTime:0};
- const reflectionMap=new Map(ref.filter(r=>r.kind==='exercise'&&r.answer!=='skip').map(r=>[JSON.stringify([r.sessionId,r.index]),r]));
+ const reflectionMap=new Map(ref.filter(r=>r.kind==='exercise'&&r.answer!=='skip'&&r.at<=now).map(r=>[JSON.stringify([r.sessionId,r.index]),r]));
  const readiness=new Map((state.readiness??[]).filter(r=>r.context==='practice'&&r.day<=day).map(r=>[r.day,r]));
  for(const e of history.exposures){
   if(dayGap(e.day,day)>=84)continue;
@@ -18,7 +18,7 @@ export function exerciseSequences(host,state,reflections,day,now=Date.now()){
   if(seq.length<6){rejected.tooFew++;continue}
   if(new Set(seq.map(x=>x.at)).size!==seq.length){rejected.duplicateTime++;continue}
   const n=Math.floor(seq.length/2),first=seq.slice(0,n),last=seq.slice(-n),r=reflectionMap.get(JSON.stringify([String(e.sessionId),e.exerciseIndex]));
-  const reflection=r&&r.day===e.day&&r.name===e.setting.name?r.answer:null;
+  const reflection=r&&r.day===e.day&&r.name===e.setting.name&&r.at>=seq.at(-1).at?r.answer:null;
   const condition=readiness.get(e.day),known=condition?condition.pain||condition.fatigue==='high'||condition.pressure==='high'?'reported-concern':condition.fatigue==='normal'&&condition.pressure==='normal'?'reported-normal':'other-or-unknown':'unreported';
   const g=groups.get(key)??{setting:e.setting,exercises:[]};
   g.exercises.push({day:e.day,sessionId:e.sessionId,exerciseId:e.exerciseId,rounds:seq.length,pairedRounds:n,first:rate(first),last:rate(last),delta:rate(last)-rate(first),reflection,condition:known});
