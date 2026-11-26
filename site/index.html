@@ -3327,6 +3327,7 @@ function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true){
  const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery');
  const profiles=dc18ChallengeProfiles(all),effects=dc15EffectEvidence(),categoryPlan=dc28CategoryPlanning(),selected=[],policy=sessionPolicy||dc32WholeSessionPolicy();
  const exploration=dc40ExplorationEligibility(Date.now(),policy);let explored=false,exploredGame=null,dc47Trial=null;
+ const methodCandidates=[],methodEnabled=allowTrials&&!exploration.allowed&&window.IDCPolicy?.methodEnabled?.()===true;
  const theme=[primary,TRAINING_LIBRARY[FOCUS[(FOCUS.indexOf(focus)+2)%5]],TRAINING_LIBRARY[FOCUS[(FOCUS.indexOf(focus)+3)%5]]];
  for(let i=0;i<count;i++){
   const pool=theme[i%theme.length]||primary;
@@ -3353,8 +3354,13 @@ function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true){
     if(arm==='alternative'){choice=alternative;explored=true;exploredGame=alternative.name}
    }
   }
+  if(methodEnabled&&!alreadyToday.has(choice.name)){
+   const skill=dc28GameCategory(choice.name),minutes=dc32GameMinutes(choice.name,i,policy,profiles);
+   for(const a of ranked.filter(r=>r.name!==choice.name&&dc28GameCategory(r.name)===skill&&r.score-choice.score<=2.5&&!alreadyToday.has(r.name)&&dc32GameMinutes(r.name,i,policy,profiles)===minutes))methodCandidates.push({normal:choice.name,alternative:a.name,skill,normalScore:choice.score,alternativeScore:a.score,minutes});
+  }
   selected.push(choice.name);
  }
+ selected.idcMethodCandidates=methodCandidates.filter(o=>!selected.includes(o.alternative));
  selected.exploration={version:'5.27.0',selected:explored,eligible:exploration.allowed,
   category:explored?exploration.focusCategory:null,game:exploredGame,reason:exploration.reason,
   maxScoreSacrifice:2.5,notCausal:true,decisionEvidence:exploration.evidence||null,trial:dc47Trial};
@@ -3909,6 +3915,7 @@ function generateSession(extra=false,skipWarmup=false){
  plan.unifiedAudit.balancedFirst=dc44BalancedAudit(unified,plan);
  plan.unifiedAudit.everydayCoach=dc55EverydayCoach(wholePolicy);
  plan.unifiedAudit.exploration=chosen.exploration||{selected:false,reason:'not evaluated'};
+ if(!extra&&!need&&!dayIntent.focus&&!complement&&!unified.masteryDecision&&!chosen.exploration?.eligible&&!chosen.exploration?.trial)plan.unifiedAudit.idcMethodCandidates=(chosen.idcMethodCandidates||[]).filter(o=>chosen.includes(o.normal)&&!chosen.includes(o.alternative)&&plan.some(e=>e.name===o.normal&&e.seconds===o.minutes*60));
  if(chosen.exploration?.trial){
   const t=chosen.exploration.trial;
   const planned=plan.find(p=>p.name===(t.arm==='alternative'?t.alternativeGame:t.normalGame)&&p.wholeCoach);
@@ -4173,6 +4180,23 @@ function allocateRemaining(s){
  const legacyTransfer=dc43LearningTransfer(s,queue);
  let idcReceiver=null;
  if(window.IDCPolicy){try{const result=window.IDCPolicy.transfer(s,queue,legacyTransfer,s.wholeSessionAudit?.policy);if(s.wholeSessionAudit){s.wholeSessionAudit.idcTransfer=result;if(result.status==='transferred'&&result.delivery)idcReceiver=queue[result.to]??null;}}catch(e){if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer={status:"unchanged",reason:"Independent allocation unavailable"};}}
+ // Apply at the final clock boundary, only after both existing allocation policies decline a transfer.
+ if(window.IDCPolicy?.methodChoice&&!s.extra&&!s.quick&&dateKey(s.start)===dateKey()&&legacyTransfer?.status==='no-transfer'&&s.wholeSessionAudit?.idcTransfer?.status==='unchanged'&&!s.coachDayIntent?.focus&&!s.coachComplement&&!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.name==='Target Mastery'||e.dc47TrialId)){
+  try{
+   const played=dc22GamesPlayedToday();
+   const options=(s.unifiedAudit?.idcMethodCandidates||[]).flatMap(o=>{
+    const e=queue.find(x=>x.name===o.normal&&x.mode==='timed'&&x.wholeCoach?.category===o.skill);
+    if(!e||!QUICK_GAMES.includes(o.alternative)||DC10_MEASUREMENT_GAMES.has(o.alternative)||o.alternative==='Target Mastery'||dc28GameCategory(o.alternative)!==o.skill||played.has(o.alternative)||s.plan.some(x=>x.name===o.alternative))return [];
+    return [{...o,seconds:e.seconds,normalTier:dc9GameTier(o.normal),alternativeTier:dc9GameTier(o.alternative)}];
+   });
+   const decision=window.IDCPolicy.methodChoice(options,s.wholeSessionAudit.policy);
+   if(decision.status==='selected'){
+    const option=options.find(o=>o.normal===decision.normal&&o.alternative===decision.alternative&&o.skill===decision.skill&&o.seconds===decision.seconds);
+    const entry=option&&queue.find(e=>e.name===option.normal&&e.seconds===option.seconds&&e.wholeCoach?.category===option.skill);
+    if(entry){entry.name=option.alternative;entry.wholeCoach.reason='Player-enabled personalised drill choice';s.wholeSessionAudit.idcMethod=decision;}
+   }
+  }catch(e){/* Preserve normal training if method selection is unavailable. */}
+ }
  if(!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.dc47TrialId)){
   // Split long practice into complementary games while preserving category time.
   const recent=dc22GamesPlayedToday();

@@ -21,6 +21,7 @@ import {DOMAINS,OBSERVATIONS,CONDITIONS,METHODS} from './engine/clinic.mjs';
 import {SETUP_FIELDS} from './engine/equipment-profile.mjs';
 import {assess,assemble,changeMemory,memorySummary,compareSetups,interventionReview,previewRetention,validateMemory,recordReflection,removeReflection} from './coach-memory.mjs';
 import {decideTransfer,applyTransfer} from './coach-policy.mjs';
+import {chooseLearnedMethod} from './personal-programme.mjs';
 const $=id=>document.getElementById(id);
 const host=window.IDCTrainingBridge;
 const el=(tag,s)=>{const e=document.createElement(tag);if(s!==undefined)e.textContent=s;return e};
@@ -113,6 +114,8 @@ function refreshBrief(d,x,signature){
    });
   }
   button(p,'Review coaching evidence',reviewReal).className='secondary';
+  line(p,x.memory.learnedMethods?'Personalised drill choice is enabled. The coach may choose one evidence-supported equivalent drill per week, without adding minutes.':'Personalised drill choice is off. The existing planner chooses exercises.');
+  if(!host.active())button(p,x.memory.learnedMethods?'Disable personalised drill choice':'Enable personalised drill choice',()=>{const enabled=!x.memory.learnedMethods;if(!enabled||confirm('Allow the coach to choose an equivalent drill from the existing planner when your recorded training evidence supports it? No extra training or automatic technique change. You can turn this off at any time.'))action('learned-methods',{enabled});}).className='secondary';
  });
  const eventList=$('idcEvents');eventList.replaceChildren();
  const eventForm=$('idcEventForm');eventForm.elements.day.min=d.day;
@@ -168,5 +171,5 @@ for(const [caption,fatigue,pressure,confidence,pain] of [['Feeling ready','norma
 let scheduled=false;function queueRefresh(){refreshBoundary();if(scheduled||$('technique').classList.contains('hidden'))return;scheduled=true;setTimeout(()=>{scheduled=false;if(!$('technique').classList.contains('hidden')){refresh()}},150)}
 function refreshProgressHighlights(){if($('progress').classList.contains('hidden'))return;run('idcProgressHighlights',p=>{const d=data(),x=assemble(d.host,d.raw,d.day),rows=progressHighlights(x.state,d.day);if(!rows.length)line(p,'Keep recording comparable practice to establish your next confirmed improvement.');for(const r of rows)line(p,r.skill+' · '+r.protocol+' · '+r.context+': '+r.milestone.toFixed(1)+(['scoring','firstNine'].includes(r.skill)?' average':'%')+' milestone supported by '+r.days+' recent measured days.');})}
 window.addEventListener('idc-training-saved',queueRefresh);window.addEventListener('idc-view-changed',()=>{queueRefresh();refreshProgressHighlights()});
-window.IDCPolicy=Object.freeze({validateMemory:raw=>validateMemory(raw),mayStart:()=>{try{const d=data();if(!d.raw)return true;return !['stop','reduce-load'].includes(assess(d.host,d.raw,d.day).report.decision)}catch{return true}},transfer:(session,queue,legacyTransfer,legacyPolicy)=>{const d=data();if(!d.raw)return {status:'unchanged',reason:'No independent player memory'};const x=assess(d.host,d.raw,d.day),decision=decideTransfer({...x,session,queue,legacyTransfer,legacyPolicy,priorSessions:d.host.sessions,day:d.day});applyTransfer(queue,decision);return decision}});
+window.IDCPolicy=Object.freeze({methodEnabled:()=>{try{return validateMemory(host.memory()).learnedMethods}catch{return false}},methodChoice:(options,policy)=>{try{const d=data();if(!validateMemory(d.raw).learnedMethods)return {status:'unchanged',reason:'Player has not enabled learned method selection'};return chooseLearnedMethod(d.host,assess(d.host,d.raw,d.day),options,policy,d.day)}catch{return {status:'unchanged',reason:'Independent method evidence unavailable'}}},validateMemory:raw=>validateMemory(raw),mayStart:()=>{try{const d=data();if(!d.raw)return true;return !['stop','reduce-load'].includes(assess(d.host,d.raw,d.day).report.decision)}catch{return true}},transfer:(session,queue,legacyTransfer,legacyPolicy)=>{const d=data();if(!d.raw)return {status:'unchanged',reason:'No independent player memory'};const x=assess(d.host,d.raw,d.day),decision=decideTransfer({...x,session,queue,legacyTransfer,legacyPolicy,priorSessions:d.host.sessions,day:d.day});applyTransfer(queue,decision);return decision}});
 refresh();
