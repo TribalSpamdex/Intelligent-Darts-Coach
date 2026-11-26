@@ -64,3 +64,15 @@ All original acceptance thresholds were met in this direct run. The exact failin
 
 - Independent exact checkout oracle, including zero-score misses, executed directly against `c10e7afd36f76aa3342e2886a5d56837ed3913c3`: 507/507 score/dart-count pairs agreed. The exhaustive oracle is also committed to the normal Node suite.
 - CI for the current exact candidate and a new independent re-audit remain required. No prior green run can certify a later SHA.
+
+## Further integrated verification and remaining gates
+
+- At `aedbfe07ab4e42636585566f4324ce548c282efc` (129 cumulative commits), Actions run 45860295514 passed **445/445** Node tests. Browser execution passed the earlier readiness entry assertion but failed at the obsolete dev2 cache-name assertion (actual generation dev3). Do not report this run as fully green.
+- H4: native assessment, outcome audit and accountability now use the as-of lifecycle; future transient outcome permissions and cancellation metadata are removed during replay. Historical baseline correction still uses presently available records, not an immutable deletion ledger.
+- M2: abandoned activities are visible separately, and cannot contribute to completed dose or repeated-delivery-shortfall decisions.
+- Offline: browser inventory checks the actual worker generation and all 169 versioned/unversioned assets. The dev4 worker serves a consistent cached HTML/module generation until activation; new tests exercise failed installation and generation coherence. Real device update/eviction testing remains required.
+- M1: identical primary payloads do not rotate the recovery fence; automatic recovery refreshes the checkpoint after successfully committing restored data. Browser probe requires positive recovery after two consecutive corruptions as well as negative stale-checkpoint exclusion.
+- H5: intermediate bull preference changed to Bull Bank because Bull Accuracy is reserved for fixed measurement, not native pressure circuit selection. Five-profile browser sweep holds legacy skill levels constant and examines real native scheduler output.
+- H3: skill-specific actual round families are conservatively whitelisted for allocation learning. Single-ring beginner adaptations, missing doubles variant or mismatched receiver skill cannot prove delivered doubles practice. Mixed drills remain valid gameplay but do not establish skill-specific intervention dose. This deliberately sacrifices attribution coverage for specificity; it is not a validated optimal dose rule.
+
+All changes after the 445-test anchor require fresh complete verification. No readiness score or independent audit closure is asserted.
