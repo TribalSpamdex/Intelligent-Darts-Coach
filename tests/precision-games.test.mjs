@@ -86,3 +86,22 @@ test('continuous measured profiles retain all 37 integer game configurations and
   }
  }
 });
+
+test('Jackpot never reduces the allowance below an exact finish with unique targets',()=>{
+ for(const [goal,ring,allowed,expected] of [[102,'D',5,4],[92,'D',5,3],[72,'D',4,2],[36,'S',4,2],[26,'S',4,2]]){
+  const g=base('Double Jackpot',{goal,ring,allowed});
+  const r=precisionRound(g,quarters(3),{eligible:true});
+  assert.equal(r.allowed,expected);
+  assert.ok(validPrecisionRecord({...r,tierAtStart:4}));
+ }
+ const impossible=base('Double Jackpot',{goal:99,ring:'D',allowed:8});
+ assert.equal(precisionRound(impossible,quarters(3),{eligible:true}),impossible);
+});
+test('double Switchback cannot inherit a scoring-only challenge',()=>{
+ const g=base('Switchback',{ring:'D'});
+ assert.equal(precisionRound(g,{...quarters(3),doubles:{tier:4,quarter:0}},{eligible:true}),g);
+ const r=precisionRound(g,quarters(3),{eligible:true});
+ assert.equal(r.precision.basis,'doubles');
+ assert.ok(validPrecisionRecord({...r,tierAtStart:4}));
+ assert.equal(validPrecisionRecord({...r,tierAtStart:4,name:'Scoring Survival'}),false);
+});
