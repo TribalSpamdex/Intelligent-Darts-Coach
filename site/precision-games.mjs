@@ -63,7 +63,7 @@ export function fineSteps(delta){
 export function configurationDelta(delta,quarter){return fineSteps(delta).find(x=>x.quarter===quarter)?.step??null}
 const singleGames=new Set(['Treble Hunt','Doubles Streak','Doubles Survival','Number Lock','Shanghai Combo','Golf Five','Switchback','Double Jackpot','Dartboard Bingo','Double Duel']);
 const trebleGames=new Set(['Treble Hunt','Number Lock','Switchback']);
-function ringBasis(g){if(singleGames.has(g.name)&&(g.variant==='single'||g.variant==='singles'||g.ring==='S'||g.name==='Double Duel'&&g.tier>=6))return 'singles';if(trebleGames.has(g.name)&&(g.variant==='treble'||g.ring==='T'))return 'trebles';return null}
+function ringBasis(g){if(g.name==='Switchback'&&g.ring==='D')return 'doubles';if(singleGames.has(g.name)&&(g.variant==='single'||g.variant==='singles'||g.ring==='S'||g.name==='Double Duel'&&g.tier>=6))return 'singles';if(trebleGames.has(g.name)&&(g.variant==='treble'||g.ring==='T'))return 'trebles';return null}
 const bounded=(v,delta,min,max)=>Math.max(min,Math.min(max,v+delta));
 const quarterOf=d=>d?.quarter!==undefined?(Number.isInteger(d.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:0):d?.half==='upper'?2:0;
 const levelOf=d=>{
@@ -79,7 +79,7 @@ export function validPrecisionRecord(g){
  if(p.version===1&&g.name==='Double Duel')return false;
  if(p.version===2&&(!Number.isInteger(p.quarter)||p.quarter<1||p.quarter>3))return false;
  if(p.version===3&&(!Number.isFinite(p.quarter)||p.quarter<=0||p.quarter>=3||Number.isInteger(p.quarter)||configurationDelta(delta,p.quarter)===null))return false;
- if(p.basis!==undefined&&(p.version===1||!(p.basis==='singles'&&singleGames.has(g.name)||p.basis==='trebles'&&trebleGames.has(g.name))))return false;
+ if(p.basis!==undefined&&(p.version===1||!(p.basis==='singles'&&singleGames.has(g.name)||p.basis==='trebles'&&trebleGames.has(g.name)||p.basis==='doubles'&&g.name==='Switchback')))return false;
  const step=p.version===1?delta:p.version===2?quarterDelta(delta,p.quarter):configurationDelta(delta,p.quarter);
  const valid=(a,b)=>Number.isInteger(a)&&a>=min&&a<=max&&b===bounded(a,step,min,max);
  return !same(p.before,p.after)&&(field==='targets'?Array.isArray(p.before)&&Array.isArray(p.after)&&p.before.length>0&&p.before.length===p.after.length&&p.before.every((a,i)=>valid(a,p.after[i])):valid(p.before,p.after));
@@ -90,6 +90,18 @@ function feasible(game,field,next){
  case 'Bull Bank':case 'Bull Blackjack':return next>=Math.ceil(game.goal/50);
  case 'Outside Doubles':case 'Double Double':case 'Cricket Countdown':case 'Pressure Cricket':return Array.isArray(game.targets)&&next>=game.targets.length;
  case 'Neighbour Trap':return next>=game.goal;
+ case 'Double Jackpot':{
+  // Targets cannot be reused. An exact score must be achievable inside
+  // the proposed allowance, even if every chosen target is hit.
+  if(!['D','S'].includes(game.ring)||!Number.isInteger(game.goal))return false;
+  const values=[20,16,10,5].map(v=>v*(game.ring==='D'?2:1));
+  for(let mask=1;mask<16;mask++){
+   let total=0,count=0;
+   for(let i=0;i<4;i++)if(mask&(1<<i)){total+=values[i];count++}
+   if(total===game.goal&&count<=next)return true;
+  }
+  return false;
+ }
  case 'Dartboard Bingo':return !!game.singleLineRound||next>=20;
  case 'Switchback':return Array.isArray(game.sequence)&&next>=game.sequence.length;
  default:return true;
@@ -147,7 +159,13 @@ export function precisionOptions(games,name,day,tier,now=Date.now(),game=null){
  const latest=rows.slice(0,3),probe=latest.length===3&&latest.every(r=>!!r.challengeTuning);
  const configs=new Map();
  for(const g of rows.filter(g=>validPrecisionRecord(g)&&dayGap(g.day,day)<28)){
- if(game&&g.precision.version>=2&&((g.precision.basis??null)!==ringBasis(game)||!same(g.precision.before,game[g.precision.field])))continue;
+ if(game&&g.precision.version>=2){
+  const basis=ringBasis(game),recorded=g.precision.basis??null;
+  // Older double Switchback records did not carry the correct ring
+  // basis. Still respect their conservative failed-day cap if the base
+  // budget agrees, but never use them as positive skill evidence.
+  if(recorded!==basis&&!(game.name==='Switchback'&&basis==='doubles'&&recorded===null)||!same(g.precision.before,game[g.precision.field]))continue;
+ }
  const key=JSON.stringify(g.precision),c=configs.get(key)??{p:g.precision,days:new Map()};
  const d=c.days.get(g.day)??{wins:0,losses:0};d[g.win?'wins':'losses']++;c.days.set(g.day,d);configs.set(key,c);
  }
