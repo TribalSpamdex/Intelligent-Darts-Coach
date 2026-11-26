@@ -250,3 +250,17 @@ test('reported numbers and event horizons produce readable, read-only coaching',
  }
  assert.equal(JSON.stringify(state),before);
 });
+
+import {robustTrend} from '../site/engine/context.mjs';
+test('H4: a future incompatible benchmark cannot invalidate an earlier comparable trend',()=>{
+ const rows=Array.from({length:56},(_,i)=>({id:'historical-trend-'+i,day:d(i+1),skill:'doubles',context:'practice',protocol:'fixed',hits:i<28?30:12,attempts:60}));
+ const cutoff=d(56),baseline=robustTrend(rows,{asOf:cutoff});
+ assert.equal(baseline.status,'declining');
+ for(const patch of [{protocol:'new-protocol'},{skill:'scoring'},{context:'competition'}]){
+  const later={...rows.at(-1),id:'future',day:d(57),...patch};
+  assert.deepEqual(robustTrend([later,...rows],{asOf:cutoff}),baseline);
+  assert.deepEqual(robustTrend([...rows,later],{asOf:cutoff}),baseline);
+ }
+ assert.equal(robustTrend([{...rows[0],day:d(57)}],{asOf:cutoff}).status,'insufficient');
+ assert.equal(robustTrend([...rows,{...rows[0],id:'past-other',protocol:'incompatible'}],{asOf:cutoff}).status,'not-comparable');
+});
