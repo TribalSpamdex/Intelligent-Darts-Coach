@@ -238,8 +238,11 @@ with sync_playwright() as p:
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev2');return !!(await c.match('./context-profile.mjs?v=2.0.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=2.0.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=2.0.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=2.0.0-dev'))&&!!(await c.match('./precision-games.mjs?v=2.0.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=2.0.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=2.0.0-dev'))}""")
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:2.0.0-dev2');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning','session-learning','trial-planning'])if(!await c.match('./'+n+'.mjs?v=2.0.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
+        # Read the generation declared by the deployed worker, not a stale test constant.
+        cache_audit=page.evaluate("""async()=>{const sw=await fetch('./sw.js',{cache:'no-store'}).then(r=>r.text());const name=sw.match(/const CACHE='([^']+)'/)[1];const keys=await caches.keys();if(!keys.includes(name))return {name,keys,missing:['active generation absent']};const c=await caches.open(name);const assets=JSON.parse(sw.match(/const ASSETS=(\\[[^;]+\\]);/)[1]);const expected=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))];const missing=[];for(const a of expected)if(!await c.match(a))missing.push(a);return {name,keys,expected:expected.length,missing}}""")
+        assert cache_audit['expected']>=160 and not cache_audit['missing'], cache_audit
+        assert [n for n in cache_audit['keys'] if n.startswith('IDC:assets:')]==[cache_audit['name']], cache_audit
+        print('Complete offline asset inventory:',cache_audit['expected'])
         ctx.set_offline(True)
         page.reload()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
