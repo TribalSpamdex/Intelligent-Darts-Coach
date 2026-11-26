@@ -30,7 +30,11 @@ export function assemble(host,raw,day,now=Date.now()){
 export function assess(host,raw,day,now=Date.now()){
  const x=assemble(host,raw,day,now),report=fullReport(x.state,day);
  if(x.edited.includes(report.active.intervention)){report.active={mode:'baseline-edited',plan:plan(),intervention:report.active.intervention}}
- return {...x,report};
+ const active=x.state.interventions.find(i=>i.status==='accepted'&&i.id===report.active.intervention);
+ // The engine intentionally suppresses new proposals while an intervention is accepted.
+ // Reassess only that proposal guard, retaining all other history and current evidence.
+ const confirmation=active&&report.active.mode==='accepted-temporary-focus'?fullReport({...x.state,interventions:x.state.interventions.filter(i=>i.id!==active.id)},day):null;
+ return {...x,report,confirmation};
 }
 export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  const x=assemble(host,raw,day,now),m=x.memory;let state;
