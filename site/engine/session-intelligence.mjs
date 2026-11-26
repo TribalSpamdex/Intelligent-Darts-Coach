@@ -22,7 +22,7 @@ const preference={
  scoring:['Scoring Survival','Scoring Ladder','Scoring Ladder'],
  doubles:['Doubles Survival','Doubles Streak','Double Double'],
  checkout:['Checkout Climb','Focused Checkouts','Focused Checkouts'],
- bull:['Bull Survival','Bull Accuracy','Bull Streak']
+ bull:['Bull Survival','Bull Bank','Bull Streak']
 };
 export function measuredGamePreferences(observations,day){
  const levels=measuredPracticeLevels(observations,day),out={};
