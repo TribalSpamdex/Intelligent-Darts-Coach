@@ -1,3 +1,4 @@
+import {extractLearningExposure} from '../site/challenge-exposure.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {exerciseSequences,sequenceLines} from '../site/session-learning.mjs';
@@ -57,4 +58,15 @@ test('linked reflection and reported condition remain contextual, not causal or 
 test('correction and deletion rebuild the within-exercise evidence',()=>{
  const f=fixture();assert.equal(exerciseSequences(f.host,f.state,f.reflections,day,now).profiles[0].days,8);
  f.host.sessions.splice(0,2);const r=exerciseSequences(f.host,f.state,f.reflections,day,now);assert.equal(r.profiles[0].days,6);assert.equal(r.profiles[0].status,'insufficient');
+});
+
+test('normal difficulty learner avoids sequence allocation unless explicitly requested',()=>{
+ const f=fixture(),standard=extractLearningExposure(f.host,day,now),deep=extractLearningExposure(f.host,day,now,{includeSequence:true});
+ assert.ok(standard.exposures.every(x=>!Object.hasOwn(x,'sequence')));
+ assert.ok(deep.exposures.every(x=>x.sequence.length===6));
+ assert.deepEqual(deep.exposures.map(({sequence,...x})=>x),standard.exposures);
+});
+test('future and pre-completion reflections do not attach to an exercise sequence',()=>{
+ const f=fixture();f.reflections=[{kind:'exercise',sessionId:'1',index:0,name:base.name,day,at:now+1,answer:'fatigue',note:''},{kind:'exercise',sessionId:'2',index:0,name:base.name,day:ago(1),at:stamp(ago(1),1),answer:'aim',note:''}];
+ assert.deepEqual(exerciseSequences(f.host,f.state,f.reflections,day,now).profiles[0].reflections,{});
 });
