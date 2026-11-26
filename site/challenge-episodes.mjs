@@ -52,5 +52,5 @@ export function learningEpisodes(host,state,day,now=Date.now()){
  i+=2;
  }
  }
- return {episodes:out.sort((a,b)=>a.to.localeCompare(b.to)||a.key.localeCompare(b.key)),rejected,exposures:exposure.exposures.length};
+ return {episodes:out.sort((a,b)=>a.to.localeCompare(b.to)||a.key.localeCompare(b.key)),rejected,exposures:exposure.exposures.length,blockedDays:exposure.blockedDays};
 }
