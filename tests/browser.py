@@ -8,6 +8,17 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.add_init_script("""if(!localStorage.getItem('dartsCoachV4'))localStorage.setItem('dartsCoachV4','CONTROL-SENTINEL');if(!localStorage.getItem('DCI-independent:foundation:v1'))localStorage.setItem('DCI-independent:foundation:v1','INDEPENDENT-SENTINEL');""")
     page.goto('http://127.0.0.1:8765/index.html')
+    assert page.locator('#home').is_visible()
+    assert not page.locator('#idcCoach').is_visible()
+    assert page.locator('.homeWelcome').is_visible()
+    page.locator('#headerInfo').click()
+    assert page.locator('#welcomeOverlay').is_visible()
+    page.locator('#welcomeOverlay button').click()
+    assert not page.locator('#welcomeOverlay').is_visible()
+    assert 'Coach' in page.locator('#navTechnique').inner_text()
+    page.locator('#navTechnique').click()
+    assert page.locator('#idcCoach').is_visible()
+    assert page.locator('.techniqueHero').is_visible()
     page.locator('#idcReview').click()
     assert 'Decision: balanced' in page.locator('#idcReport').inner_text()
     assert 'Eligible measurements: 0' in page.locator('#idcReport').inner_text()
@@ -24,6 +35,7 @@ with sync_playwright() as p:
     for tab in ['train','quick','progress','records','technique','settings','home']:
         page.evaluate("show("+json.dumps(tab)+")")
         assert page.locator('#'+tab).is_visible()
+    page.locator('#navTechnique').click()
     page.locator('#idcMemoryPanel summary').click()
     for width in [320,390,430]:
         page.set_viewport_size({"width":width,"height":844})
@@ -41,6 +53,8 @@ with sync_playwright() as p:
     assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
     assert 'Saved: preferred double' in page.locator('#idcFactStatus').inner_text()
     page.reload()
+    assert page.locator('#home').is_visible()
+    page.locator('#navTechnique').click()
     page.locator('#idcMemoryPanel summary').click()
     assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
     page.locator('#idcQuestion').fill('What do you know about me?')
@@ -80,11 +94,43 @@ with sync_playwright() as p:
     assert page.evaluate('JSON.parse(JSON.stringify(window.IDCTrainingBridge.memory())).state.setups.length')==1
     assert page.evaluate("localStorage.getItem('dartsCoachV4')")=='CONTROL-SENTINEL'
     assert page.evaluate("localStorage.getItem('DCI-independent:foundation:v1')")=='INDEPENDENT-SENTINEL'
+    # Exercise real host transitions with synthetic browser-only training.
+    page.evaluate("document.getElementById('quickStartAverage').value='60';startQuickFromAverage();show('train')")
+    assert page.locator('#idcPreCheck').is_visible()
+    page.locator('#idcPreCheck summary').click()
+    page.locator('#idcPreOptions button').first.click()
+    assert 'Readiness saved' in page.locator('#idcPreStatus').inner_text()
+    page.evaluate("beginTraining(true,true)")
+    assert page.evaluate("!!session()")
+    page.evaluate("playExercise()")
+    assert not page.locator('#idcExerciseCheck').is_visible()
+    page.evaluate("completeExercise('manual')")
+    assert page.locator('#idcExerciseCheck').is_visible()
+    assert page.evaluate("session().phase")=='complete'
+    assert page.evaluate("!!session().pausedAt")
+    page.locator('#idcExerciseCheck textarea').fill('Synthetic test note')
+    page.locator('#idcExerciseCheck button').filter(has_text='Timing or release').click()
+    assert 'Saved:' in page.locator('#idcExerciseCheck').inner_text()
+    assert page.evaluate("window.IDCTrainingBridge.memory().reflections.length")==1
+    page.locator('#nextExerciseButton').click()
+    assert not page.locator('#idcExerciseCheck').is_visible()
+    page.evaluate("finishSession(false)")
+    assert page.locator('#idcSessionCheck').is_visible()
+    assert 'You noted' in page.locator('#idcSessionCheck').inner_text()
+    page.locator('#idcSessionCheck button').filter(has_text='Skip check-in').click()
+    assert 'Check-in skipped' in page.locator('#idcSessionCheck').inner_text()
+    assert page.evaluate("window.IDCTrainingBridge.memory().reflections.length")==2
+    page.evaluate("finishView()")
+    page.locator('#navTechnique').click()
+    page.locator('#idcQuestion').fill('How did my practice feel?')
+    page.locator('#idcAsk').click()
+    assert '1 recent player-reported reflections' in page.locator('#idcAnswer').inner_text()
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
         ctx.set_offline(True)
         page.reload()
+        page.locator('#navTechnique').click()
         page.locator('#idcExample').click()
         assert 'temporary-focus' in page.locator('#idcReport').inner_text()
     assert not errors, errors
