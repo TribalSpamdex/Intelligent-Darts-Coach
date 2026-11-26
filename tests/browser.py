@@ -36,7 +36,7 @@ with sync_playwright() as p:
         page.evaluate("show("+json.dumps(tab)+")")
         assert page.locator('#'+tab).is_visible()
     page.locator('#navTechnique').click()
-    page.locator('#idcMemoryPanel summary').click()
+    page.locator('#idcMemoryPanel > summary').click()
     for width in [320,390,430]:
         page.set_viewport_size({"width":width,"height":844})
         fact=page.locator('#idcFact input[name=key]').bounding_box()
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     page.reload()
     assert page.locator('#home').is_visible()
     page.locator('#navTechnique').click()
-    page.locator('#idcMemoryPanel summary').click()
+    page.locator('#idcMemoryPanel > summary').click()
     assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
     page.locator('#idcQuestion').fill('What do you know about me?')
     page.locator('#idcAsk').click()
