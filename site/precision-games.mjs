@@ -41,6 +41,7 @@ const specs={
  '501 Pressure':['scoring','maxDarts',-1,18,105]
 };
 export const SUPPORTED_GAMES=Object.freeze(Object.keys(specs));
+const descriptions={lives:'Lives',allowed:'Dart allowance',allowedMisses:'Miss allowance',dartsLeft:'Dart budget',maxDarts:'Dart limit',maxVisits:'Visit limit',target:'Scoring target',targets:'Scoring ladder',goal:'Target score',roundPointGoal:'Point target',failedVisitLimit:'Failed visit allowance',maxCalls:'Call limit',par:'Par',tolerance:'Score tolerance',opponentEvery:'Darts between rival points'};
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 // Four integer game configurations. Large score adjustments use smaller
 // increments; small integer life/allowance budgets can change by 1, 2 or 3.
@@ -107,7 +108,7 @@ export function precisionRound(game,decisions,options={}){
  let actualQuarter=q;
  if(!legacy)for(let k=1;k<q;k++){const step=quarterDelta(delta,k),candidate=field==='targets'?old.map(v=>bounded(v,step,min,max)):bounded(old,step,min,max);if(same(candidate,next)){actualQuarter=k;break}}
  const provenance={version:legacy?1:2,skill,tier:d.tier,field,before:old,after:next,...(legacy?{}:{quarter:actualQuarter,...(basis?{basis}:{})})};
- const out={...game,[field]:next,precision:provenance,challengeTuning:'precision',challengeTuningVersion:legacy?'IDC-1.5':'IDC-1.6',challengeMessage:'Personalised challenge: '+field+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
+ const out={...game,[field]:next,precision:provenance,challengeTuning:'precision',challengeTuningVersion:legacy?'IDC-1.5':'IDC-1.6',challengeMessage:'Personalised challenge: '+(descriptions[field]??field)+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
  if(field==='targets')out.target=next[game.step??0];
  if(game.name==='Focused Checkouts')out.config={...game.config,lives:next};
  if(field==='maxDarts'&&Number.isInteger(game.maxVisits))out.maxVisits=Math.ceil(next/3);
