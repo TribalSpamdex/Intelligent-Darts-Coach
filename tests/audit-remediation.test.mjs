@@ -73,3 +73,29 @@ test('Sol H4: future facts and setup records never reach historical player memor
  const result=integratedAsk(host,state,'What do you know about me?',d(10));
  assert.ok(result.lines.some(x=>x.includes('D16')));assert.ok(result.lines.every(x=>!x.includes('D20')));
 });
+
+import {measuredPracticeLevels,measuredGamePreferences,trainingRecommendation} from '../site/engine/session-intelligence.mjs';
+import {interpret} from '../site/engine/coach-dialogue.mjs';
+test('Sol H5: fixed measurements independently personalise difficulty and drill selection',()=>{
+ const profiles=[];
+ for(const [avg,p] of [[25,.10],[50,.25],[75,.42],[95,.59],[108,.75]]){
+  const m=newMemory().state;
+  for(let i=1;i<=56;i++)if(i%6!==0)for(const [skill,hits] of [['scoring',avg*10],['doubles',Math.round(p*60)],['checkout',Math.round(p*12)],['bull',Math.round(p*30)],['singles',Math.round((.48+p*.65)*60)],['trebles',Math.round(p*45)]])m.observations.push(makeCheck(skill,hits,d(i)));
+  const levels=measuredPracticeLevels(m.observations,d(56)),games=measuredGamePreferences(m.observations,d(56));
+  const report=fullReport(m,d(56)),session=trainingRecommendation(m,report,d(56),report.active);
+  assert.equal(session.segments.reduce((n,s)=>n+s.minutes,0),60);
+  profiles.push({levels,games,drills:session.segments.map(s=>s.drill)});
+ }
+ assert.equal(new Set(profiles.map(p=>JSON.stringify(p.levels))).size,5);
+ assert.ok(new Set(profiles.map(p=>JSON.stringify(p.games))).size>=3);
+ assert.ok(new Set(profiles.map(p=>JSON.stringify(p.drills))).size>=3);
+ const mixed=[];
+ for(let i=1;i<=28;i++)for(const [skill,hits] of [['scoring',1000],['doubles',6]])mixed.push(makeCheck(skill,hits,d(i)));
+ const levels=measuredPracticeLevels(mixed,d(28));assert.ok(levels.scoring>levels.doubles);assert.equal(levels.checkout,undefined);
+});
+test('Sol M7: bounded paraphrases route to read-only coaching queries',()=>{
+ for(const [phrase,type] of [['Give me a practice plan','training'],['What should I work on today?','training'],['Am I getting better?','review'],['Where should I focus next?','next-actions'],['How can I check out 81 in 2 darts?','checkout']]){
+  const intent=interpret(phrase,day);assert.equal(intent.kind,'query',phrase);assert.equal(intent.request.type,type);
+ }
+ assert.equal(interpret('Delete all my practice data',day).kind,'unsupported');
+});
