@@ -1,3 +1,5 @@
+import {recordSetting} from './challenge-setting.mjs';
+import {challengeLearning,learnedCap} from './challenge-learning.mjs';
 import {projectEvidence} from './v62-evidence.mjs';
 import {precisionDecisions,progressEvidence} from './progression-evidence.mjs';
 import {precisionRound,precisionOptions,SUPPORTED_GAMES} from './precision-games.mjs';
@@ -9,12 +11,15 @@ export function snapshotPrecision(host,state,day,tiers,assessmentDay=null,now=Da
  .filter(o=>!assessmentDay||o.day>=assessmentDay);
  const recent=(xs,condition)=>(xs??[]).some(o=>dayValid(o.day)&&dayGap(o.day,day)>=0&&dayGap(o.day,day)<7&&condition(o));
  const safety=recent(state?.readiness,o=>o.pain||o.day===day&&o.fatigue==='high')||recent(state?.clinic,o=>o.pain);
- return {decisions:precisionDecisions(rows,day,tiers),safety};
+ const learning=challengeLearning(host,{...state,observations:rows},day,now);
+ return {decisions:precisionDecisions(rows,day,tiers),safety,learning};
 }
 export function applyPrecision(game,profile,games,day,opts={}){
  if(!SUPPORTED_GAMES.includes(game?.name)||!profile)return game;
  const options=precisionOptions(games,game.name,day,game.tier,opts.now??Date.now(),game);
- return precisionRound(game,profile.decisions,{...options,eligible:opts.eligible===true,safety:profile.safety||opts.safety,probe:options.probe||opts.probe,cooldown:options.cooldown||opts.cooldown});
+ const cap=learnedCap(game,profile.learning),safety=profile.safety||opts.safety;
+ const played=precisionRound(game,profile.decisions,{...options,maxQuarter:Math.min(options.maxQuarter,cap.maxQuarter),eligible:opts.eligible===true,safety,probe:options.probe||opts.probe,cooldown:options.cooldown||opts.cooldown});
+ return opts.eligible===true&&!safety?recordSetting(game,played):played;
 }
 export function createPrecisionAdapter(getData,getHistory=null){
  let cache=null;
