@@ -46,7 +46,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(deferred)return response('method-review','Review a personalised drill choice',deferred.reason+' Keep the ordinary planner for this method while its evidence is reviewed.');
  const waiting=methodFollowupGate(reviews,day)[0];
  if(waiting)return response('method-followup','Complete your personalised drill review',waiting.reason+' No extra session is required.');
- const lead=agenda.actions.find(a=>['investigate-decline','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
+ const lead=agenda.actions.find(a=>['investigate-decline','early-watch','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
  if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}
  return response('balanced','Maintain your balanced practice','Continue your usual session and record comparable checks when practical. No new adjustment is justified.');
