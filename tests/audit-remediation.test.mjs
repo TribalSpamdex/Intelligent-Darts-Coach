@@ -264,3 +264,23 @@ test('H4: a future incompatible benchmark cannot invalidate an earlier comparabl
  assert.equal(robustTrend([{...rows[0],day:d(57)}],{asOf:cutoff}).status,'insufficient');
  assert.equal(robustTrend([...rows,{...rows[0],id:'past-other',protocol:'incompatible'}],{asOf:cutoff}).status,'not-comparable');
 });
+
+import {selectCoaching,evidenceReview} from '../site/engine/player-intelligence.mjs';
+test('Long-window deterioration with contradictory match improvement remains visible as investigation',()=>{
+ const m=newMemory().state;
+ for(let i=1;i<=56;i++)for(const context of ['practice','competition']){
+  const earlier=i<=28;
+  m.observations.push({id:'conflict-'+i+'-'+context,day:d(i),skill:'doubles',context,protocol:'fixed',attempts:60,hits:(context==='practice'?earlier:!earlier)?36:12});
+ }
+ const review=evidenceReview(m,d(56));
+ assert.equal(review.issues.length,1);
+ assert.equal(review.issues[0].action,'investigate');
+ const selected=selectCoaching(m,{issues:[],decision:'balanced'},d(56));
+ assert.equal(selected.decision,'investigate');
+ assert.equal(selected.focus,null);
+ assert.equal(selected.issues.length,1);
+ assert.equal(selected.issues[0].action,'investigate');
+ const actual=fullReport(m,d(56));
+ assert.equal(actual.decision,'investigate');
+ assert.ok(actual.issues.some(i=>i.skill==='doubles'&&i.context==='practice'&&i.action==='investigate'));
+});
