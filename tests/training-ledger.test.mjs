@@ -79,3 +79,15 @@ test('year-long ledger respects calendar boundaries and actual denominators',()=
  const r=trainingLedger(host,day,now),w=ledgerWindows(r,day);
  assert.deepEqual(w.map(x=>x.sessions),[7,28,84,365]);assert.deepEqual(w.map(x=>x.total),[2100,8400,25200,109500]);
 });
+
+test('duplicate session ID on different dates blocks both dates',()=>{
+ const {host,s}=fixture(['Scoring Survival']);const d=ago(1);
+ host.sessions.push({...s,date:d,start:stamp(d),activities:[{...s.activities[0],at:stamp(d,10)}]});
+ const r=trainingLedger(host,day,now);assert.deepEqual(r.blockedDays,[d,day]);assert.equal(r.rows.length,0);
+});
+test('a completed session cannot contain an interrupted exercise or contradictory activity marker',()=>{
+ const {host,s}=fixture(['Scoring Survival']);s.interruptedExercise={name:'Scoring Ladder',exerciseIndex:1,seconds:100};
+ assert.equal(trainingLedger(host,day,now).rows.length,0);
+ delete s.interruptedExercise;s.activities[0].interrupted=true;
+ assert.equal(trainingLedger(host,day,now).rows.length,0);
+});
