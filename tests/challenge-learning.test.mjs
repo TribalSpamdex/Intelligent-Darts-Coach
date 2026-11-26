@@ -12,13 +12,13 @@ const decisions=q=>({scoring:{tier:4,quarter:q}});
 const played=(q,g=base)=>recordSetting(g,precisionRound(g,decisions(q),{eligible:true}));
 const stamp=(d,mins=0)=>Date.parse(d+'T09:00:00Z')+mins*60000;
 const observation=(day,value,id,extra={})=>({id,day,skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:value*10,...extra});
-function fixture({low=1,high=3,lowDelta=7,highDelta=0,count=4,spacing=7,age=60}={}){
+function fixture({low=1,high=3,lowDelta=7,highDelta=0,count=4,spacing=7,age=60,balanced=true}={}){
  const host={sessions:[],games:[],assessmentHistory:[],bigSingles:[]},state={observations:[],readiness:[],setups:[],changes:[],clinic:[],interventions:[]};
  for(let i=0;i<count*2;i++){
- const from=ago(age-i*spacing),practice=ago(age-i*spacing-1),to=ago(age-i*spacing-3),q=i%2?high:low,g=played(q),sid=i+100,eid='exercise-'+i,at=stamp(practice,10);
+ const from=ago(age-i*spacing),practice=ago(age-i*spacing-1),to=ago(age-i*spacing-3),isHigh=balanced?(i%4===1||i%4===2):i%2===1,q=isHigh?high:low,g=played(q),sid=i+100,eid='exercise-'+i,at=stamp(practice,10);
  host.sessions.push({id:sid,date:practice,start:stamp(practice),quick:false,extra:false,completed:true,activities:[{name:g.name,exerciseId:eid,exerciseIndex:0,seconds:600,rounds:3,at},{name:'Warm-up',exerciseId:'warm-'+i,exerciseIndex:1,seconds:600,rounds:0,at:stamp(practice,20)}]});
  for(let j=1;j<=3;j++)host.games.push({name:g.name,sessionId:sid,exerciseId:eid,exerciseIndex:0,day:practice,at:stamp(practice,j),quick:false,extra:false,recovery:false,completion:'natural',win:j!==3,tierAtStart:4,ruleVersion:g.ruleVersion,challengeTuning:g.challengeTuning??null,precision:g.precision??null,learningSetting:g.learningSetting});
- state.observations.push(observation(from,60,'b'+i),observation(to,60+(i%2?highDelta:lowDelta),'a'+i));
+ state.observations.push(observation(from,60,'b'+i),observation(to,60+(isHigh?highDelta:lowDelta),'a'+i));
  }
  return {host,state};
 }
@@ -37,3 +37,6 @@ test('measurement-day practice allows descriptive comparison but vetoes automati
 test('correction and removal immediately recompute preference from saved evidence',()=>{const {host,state}=fixture();assert.equal(learnedCap(base,challengeLearning(host,state,day,now)).maxQuarter,1);state.observations.find(o=>o.id==='a0').hits=600;host.sessions.pop();assert.equal(learnedCap(base,challengeLearning(host,state,day,now)).maxQuarter,3)});
 test('contradictory adequate protocols veto preferences; safety always overrides and no hidden tiers appear in report',()=>{const {host,state}=fixture();const r=challengeLearning(host,state,day,now),c=r.comparisons[0];assert.equal(learnedCap(base,{comparisons:[c,{...c,protocol:'another',status:'unclear'}]}).maxQuarter,3);const g=applyPrecision(base,{decisions:decisions(3),learning:r,safety:true},[],day,{eligible:true,now});assert.equal(g,base);assert.ok(learningLines(r).some(s=>s.includes('associated with better later measurements')));assert.ok(learningLines(r).every(s=>!s.includes('tier')))});
 test('future data, stale comparisons and empty histories cannot produce a learned preference',()=>{const {host,state}=fixture();const empty=challengeLearning(host,state,ago(100),now-100*86400000);assert.equal(empty.episodes.length,0);assert.equal(learnedCap(base,empty).maxQuarter,3);assert.equal(learnedCap(base,challengeLearning({games:[],sessions:[]},{observations:[]},day,now)).maxQuarter,3)});
+
+test('one chronological order can be reported but cannot drive an automatic setting preference',()=>{const {host,state}=fixture({balanced:false});const r=challengeLearning(host,state,day,now);assert.equal(r.comparisons[0].status,'lower-favoured');assert.equal(r.comparisons[0].orderBalanced,false);assert.equal(learnedCap(base,r).maxQuarter,3)});
+test('past intervention overlapping the episode is excluded even after its review was completed',()=>{const {host,state}=fixture();state.interventions.push({status:'completed',responseDay:ago(61),reviewDay:ago(58)});assert.equal(learningEpisodes(host,state,day,now).episodes.length,7)});
