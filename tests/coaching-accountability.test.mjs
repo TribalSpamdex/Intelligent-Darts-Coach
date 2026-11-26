@@ -127,3 +127,21 @@ test('H3: actual round evidence is necessary and sufficient for allocation eligi
  assert.equal(attributableAllocation(h,{...item,reviewDay:ago(1)},day,now),false,'later practice cannot validate earlier review');
  assert.equal(attributableAllocation(h,item,ago(1),now-86400000),false,'future session is excluded during replay');
 });
+
+test('M2: abandoned activity is visible but cannot count as delivered dose or a repeated delivery shortfall',()=>{
+ const h=shortfallHistory();
+ assert.equal(deliveryGate(h,item,day,now).defer,true);
+ h.sessions[0].completed=false;
+ const r=deliveryEvidence(h,item,day,now);
+ assert.equal(r.rows[0].status,'abandoned-activity');
+ assert.equal(r.plannedSeconds,900);
+ assert.equal(r.matched,2);
+ assert.equal(r.observedBeyondOriginal,200);
+ assert.equal(r.abandoned,1);
+ assert.equal(r.abandonedElapsedBeyondOriginal,100);
+ assert.equal(deliveryGate(h,item,day,now).defer,false);
+ h.sessions.forEach(s=>{s.completed=false});
+ assert.equal(deliveryEvidence(h,item,day,now).observedBeyondOriginal,0);
+ assert.equal(deliveryEvidence(h,item,day,now).abandoned,3);
+ assert.equal(deliveryGate(h,item,day,now).measuredDays,0);
+});
