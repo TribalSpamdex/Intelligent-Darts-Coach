@@ -1,5 +1,5 @@
 // Versioned, local-only boundary. The host owns memory and persistence.
-import {VERSION,emptyMemory,addObservation,setFact,currentFacts} from './engine.mjs';
+import {VERSION,emptyMemory,addObservation,setFact,currentFacts,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine.mjs';
 import {validateState} from './state.mjs';
 import {fullReport,canAccept} from './executive.mjs';
 import {explainReport} from './explanation.mjs';
@@ -19,7 +19,11 @@ function requireDay(day){if(!dayValid(day))throw Error('Invalid local date');}
 function object(x){return x&&typeof x==='object'&&!Array.isArray(x);}
 function shape(x,keys){if(!object(x)||Object.keys(x).some(k=>!keys.includes(k)))throw Error('Invalid request fields');}
 function checkEnvelope(req,allowed){shape(req,['version','type','day','payload']);if(req.version!==CONTRACT_VERSION||!allowed.includes(req.type))throw Error('Unsupported contract version or request');requireDay(req.day);if(!object(req.payload))throw Error('Invalid payload');}
-function snapshot(raw){return validateState(copy(raw));}
+function snapshot(raw){
+ const s=validateState(copy(raw)),original=new Map((raw.interventions??[]).map(i=>[i.id,i]));
+ for(const i of s.interventions){const source=original.get(i.id);for(const key of [ALLOCATION_PROOF,REVIEW_UNVERIFIED])if(source?.[key]===true)i[key]=true}
+ return s;
+}
 export function newPlayer(){return snapshot(emptyMemory())}
 export function query(raw,req){
  checkEnvelope(req,QUERIES);const p=req.payload,day=req.day,m=asOfState(snapshot(raw),day);
