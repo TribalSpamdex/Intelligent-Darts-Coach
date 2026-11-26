@@ -50,6 +50,9 @@ export function quarterDelta(delta,quarter){
  const magnitude=Math.abs(delta),steps=magnitude===1?[1,2,3]:magnitude===2?[1,2,3]:magnitude===3?[1,3,4]:[Math.max(1,Math.floor(magnitude/2)),magnitude,Math.ceil(magnitude*1.5)];
  return Math.sign(delta)*steps[quarter-1];
 }
+const singleGames=new Set(['Treble Hunt','Doubles Streak','Doubles Survival','Number Lock','Shanghai Combo','Golf Five','Switchback','Double Jackpot','Dartboard Bingo']);
+const trebleGames=new Set(['Treble Hunt','Number Lock','Switchback']);
+function ringBasis(g){if(singleGames.has(g.name)&&(g.variant==='single'||g.variant==='singles'||g.ring==='S'))return 'singles';if(trebleGames.has(g.name)&&(g.variant==='treble'||g.ring==='T'))return 'trebles';return null}
 const bounded=(v,delta,min,max)=>Math.max(min,Math.min(max,v+delta));
 const quarterOf=d=>d?.quarter!==undefined?(Number.isInteger(d.quarter)&&d.quarter>=0&&d.quarter<=3?d.quarter:0):d?.half==='upper'?2:0;
 export function validPrecisionRecord(g){
@@ -58,6 +61,7 @@ export function validPrecisionRecord(g){
  const [skill,field,delta,min,max]=specs[g.name];
  if(p.skill!==skill||p.field!==field||!Number.isInteger(p.tier)||p.tier<1||p.tier>7)return false;
  if(p.version===2&&(!Number.isInteger(p.quarter)||p.quarter<1||p.quarter>3))return false;
+ if(p.basis!==undefined&&(p.version!==2||!(p.basis==='singles'&&singleGames.has(g.name)||p.basis==='trebles'&&trebleGames.has(g.name))))return false;
  const step=p.version===1?delta:quarterDelta(delta,p.quarter);
  const valid=(a,b)=>Number.isInteger(a)&&a>=min&&a<=max&&b===bounded(a,step,min,max);
  return !same(p.before,p.after)&&(field==='targets'?Array.isArray(p.before)&&Array.isArray(p.after)&&p.before.length>0&&p.before.length===p.after.length&&p.before.every((a,i)=>valid(a,p.after[i])):valid(p.before,p.after));
@@ -78,8 +82,10 @@ export function precisionRound(game,decisions,options={}){
  const [skill,field,delta,min,max]=specs[game.name],d=decisions?.[skill];
  if(!Number.isInteger(d?.tier)||!Number.isInteger(game.tier)||game.tier!==d.tier)return game;
  const legacy=!Number.isInteger(d.quarter);
- let quarter=quarterOf(d);if(Number.isInteger(options.maxQuarter))quarter=Math.min(quarter,Math.max(0,options.maxQuarter));if(!quarter)return game;
- if(game.beginner&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.variant==='single'||game.variant==='singles'||game.ring==='S'&&skill==='doubles'||game.name==='Number Lock'&&game.ring!=='D')return game;
+ const basis=ringBasis(game);
+ let quarter=basis&&!legacy?quarterOf(decisions[basis]):quarterOf(d);
+ if(Number.isInteger(options.maxQuarter))quarter=Math.min(quarter,Math.max(0,options.maxQuarter));if(!quarter)return game;
+ if(basis&&legacy||game.beginner&&!basis&&!['Scoring Survival','Scoring Ladder','First Nine Siege','Staying Straight'].includes(game.name)||game.name==='Number Lock'&&game.ring!=='D'&&!basis)return game;
  if(game.name==='Focused Checkouts'&&(!game.config?.balanced||game.config.tier!==game.tier||game.config.lives!==game.lives))return game;
  // Mixed skills never inherit an unsupported harder setting.
  if(['301 Pressure','501 Pressure'].includes(game.name))quarter=Math.min(quarter,quarterOf(decisions.checkout));
@@ -93,7 +99,7 @@ export function precisionRound(game,decisions,options={}){
  const step=legacy?delta:quarterDelta(delta,q);
  const next=field==='targets'?old.map(v=>bounded(v,step,min,max)):bounded(old,step,min,max);
  if(same(old,next)||!feasible(game,field,next))continue;
- const provenance={version:legacy?1:2,skill,tier:d.tier,field,before:old,after:next,...(legacy?{}:{quarter:q})};
+ const provenance={version:legacy?1:2,skill,tier:d.tier,field,before:old,after:next,...(legacy?{}:{quarter:q,...(basis?{basis}:{})})};
  const out={...game,[field]:next,precision:provenance,challengeTuning:'precision',challengeTuningVersion:legacy?'IDC-1.5':'IDC-1.6',challengeMessage:'Personalised challenge: '+field+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
  if(field==='targets')out.target=next[game.step??0];
  if(game.name==='Focused Checkouts')out.config={...game.config,lives:next};
