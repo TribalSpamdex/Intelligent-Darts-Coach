@@ -5,6 +5,7 @@ import {recordClinic} from './engine/clinic.mjs';
 import {recordSetup,setupComparison} from './engine/equipment-profile.mjs';
 import {fullReport} from './engine/executive.mjs';
 import {review,finish} from './engine/interventions.mjs';
+import {createGoal,closeGoal} from './engine/goals.mjs';
 import {projectEvidence} from './v62-evidence.mjs';
 import {projectExposure} from './host-exposure.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -39,6 +40,8 @@ export function assess(host,raw,day,now=Date.now()){
 export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  const x=assemble(host,raw,day,now),m=x.memory;let state;
  if(type==='remove-fact')state=removeFact(x.state,payload.key);
+ else if(type==='goal'){if(payload.start!==day||!x.state.observations.some(o=>o.skill===payload.skill&&o.context===payload.context&&o.protocol===payload.protocol))throw Error('Choose a recorded benchmark for the goal');state=createGoal(x.state,payload)}
+ else if(type==='close-goal')state=closeGoal(x.state,payload.id);
  else if(type==='clinic'){if(payload.day!==day)throw Error('Observation must be recorded today');state=recordClinic(x.state,payload)}
  else if(type==='setup'){if(payload.day!==day)throw Error('Setup must be recorded today');state=recordSetup(x.state,payload)}
  else if(type==='remove-clinic'||type==='remove-setup'){const key=type==='remove-clinic'?'clinic':'setups';state={...x.state,[key]:x.state[key].filter(o=>o.id!==payload.id)}}
@@ -54,6 +57,6 @@ export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  state={...state,exposure:m.state.exposure,observations:state.observations.filter(o=>!o.id.startsWith(HOST_PREFIX))};
  return validateMemory({...m,state,baselines});
 }
-export function memorySummary(raw){const m=validateMemory(raw);return {facts:currentFacts(m.state),readiness:m.state.readiness,clinic:m.state.clinic,setups:m.state.setups,interventions:m.state.interventions}}
+export function memorySummary(raw){const m=validateMemory(raw);return {facts:currentFacts(m.state),readiness:m.state.readiness,clinic:m.state.clinic,setups:m.state.setups,interventions:m.state.interventions,goals:m.state.goals}}
 export function compareSetups(raw,a,b){const s=validateMemory(raw).state.setups;return setupComparison(s.find(o=>o.id===a),s.find(o=>o.id===b))}
 export function interventionReview(host,raw,id,day,adherence,confounders=[],now=Date.now()){const x=assemble(host,raw,day,now);return x.edited.includes(id)?{status:'baseline-edited'}:review(x.state,id,day,{adherence,confounders})}
