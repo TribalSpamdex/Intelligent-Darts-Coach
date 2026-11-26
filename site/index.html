@@ -5049,7 +5049,7 @@ function buildGame(name,previous=null){const g=name==="Focused Checkouts"?focuse
  if(window.IDCPrecision&&ss&&!ss.quick&&!ss.extra&&!standard.recovery&&!standard.challengeTuning&&!DC10_MEASUREMENT_GAMES.has(name)&&window.IDCPrecision.supported(name)){
   if(!Number.isInteger(standard.tier))standard.tier=tier;
   const recovery=dc12RecoveryState(name),legacy=dc19Decision(name);
-  const context={eligible:!recovery.earned&&!['probe','adjustment-cooldown'].includes(legacy.reason)&&!currentExercise()?.dc47TrialId&&currentExercise()?.name!=='Target Mastery',sessionId:ss.id,exerciseIndex:ss.index,tiers:Object.fromEntries(SKILLS.map(k=>[k,pressureTier(k)])),assessmentDay:assessmentDate(data.assessment)>0?dateKey(assessmentDate(data.assessment)):null};
+  const context={eligible:!recovery.earned&&!['probe','adjustment-cooldown'].includes(legacy.reason)&&!currentExercise()?.dc47TrialId&&!ss.unifiedAudit?.exploration?.trial&&currentExercise()?.name!=='Target Mastery',sessionId:ss.id,exerciseIndex:ss.index,day:dateKey(),tiers:Object.fromEntries(SKILLS.map(k=>[k,pressureTier(k)])),assessmentDay:assessmentDate(data.assessment)>0?dateKey(assessmentDate(data.assessment)):null};
   return dc20AttachForecast(window.IDCPrecision.adjust(standard,context));
  }
  return dc20AttachForecast(standard)}
