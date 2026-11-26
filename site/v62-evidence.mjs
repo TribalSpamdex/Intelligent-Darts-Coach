@@ -33,7 +33,7 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
   const source='daily-singles:'+b?.day;
   if(b?.complete!==true||!dayOK(b.day)||!count(b.hits,60)||!Array.isArray(b.perNumber)||b.perNumber.length!==20||!b.perNumber.every(n=>count(n,3))||b.perNumber.reduce((s,n)=>s+n,0)!==b.hits){skip(source,'invalid daily benchmark');continue}
   if(b.source==='assessment'){skip(source,'assessment mirror excluded');continue}
-  if(b.at!=null&&(!Number.isFinite(b.at)||b.at>now)){skip(source,'invalid timestamp');continue}
+  if(b.at!=null&&(!Number.isFinite(b.at)||b.at>now||!localDay(b.at)||localDay(b.at)>today)){skip(source,'invalid or not yet available timestamp');continue}
   if(typeof b.sessionId!=='string'&&typeof b.sessionId!=='number'){skip(source,'missing native training session identity');continue}
   const sessions=host.sessions.filter(s=>s?.id===b.sessionId);if(sessions.length!==1||sessions[0].quick!==false){skip(source,'unconfirmed non-quick session');continue}
   const session=sessions[0];
