@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newMemory,assemble,assess,changeMemory,memorySummary,validateMemory,interventionReview} from '../site/coach-memory.mjs';
+import {newMemory,assemble,assess,changeMemory,memorySummary,validateMemory,interventionReview,previewRetention} from '../site/coach-memory.mjs';
 import {decideTransfer,applyTransfer} from '../site/coach-policy.mjs';
 const day='2026-11-15',now=Date.parse(day+'T12:00:00Z');
 const empty=()=>({sessions:[],games:[],assessmentHistory:[],bigSingles:[]});
@@ -32,4 +32,22 @@ test('historical invalid intervention cannot drive a new allocation or rewrite s
  assert.equal(JSON.stringify(m),before);
  const updated=change(h,m,'fact',{key:'grip',value:'front',evidence:'reported'});
  assert.equal(updated.state.interventions[0].outcome.status,'observed-improvement');
+});
+
+test('retention preview and explicit save round-trip through real coach memory',()=>{
+ const h=empty(),m=newMemory(),scope={skill:'doubles',context:'practice',protocol:'fixed'};
+ const shift=n=>new Date(now-n*86400000).toISOString().slice(0,10);
+ const make=(start,hits)=>Array.from({length:7},(_,i)=>({id:'test-'+(start+i),day:shift(start+i),...scope,attempts:60,hits}));
+ const before=make(40,18),after=make(22,30),delayed=make(2,30);
+ m.state.observations=[...before,...after,...delayed];
+ m.state.interventions=[{...scope,id:'reviewed',action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:shift(36),responseDay:shift(36),reviewDay:shift(18),reviewAfterDays:14,maximumDays:21,baselineIds:before.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}}];m.baselines.reviewed=before;
+ assert.equal(previewRetention(h,m,'reviewed',day,now).status,'observed-retention');
+ const saved=changeMemory(h,m,day,'retention',{id:'reviewed'},now);
+ assert.equal(saved.state.interventions[0].retentionHistory.length,1);
+ assert.equal(assess(h,validateMemory(JSON.parse(JSON.stringify(saved))),day,now).questionableOutcomes.length,0);
+ assert.equal(m.state.interventions[0].retentionHistory,undefined);
+ assert.equal(changeMemory(h,saved,day,'retention',{id:'reviewed'},now).state.interventions[0].retentionHistory.length,1);
+ const edited=JSON.parse(JSON.stringify(saved));edited.state.observations=edited.state.observations.filter(o=>o.id!==before[0].id);
+ assert.equal(previewRetention(h,edited,'reviewed',day,now).status,'review-needs-verification');
+ assert.throws(()=>changeMemory(h,edited,day,'retention',{id:'reviewed'},now));
 });
