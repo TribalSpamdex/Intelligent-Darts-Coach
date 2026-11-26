@@ -1,6 +1,31 @@
 import {SKILLS,mean,sd,summarise} from './engine.mjs';
 export const dayValid=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d;
 export const dayGap=(a,b)=>(Date.parse(b)-Date.parse(a))/86400000;
+// End-of-local-day retrospective projection. The original stored records
+// are never rewritten. Later lifecycle transitions cannot activate or erase
+// an earlier consent. Legacy deletions without event history are not replayable.
+export function asOfState(m,day){
+ if(!dayValid(day))throw Error('Invalid retrospective date');
+ const x={...m};
+ for(const key of ['observations','throws','exposure','readiness','difficulty','answers','changes','sessions','clinic','setups','followups','legs']){
+  if(Array.isArray(m[key]))x[key]=m[key].filter(o=>dayValid(o.day)&&o.day<=day);
+ }
+ x.facts=(m.facts??[]).filter(f=>typeof f.at==='string'&&dayValid(f.at.slice(0,10))&&f.at.slice(0,10)<=day);
+ x.interventions=(m.interventions??[]).filter(i=>!i.proposedDay||i.proposedDay<=day).map(i=>{
+  const y={...i,retentionHistory:(i.retentionHistory??[]).filter(r=>dayValid(r.reviewDay)&&r.reviewDay<=day)};
+  const removeReview=()=>{for(const key of ['reviewDay','outcome','adherence','confounders','retentionHistory'])delete y[key]};
+  if(i.responseDay&&i.responseDay>day){y.status='proposed';delete y.responseDay;delete y.cancelledDay;removeReview()}
+  else if(i.cancelledDay&&i.cancelledDay>day){y.status=i.responseDay<i.cancelledDay?'accepted':'proposed';if(y.status==='proposed')delete y.responseDay;delete y.cancelledDay;removeReview()}
+  else if(i.reviewDay&&i.reviewDay>day){y.status='accepted';removeReview()}
+  return y;
+ });
+ if(Array.isArray(m.goals))x.goals=m.goals.filter(g=>g.start<=day).map(g=>g.closedDay&&g.closedDay>day?{...g,status:'active',closedDay:undefined}:g);
+ if(Array.isArray(m.trials))x.trials=m.trials.filter(t=>t.start<=day).map(t=>{
+  const pairs=t.pairs.filter(p=>p.day<=day),future=t.pairs.length!==pairs.length||t.finishDay&&t.finishDay>day;
+  return {...t,pairs,status:future?'active':t.status};
+ });
+ return x;
+}
 const levels=['low','normal','high','unknown'];
 export function validateReadiness(o){
  if(!o||!dayValid(o.day)||!['practice','competition'].includes(o.context)||!levels.includes(o.fatigue)||!levels.includes(o.pressure)||!levels.includes(o.confidence)||typeof o.pain!=='boolean'||typeof o.note!=='string'||o.note.length>500)throw Error('Invalid readiness record');
