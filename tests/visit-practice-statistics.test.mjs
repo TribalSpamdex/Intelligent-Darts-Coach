@@ -54,7 +54,7 @@ test('statistics cards maintain exact counts and valid chart denominators',()=>{
 import {legalFinishCount} from '../site/finish-validation.mjs';
 import {projectEvidence} from '../site/v62-evidence.mjs';
 test('exact legal checkout dart counts reject impossible or bust routes',()=>{
- assert.equal(legalFinishCount(40,1),true);assert.equal(legalFinishCount(41,1),false);assert.equal(legalFinishCount(41,2),true);assert.equal(legalFinishCount(170,2),false);assert.equal(legalFinishCount(170,3),true);assert.equal(legalFinishCount(169,3),false);assert.equal(legalFinishCount(2,2),false);
+ assert.equal(legalFinishCount(40,1),true);assert.equal(legalFinishCount(41,1),false);assert.equal(legalFinishCount(41,2),true);assert.equal(legalFinishCount(170,2),false);assert.equal(legalFinishCount(170,3),true);assert.equal(legalFinishCount(169,3),false);assert.equal(legalFinishCount(2,2),true);assert.equal(legalFinishCount(2,3),true);assert.equal(legalFinishCount(3,3),true);assert.equal(legalFinishCount(3,1),false);
 });
 test('impossible assessment successful dart count is excluded consistently',()=>{
  const h=empty(),targets=[41,46,52,60,68,76,81,90,101,110,120,130];h.assessmentHistory=[{version:6,finished:true,completedAt:now-86400000,checkout:targets.map(target=>({target,hit:target===41,darts:target===41?1:3}))}];
