@@ -45,3 +45,22 @@ The two imposed-decline cohorts had zero wrong-direction trend flags. Sol's orig
 - Historical analysis reconstructs currently available dated records; it is not an immutable record of the decision originally made. Legacy deletions, overwritten records and intra-day chronology remain limitations.
 
 No current release readiness score is asserted. Final verification must use the exact current SHA and independent evidence, including physical iPhone operation.
+
+## Recovered-slump regression and independent exact finish oracle
+
+- Full Actions run 45858785119 at `2b38a5162f31721d08cbcf8486f4f1a51ad85551`: 440 passed, one failed. All failures were confined to the original 10,000-history sensitivity/safety test; one recovered-slump case (index 5259, singles) was incorrectly assigned temporary focus.
+- A 28-day contrast included a resolved low fortnight even though two subsequent measured weeks had improved. The recovery veto at `f0176bba90c700fad6c3e7d5c36e640f7966b140` forbids long-window-only focus when both weeks show material recovery. Short and persistent decline confirmation remain independent.
+- Direct execution of the repository coaching functions (nine fetched modules, loaded into an isolated JavaScript runtime) against the exact seeded 10,000-history generator produced:
+
+| Cohort | Count | Focus | Investigate |
+| --- | ---: | ---: | ---: |
+| Stable | 2000 | 0 | 6 |
+| Genuine severe decline | 2000 | 1734 | 259 |
+| Decline with reported equipment change | 2000 | 0 | 1994 |
+| Sparse measurements | 2000 | 0 | 0 |
+| Recovered slump | 2000 | 0 | 1 |
+
+All original acceptance thresholds were met in this direct run. The exact failing history is a regression at `8513abb50d6d10b56ec0082bc44574e1dee3d64a`. This is not an independent holdout or full Node/Playwright verification.
+
+- Independent exact checkout oracle, including zero-score misses, executed directly against `c10e7afd36f76aa3342e2886a5d56837ed3913c3`: 507/507 score/dart-count pairs agreed. The exhaustive oracle is also committed to the normal Node suite.
+- CI for the current exact candidate and a new independent re-audit remain required. No prior green run can certify a later SHA.
