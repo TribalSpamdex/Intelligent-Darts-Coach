@@ -230,7 +230,7 @@ with sync_playwright() as p:
     assert 'Keep recording' in page.locator('#idcProgressHighlights').inner_text()
     # Synthetic native construction audit: same rule-builder used by timed training.
     audit=page.evaluate("""async()=>{
-      const original=clone(data),oldGame=activeGame;
+      const original=clone(data),oldGame=activeGame,oldUndo=undoSnapshot,oldTab=currentTab;
       try{
        const mod=await import('./precision-games.mjs?v=1.6.0-dev');
        const day=n=>dateKey(Date.now()-n*DAY_MS),now=Date.now();
@@ -261,11 +261,16 @@ with sync_playwright() as p:
        const e=gameResult(g,'natural');data.games=[e];
        if(skillSamples().scoring.length!==0||completedRows('scoring').length!==0)throw Error('Modified round polluted benchmark evidence');
        data.activeSession.quick=true;const q=buildGame('Scoring Survival');if(q.precision)throw Error('Quick Play altered');
+       data.activeSession.quick=false;data.activeSession.plan=[{name:'Double Duel',seconds:600,mode:'timed'}];data.activeSession.phase='playing';data.activeSession.pausedAt=null;currentTab='technique';window.IDCPrecision.invalidate();activeGame=buildGame('Double Duel');data.game=activeGame;
+       if(activeGame.opponentEvery!==2||!activeGame.precision)throw Error('Rival pace not adjusted');
+       new40Dart('miss');if(activeGame.opponent!==0||activeGame.turn!==1)throw Error('Rival scored early');
+       new40Dart('miss');if(activeGame.opponent!==1||activeGame.turn!==2)throw Error('Rival did not use calibrated pace');
+       undoGame();if(activeGame.opponent!==0||activeGame.turn!==1||activeGame.opponentEvery!==2)throw Error('Undo did not restore frozen rival configuration');
        return {observed,tested:results.length,modified:results.filter(x=>x.modified).length,names:new Set(results.filter(x=>x.modified).map(x=>x.name)).size};
-      }finally{data=original;activeGame=oldGame;window.IDCPrecision.invalidate()}
+      }finally{data=original;activeGame=oldGame;undoSnapshot=oldUndo;currentTab=oldTab;window.IDCPrecision.invalidate();save(false)}
     }""")
     assert audit['observed']==[60,62,65,68], audit
-    assert audit['tested']>=240, audit
+    assert audit['tested']==259, audit
     assert audit['modified']>=70 and audit['names']>=20, audit
     print('Native precision construction audit:',audit)
     assert not errors, errors
