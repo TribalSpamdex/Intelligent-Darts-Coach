@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {progressEvidence,precisionDecisions} from '../site/progression-evidence.mjs';
-import {progressHighlights,milestoneCards} from '../site/progression-dialogue.mjs';
+import {progressEvidence,precisionDecisions,abilityProfiles,abilityProfileLines} from '../site/progression-evidence.mjs';
+import {progressHighlights,milestoneCards,progressionAnswer} from '../site/progression-dialogue.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10),ages=[0,1,7,8,14,15,21,22];
 const row=(n,v=72,extra={})=>({id:'r'+n,day:ago(n),skill:'scoring',context:'practice',protocol:'IDC precision fixed scoring',attempts:30,hits:v*10,...extra});
 const sample=(v=72,extra={})=>ages.map(n=>row(n,v,extra));
@@ -53,4 +53,40 @@ test('continuous confirmed challenge is bounded and monotonic across all scoring
   previous=d.challenge;
  }
  }
+});
+
+test('short-term form uses disjoint days and actual measurement volume',()=>{
+ const baseline=[7,9,14,16,21,23].map(n=>row(n,60));
+ for(const [v,status] of [[70,'above-usual'],[50,'below-usual'],[61,'no-clear-shift']]){
+  const recent=[0,2,4].map(n=>row(n,v));
+  const form=progressEvidence([...baseline,...recent],day)[0].form;
+  assert.equal(form.status,status);
+  assert.equal(form.short.days,3);
+  assert.equal(form.short.attempts,90);
+  assert.equal(form.usual.days,6);
+  assert.equal(form.usual.attempts,180);
+  assert.equal(form.change,v-60);
+ }
+ assert.equal(progressEvidence([...baseline,row(0,100)],day)[0].form.status,'insufficient');
+});
+test('three disjoint adequately sampled periods distinguish stable, changing and variable measurements',()=>{
+ const make=values=>values.flatMap((v,i)=>ages.map((n,j)=>row(n+28*i,typeof v==='function'?v(j):v)));
+ for(const [values,status] of [[[60,60,60],'stable-measurements'],[[70,65,60],'changing'],[[j=>j%2?50:70,60,60],'variable']]){
+  const r=progressEvidence(make(values),day)[0].stability;
+  assert.equal(r.status,status);
+  assert.ok(r.periods.every(p=>p.days===8&&p.attempts===240));
+  assert.equal(new Set(r.periods.flatMap(p=>p.daily.map(x=>x.day))).size,24);
+ }
+ assert.equal(progressEvidence(make([60,60]),day)[0].stability.status,'insufficient');
+});
+test('ability report retains denominators and fixed protocols, with no gameplay tier exposure',()=>{
+ const obs=[...sample(72),...sample(100,{protocol:'adaptive game',id:'ignored'})];
+ const p=abilityProfiles(obs,day);
+ assert.equal(p.length,6);
+ assert.equal(p.find(r=>r.skill==='scoring').protocols.length,1);
+ assert.equal(p.find(r=>r.skill==='doubles').confirmed,null);
+ const lines=abilityProfileLines(p);
+ assert.ok(lines.some(s=>s.includes('240 attempts')));
+ assert.ok(lines.every(s=>!s.includes('tier')));
+ assert.equal(progressionAnswer({}, {observations:obs},'my ability profile',day).type,'ability-profile');
 });
