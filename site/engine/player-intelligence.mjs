@@ -1,4 +1,4 @@
-import {assessments,SKILLS,plan} from './engine.mjs';
+import {assessments,SKILLS,plan,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine.mjs';
 import {robustTrend,matchedContext,exposureSummary,dayGap,dayValid} from './context.mjs';
 import {library,variant,difficultyDecision} from './training.mjs';
 import {relevant} from './knowledge.mjs';
@@ -23,8 +23,9 @@ export function mentalSupport(readiness){
 }
 export function learningHistory(memory,skill,protocol){
  const rows=memory.interventions.filter(i=>i.skill===skill&&i.protocol===protocol);
- const successes=rows.filter(i=>i.outcome?.status==='observed-improvement'),failures=rows.filter(i=>i.outcome?.status==='observed-decline'||i.outcome?.status==='unclear');
- return {observedImprovements:successes.length,nonImprovements:failures.length,confounded:rows.filter(i=>i.outcome?.status==='confounded').length,declined:rows.filter(i=>i.status==='declined').length,policy:failures.length?'review-alternatives-before-repeat':'no-personal-causal-conclusion'};
+ const eligible=rows.filter(i=>i[ALLOCATION_PROOF]===true);
+ const successes=eligible.filter(i=>i.outcome?.status==='observed-improvement'),failures=eligible.filter(i=>i.outcome?.status==='observed-decline'||i.outcome?.status==='unclear');
+ return {observedImprovements:successes.length,nonImprovements:failures.length,unattributed:rows.filter(i=>i.outcome&&i[ALLOCATION_PROOF]!==true).length,confounded:rows.filter(i=>i.outcome?.status==='confounded').length,declined:rows.filter(i=>i.status==='declined').length,policy:failures.length?'review-alternatives-before-repeat':'no-personal-causal-conclusion'};
 }
 export function evidenceReview(memory,day){
  if(!dayValid(day))throw Error('Invalid report date');
@@ -71,7 +72,7 @@ export function selectCoaching(memory,base,day){
  const review=evidenceReview(memory,day);
  if(['stop','reduce-load'].includes(review.decision))return {...base,decision:review.decision,focus:null,plan:[],review};
  const existing=[...base.issues];
- for(const i of review.issues){if(i.action!=='candidate-focus'||existing.some(x=>x.skill===i.skill&&x.context===i.context&&x.protocol===i.protocol)||memory.interventions.some(x=>x.skill===i.skill&&['accepted','unsuccessful'].includes(x.status)))continue;
+ for(const i of review.issues){if(i.action!=='candidate-focus'||existing.some(x=>x.skill===i.skill&&x.context===i.context&&x.protocol===i.protocol)||memory.interventions.some(x=>x.skill===i.skill&&x.protocol===i.protocol&&x.context===i.context&&(x.status==='accepted'||x.status==='unsuccessful'&&x[ALLOCATION_PROOF]===true||x[REVIEW_UNVERIFIED]===true)))continue;
  existing.push({skill:i.skill,context:i.context,protocol:i.protocol,evidence:i.trend,hypotheses:i.hypotheses,knowledge:i.knowledge,action:'temporary-focus',review:'Repeat the same benchmark on later days and evaluate adherence.'})}
  const eligible=existing.filter(i=>i.action==='temporary-focus').map(i=>{
  const p=review.profiles.find(q=>q.skill===i.skill&&q.context===i.context&&q.protocol===i.protocol);
