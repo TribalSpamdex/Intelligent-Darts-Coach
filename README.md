@@ -1,6 +1,6 @@
 # Intelligent Darts Coach (IDC)
 
-V1.3.0-dev: longitudinal evidence and coaching follow-up candidate, intended for personal testing after successful verification. Not a production release. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
+V1.4.0-dev: precise statistical analysis and optional manual actual-segment evidence, intended for personal testing after successful verification. Not a production release. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
 
 - Training platform: exact V6.2 source at TribalSpamdex/darts-coach commit b248a1caa169c9a45a6beda3954dc067cbfbe6e1, with separate storage keys, new local Coach panel, share URL and offline asset cache.
 - Independent engine: pinned V0.4.0 at TribalSpamdex/DCI-independent commit a39210419869ecf1160471997b10300d57c93ef1. The original engine regression suite is carried over.
@@ -37,3 +37,10 @@ The original Home and About guide remain in place; the former Technique navigati
 
 ### Release acceptance
 The complete Node regression suite and both Chromium and WebKit smoke tests must pass on the final candidate commit before merge. Physical iPhone use, long-term real-world player effectiveness and automatic update behaviour on an existing installed iPhone remain unverified. Simulations are synthetic evidence tests, not proof of coaching efficacy. The original V6.2 and independent engine source repositories are unchanged.
+
+## V1.4.0 precision and detailed statistics
+- Period-selectable mobile cards in Coach: skill profiles, target accuracy, scoring visit distribution, checkout-score distributions, recorded practice volume and actual match legs. Additional questions cover weekly history, evidence coverage, matched-week practice/competition comparisons and actual miss patterns.
+- Skill and actual-leg histories have 7/28/84/365-day windows; native target, scoring visit and checkout detail have 7/28/84-day windows. Descriptive pooled values, daily median, interquartile range, sample SD, denominators and weekly trends are separated. Missing data are not zero; engineering evidence gates do not claim calibrated significance or future success probabilities.
+- Optional manual 20-dart fixed target samples record actual board segments and keep practice protocol separate. Actual leg entry accepts legal segments and optional intended aims, with validated preview and explicit save/removal. Real competition is player-entered; no bot or practice results are relabelled as matches. First-nine eligibility, bust rollback, known finishing aims and checkout visits use different explicit denominators.
+- Imported sample integrity is validated; incomplete samples, impossible known checkout dart counts and ambiguous native daily session identities are excluded. Original game rules and session allocation are unchanged; descriptive statistics do not automatically prescribe a technique change.
+- All new modules are included in the versioned offline dependency graph. Manual logs are in the existing local IDC backup. Physical phone testing, actual Pages delivery and longitudinal real-player efficacy still require verification. No external inference or additional paid runtime services.
