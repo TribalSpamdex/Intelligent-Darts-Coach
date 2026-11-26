@@ -161,6 +161,8 @@ with sync_playwright() as p:
     assert 'Synthetic league' in page.locator('#idcBrief').inner_text()
     page.locator('#idcAutonomyQuestions button').filter(has_text='How should I prepare for competition?').click()
     assert 'Synthetic league' in page.locator('#idcAnswer').inner_text()
+    event_plan=page.evaluate("""()=>{const before=JSON.stringify(data),plan=generateSession(false,false,true);return {phase:plan.unifiedAudit.competition?.phase,familiar:plan.unifiedAudit.competition?.familiar,trial:plan.unifiedAudit.exploration?.trial,mastery:plan.some(e=>e.name==='Target Mastery'),valid:plan.every(e=>e.mode==='benchmark'||e.seconds>=300),unchanged:before===JSON.stringify(data)}}""")
+    assert event_plan=={'phase':'competition-day','familiar':True,'trial':None,'mastery':False,'valid':True,'unchanged':True},event_plan
     page.once('dialog',lambda d:d.accept())
     page.locator('#idcEvents button').click()
     assert 'No saved competitions' in page.locator('#idcEvents').inner_text()
