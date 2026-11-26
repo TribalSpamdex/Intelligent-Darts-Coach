@@ -1,7 +1,7 @@
 // A single actionable coaching prompt, not an extra automatic planner.
 import {dayValid,dayGap} from './engine/context.mjs';
 import {developmentAgenda} from './development-review.mjs';
-import {eventContext} from './competition-calendar.mjs';
+import {eventContext,competitionPreparation} from './competition-calendar.mjs';
 import {reflectionInsights} from './reflections.mjs';
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
 const same=(a,b)=>a.skill===b.skill&&a.context===b.context&&a.protocol===b.protocol;
@@ -47,7 +47,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(waiting)return response('method-followup','Complete your personalised drill review',waiting.reason+' No extra session is required.');
  const lead=agenda.actions.find(a=>['investigate-decline','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
- if(event.phase==='event-week')return response('competition','Competition this week','Keep familiar scoring and finishing practice and allow recovery. No additional workload is prescribed.');
+ if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}
  return response('balanced','Maintain your balanced practice','Continue your usual session and record comparable checks when practical. No new adjustment is justified.');
 }
 export function briefLines(b){return [b.title,b.detail,...(b.why?[b.why]:[]),'One priority at a time. The coach has not altered your session or created a new player fact.'];}

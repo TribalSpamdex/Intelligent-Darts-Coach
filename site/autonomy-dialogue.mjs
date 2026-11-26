@@ -2,7 +2,7 @@ import {fullReport} from './engine/executive.mjs';
 import {verifiedLearningState,baselineIntegrity} from './intervention-audit.mjs';
 import {performanceForecasts,forecastLines,forecastValidation,forecastValidationLines} from './performance-forecast.mjs';
 import {coachBrief,briefLines} from './proactive-coach.mjs';
-import {eventLines} from './competition-calendar.mjs';
+import {eventLines,competitionPreparation,competitionPreparationLines} from './competition-calendar.mjs';
 import {personalLearning,learningLines,planPreview,blockPreview,planLines,blockLines,longProgramme,longProgrammeLines} from './personal-programme.mjs';
 import {coachingAccountability,accountabilityLines,methodReviews,methodReviewLines} from './coaching-accountability.mjs';
 import {recoveryPlan,recoveryLines} from './development-review.mjs';
@@ -18,7 +18,8 @@ export function autonomyAnswer(host,state,q,day,now=Date.now(),reflections=[],ba
  if(/^(what performance range is realistic|performance forecast|predict my performance)$/.test(q))return reply('performance-forecast',forecastLines(performanceForecasts(state.observations,day)));
  if(/^(how accurate are your predictions|forecast validation|test your predictions)$/.test(q))return reply('forecast-validation',forecastValidationLines(forecastValidation(state.observations,day)));
  if(/^(how do i learn best|my learning profile|personal learning profile)$/.test(q))return reply('personal-learning',learningLines(personalLearning(host,state,day,now)));
- if(/^(how should i prepare for competition|competition preparation|upcoming competitions)$/.test(q))return reply('competition-preparation',eventLines(events,day));
+ if(q==='upcoming competitions')return reply('competition-preparation',eventLines(events,day));
+ if(/^(how should i prepare for competition|competition preparation)$/.test(q))return reply('competition-preparation',[...eventLines(events,day),...competitionPreparationLines(competitionPreparation(state,events,day,{report:reviewForAutonomy(state,baselines,day)}))]);
  if(/^(how effective has my coaching been|coaching accountability|audit my coaching)$/.test(q))return reply('coaching-accountability',[...accountabilityLines(coachingAccountability(host,state,baselines,day,now)),...methodReviewLines(methodReviews(host,state,day,now),day)]);
  if(/^(what is my next coaching priority|coach brief|preview my next session|plan my next four weeks|how should i recover from a slump|plan my next three months)$/.test(q)){
   const report=reviewForAutonomy(state,baselines,day);
