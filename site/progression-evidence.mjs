@@ -58,6 +58,9 @@ export function progressEvidence(observations,day){
 // Only identical fixed practice protocols can justify a harder half. Any
 // adequately sampled contradictory protocol vetoes the change.
 const fixed=(skill,p)=>({scoring:'IDC V6.2 assessment scoring 60 darts',doubles:'IDC V6.2 assessment D1-D20 fixed 60',checkout:'IDC V6.2 assessment fixed 12 three-dart visits',bull:'IDC V6.2 assessment any bull 30'}[skill]===p)||skill==='scoring'&&p==='IDC V6.2 Scoring Challenge fixed 30 darts'||skill==='bull'&&p==='IDC V6.2 Bull Accuracy any bull 30'||p==='IDC precision fixed '+skill;
+const ringFixed=(skill,p)=>p==='IDC precision fixed '+skill||skill==='singles'&&['IDC V6.2 assessment large singles 60','IDC V6.2 daily large singles 60'].includes(p);
+const fixedSkill=(skill,protocol)=>['singles','trebles'].includes(skill)?ringFixed(skill,protocol):Object.hasOwn(SKILL_THRESHOLDS,skill)&&fixed(skill,protocol);
+const fresh=(r,day)=>r.adequate&&dayGap(r.last,day)<=7;
 // Reuse the established independent-day confirmation test to find the
 // highest supported continuous measurement. This is an engineering bound,
 // not a statistical confidence interval or a forecast of match performance.
@@ -81,14 +84,14 @@ export function precisionDecisions(observations,day,tiers){
  for(const skill of Object.keys(SKILL_THRESHOLDS)){
  const tier=tiers[skill];if(!Number.isInteger(tier)||tier<1||tier>7)continue;
  const {lower,upper,midpoint,quarters}=tierRange(skill,tier);
- const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixed(skill,r.protocol)&&r.adequate&&dayGap(r.last,day)<=7);
+ const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixedSkill(skill,r.protocol)&&fresh(r,day));
  const quarter=eligible.length?quarters.filter(boundary=>eligible.every(r=>r.confirm(boundary))).length:0;
  const qualifying=quarter?eligible.filter(r=>r.confirm(quarters[quarter-1])):[];
  out[skill]={tier,quarter,...model(eligible,day,isScore(skill)?180:100,lower,upper-lower),half:quarter>=2?'upper':'foundation',midpoint,quarters,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
  }
  // Ring-specific foundation exercises require actual single/treble measurements.
  for(const [skill,boundaries] of [['singles',[50,65,80]],['trebles',[10,20,30]]]){
- const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&r.adequate&&dayGap(r.last,day)<=7&&(r.protocol==='IDC precision fixed '+skill||skill==='singles'&&['IDC V6.2 assessment large singles 60','IDC V6.2 daily large singles 60'].includes(r.protocol)));
+ const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixedSkill(skill,r.protocol)&&fresh(r,day));
  const quarter=eligible.length?boundaries.filter(boundary=>eligible.every(r=>r.confirm(boundary))).length:0;
  out[skill]={quarter,...model(eligible,day,100,boundaries[0]-(boundaries[1]-boundaries[0]),4*(boundaries[1]-boundaries[0])),protocols:quarter?eligible.map(r=>r.protocol):[],reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
  }
@@ -99,4 +102,27 @@ export function progressionLines(rows,skill=null){
  if(!selected.length)return ['No comparable recorded measurements for progression yet.'];
  const f=(v,s)=>v===null?'not recorded':v.toFixed(1)+(isScore(s)?'':'%');
  return [...selected.slice(0,20).flatMap(r=>[r.skill+' · '+r.context+' · '+r.protocol,'Recent daily median '+f(r.value,r.skill)+'; '+r.days+' measured days, '+r.attempts+' attempts, '+r.weeks+' weeks.','Confirmed milestone: '+f(r.confirmedMilestone,r.skill)+'; next confirmed-milestone target '+f(r.nextMilestone,r.skill)+'.',r.change===null?'Earlier comparable period insufficient.':'Previous daily median '+f(r.prior,r.skill)+'. Difference '+(r.change>=0?'+':'')+r.change.toFixed(1)+(isScore(r.skill)?' points.':' percentage points.')]),'Milestones are descriptive. Confirmed boundaries require repeated measured days and a margin. No visible gameplay tier, no promotion from a single good session.'];
+}
+
+export function abilityProfiles(observations,day){
+ const rows=progressEvidence(observations,day).filter(r=>r.context==='practice'&&fixedSkill(r.skill,r.protocol));
+ return [...Object.keys(SKILL_THRESHOLDS),'singles','trebles'].map(skill=>{
+  const protocols=rows.filter(r=>r.skill===skill),eligible=protocols.filter(r=>fresh(r,day));
+  return {skill,confirmed:confirmedAbility(eligible,isScore(skill)?180:100),protocols:protocols.map(r=>({protocol:r.protocol,last:r.last,adequate:fresh(r,day),measured:r.value,days:r.days,attempts:r.attempts,form:r.form,stability:r.stability}))};
+ });
+}
+export function abilityProfileLines(profiles){
+ const f=(n,s)=>n===null?'not recorded':n.toFixed(1)+(isScore(s)?'':'%');
+ const lines=[];
+ for(const r of profiles){
+  lines.push(r.skill+' · '+(r.confirmed===null?'Not enough comparable recent evidence for a confirmed estimate.':'Conservative supported ability '+f(r.confirmed,r.skill)+'.'));
+  for(const p of r.protocols){
+   const {short,usual,status}=p.form;
+   lines.push(p.protocol+': last measured '+p.last+'; 28-day daily median '+f(p.measured,r.skill)+' from '+p.days+' measured days and '+p.attempts+' attempts.');
+   lines.push('Last 7 days '+f(short.median,r.skill)+' ('+short.days+' measured days) versus preceding 21 days '+f(usual.median,r.skill)+' ('+usual.days+' measured days). '+({insufficient:'More comparable days needed.', 'above-usual':'Recent form above the earlier range.', 'below-usual':'Recent form below the earlier range.', 'no-clear-shift':'No clear recent form shift.'}[status]));
+   const s=p.stability;
+   if(s.status!=='insufficient')lines.push('Three separate 28-day windows: '+[...s.periods].reverse().map(w=>f(w.median,r.skill)).join(' / ')+'. '+({variable:'Measurements are variable; do not infer a plateau.',changing:'Longer-term measured results are changing.', 'stable-measurements':'Measured results are stable; practice exposure must be reviewed before calling this a training plateau.'}[s.status]));
+  }
+ }
+ return [...lines,'These are descriptive measurements and conservative evidence bounds, not calibrated probabilities. Missing days are not misses; practice and competition remain separate.'];
 }
