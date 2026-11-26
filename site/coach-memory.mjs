@@ -6,6 +6,7 @@ import {recordSetup,setupComparison} from './engine/equipment-profile.mjs';
 import {fullReport} from './engine/executive.mjs';
 import {review,finish} from './engine/interventions.mjs';
 import {projectEvidence} from './v62-evidence.mjs';
+import {projectExposure} from './host-exposure.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
 const HOST_PREFIX='IDC:host-v62:';
 export function newMemory(){return {format:'IDC-coach-memory',version:1,state:newPlayer(),baselines:{}}}
@@ -20,10 +21,11 @@ export function validateMemory(raw){
 }
 export function assemble(host,raw,day,now=Date.now()){
  const memory=validateMemory(raw),evidence=projectEvidence(host,{today:day,now});
- const state=validateState({...memory.state,observations:[...memory.state.observations,...evidence.observations]});
+ const practice=projectExposure(host,day);
+ const state=validateState({...memory.state,exposure:practice.exposure,observations:[...memory.state.observations,...evidence.observations]});
  const byId=new Map(state.observations.map(o=>[o.id,JSON.stringify(o)]));
  const edited=state.interventions.filter(i=>['proposed','accepted'].includes(i.status)&&memory.baselines[i.id].some(o=>byId.get(o.id)!==JSON.stringify(o))).map(i=>i.id);
- return {memory,state,evidence,edited};
+ return {memory,state,evidence,edited,practice};
 }
 export function assess(host,raw,day,now=Date.now()){
  const x=assemble(host,raw,day,now),report=fullReport(x.state,day);
@@ -45,7 +47,7 @@ export function changeMemory(host,raw,day,type,payload,now=Date.now()){
  }
  const baselines=clone(m.baselines);
  for(const i of state.interventions)if(!Object.hasOwn(baselines,i.id))Object.defineProperty(baselines,i.id,{value:state.observations.filter(o=>i.baselineIds.includes(o.id)),enumerable:true,writable:true,configurable:true});
- state={...state,observations:state.observations.filter(o=>!o.id.startsWith(HOST_PREFIX))};
+ state={...state,exposure:m.state.exposure,observations:state.observations.filter(o=>!o.id.startsWith(HOST_PREFIX))};
  return validateMemory({...m,state,baselines});
 }
 export function memorySummary(raw){const m=validateMemory(raw);return {facts:currentFacts(m.state),readiness:m.state.readiness,clinic:m.state.clinic,setups:m.state.setups,interventions:m.state.interventions}}
