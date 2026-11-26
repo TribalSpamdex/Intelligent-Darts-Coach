@@ -10,7 +10,7 @@ test('minimum legal finish count agrees with exhaustive route engine for all che
  for(const n of [0,1,159,162,163,165,166,168,169,171,501,NaN])assert.equal(minimumFinishDarts(n),null);
 });
 test('actual straight-in stages retain credited score, setup leaves and finish length',()=>{
- const l=leg('one','T20 T20 T20\nT20 S11 D25'.replace('D25','50'));
+ const l=leg('one','T20 T20 T20\nT20 S11 50');
  // 301 -> 121 -> 50 -> 0; second visit has a legal 3-dart checkout.
  const p=stageProfiles([l],day).profiles[0].windows[0];
  assert.equal(p.scoring.visits,1);assert.equal(p.scoring.average,180);assert.equal(p.setup.leaves,1);
@@ -26,13 +26,13 @@ test('bogey escape and setup double leave are separate measured opportunities',(
  assert.equal(p.checkout.visits,1);assert.equal(p.shortest[1].finishes,1);
 });
 test('bust rollback and actual dart count remain intact at checkout',()=>{
- const l=leg('bust','D20>S20 D10>T20\nD20>D20',{start:40===40?101:101,result:'lost',visits:'T20 S1 MISS\nD20>T20'});
+ const l=leg('bust','T20 S1 MISS\nD20>T20',{start:101,result:'lost'});
  // start 101 -> 40, then T20 bust (one dart). Result is lost, not a finish.
  const p=stageProfiles([l],day).profiles[0].windows[0];
  assert.equal(p.checkout.visits,2);assert.equal(p.checkout.busts,1);assert.equal(p.checkout.darts,4);assert.equal(p.checkout.points,61);
 });
 test('explicit finishing attempts require actual aim and distinguish same-number misses',()=>{
- const l=leg('aim','T20>T20 S1>S1 S0>MISS'.replace('S0>MISS','S1>MISS')+'\nD20>S20 D10>D10',{start:101});
+ const l=leg('aim','T20>T20 S1>S1 S1>MISS\nD20>S20 D10>D10',{start:101});
  const p=stageProfiles([l],day).profiles[0].windows[0];
  assert.equal(p.aim.coverage,1);assert.equal(p.aim.completeLegAttempts,2);assert.equal(p.aim.completeLegHits,1);
  assert.equal(p.aim.misses['same-number-different-ring'],1);assert.equal(p.aim.targets.D20.attempts,1);
@@ -41,7 +41,7 @@ test('explicit finishing attempts require actual aim and distinguish same-number
  assert.equal(q.aim.knownFinishAttempts,2);assert.equal(q.aim.completeLegAttempts,0);assert.equal(q.aim.completeLegRate,null);
 });
 test('double-in and abandoned legs excluded explicitly, not silently combined',()=>{
- const double=leg('double','D20 T20 S1',{start:101,doubleIn:true,result:'lost'});
+ const double=leg('double','D20 S20 S1',{start:101,doubleIn:true,result:'lost'});
  const abandoned=leg('abandoned','S20',{start:101,result:'abandoned'});
  const r=stageProfiles([double,abandoned],day);
  assert.equal(r.doubleInExcluded,1);assert.equal(r.abandonedExcluded,1);assert.equal(r.profiles.length,0);
