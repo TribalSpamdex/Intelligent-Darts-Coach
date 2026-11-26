@@ -26,7 +26,12 @@ export function recordedConfounder(state,from,to){
   const end=r.cancelledDay??r.reviewDay??to;
   return dayValid(end)&&end>=from;
  })||
- (state.trials??[]).some(t=>dayValid(t.start)&&t.start<=to&&dayValid(t.finishDay??to)&&(t.finishDay??to)>=from);
+ (state.trials??[]).some(t=>{
+  // Older completed trials may lack an explicit finish date; the last
+  // recorded paired exposure is the latest known practice, not infinity.
+  const end=t.finishDay??(t.status==='active'?to:t.pairs?.at(-1)?.day??t.start);
+  return dayValid(t.start)&&t.start<=to&&dayValid(end)&&end>=from;
+ });
 }
 export function learningEpisodes(host,state,day,now=Date.now()){
  const exposure=extractLearningExposure(host,day,now),observations=canonicalRows(state.observations??[],day);
