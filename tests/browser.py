@@ -8,7 +8,7 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.add_init_script("""if(!localStorage.getItem('dartsCoachV4'))localStorage.setItem('dartsCoachV4','CONTROL-SENTINEL');if(!localStorage.getItem('DCI-independent:foundation:v1'))localStorage.setItem('DCI-independent:foundation:v1','INDEPENDENT-SENTINEL');""")
     page.goto('http://127.0.0.1:8765/index.html')
-    assert 'V1.6.0-dev' in page.title()
+    assert 'V1.7.0-dev' in page.title()
     assert page.locator('#home').is_visible()
     assert not page.locator('#idcCoach').is_visible()
     assert page.locator('.homeWelcome').is_visible()
@@ -189,7 +189,7 @@ with sync_playwright() as p:
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.6.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.6.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.6.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.6.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.6.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.6.0-dev'))}""")
+        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.7.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.7.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.7.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.7.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.7.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.7.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=1.7.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=1.7.0-dev'))}""")
         ctx.set_offline(True)
         page.reload()
         page.locator('#navTechnique').click()
@@ -226,26 +226,33 @@ with sync_playwright() as p:
     page.locator('#idcPrecisionCheckPanel').evaluate('(e)=>e.open=true')
     page.locator('#idcPrecisionCheckHistory button').click()
     assert page.evaluate("window.IDCTrainingBridge.memory().state.observations.length")==0
+    page.locator('#idcProgressionPanel').evaluate('(e)=>e.open=true')
+    page.locator('#idcLearningReview').click()
+    assert 'Not enough comparable records' in page.locator('#idcLearningResult').inner_text()
+    page.locator('#idcQuestion').fill('Which difficulty helps me improve?')
+    page.locator('#idcAsk').click()
+    assert 'Not enough comparable records' in page.locator('#idcAnswer').inner_text()
     page.evaluate("show('progress')")
     assert 'Keep recording' in page.locator('#idcProgressHighlights').inner_text()
     # Synthetic native construction audit: same rule-builder used by timed training.
     audit=page.evaluate("""async()=>{
       const original=clone(data),oldGame=activeGame,oldUndo=undoSnapshot,oldTab=currentTab;
       try{
-       const mod=await import('./precision-games.mjs?v=1.6.0-dev');
+       const mod=await import('./precision-games.mjs?v=1.7.0-dev'),learn=await import('./challenge-setting.mjs?v=1.7.0-dev');
        const day=n=>dateKey(Date.now()-n*DAY_MS),now=Date.now();
        data.assessment.completedAt=now-35*DAY_MS;
        data.idcCoachMemory.state.observations=[];
        for(const n of [0,1,7,8,14,15,21,22])for(const [skill,attempts,hits] of [['scoring',30,1500],['doubles',60,60],['checkout',12,12],['bull',30,30],['singles',60,60],['trebles',60,30]])
         data.idcCoachMemory.state.observations.push({id:'IDC:precision-check:'+skill+':'+day(n),day:day(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
        data.games=[];data.activeSession={id:now,start:now,extra:false,quick:false,index:0,phase:'rules',pausedAt:now,plan:[{name:'Scoring Survival',seconds:600,mode:'timed'}],round:1,completed:[]};
-       const results=[],names=mod.SUPPORTED_GAMES;
+       const results=[],names=mod.SUPPORTED_GAMES;let captured=0;
        for(let tier=1;tier<=7;tier++){
         for(const k of SKILLS)data.skills[k].level=tier;
         for(const name of names){
          data.activeSession.plan=[{name,seconds:600,mode:'timed'}];
          window.IDCPrecision.invalidate();
          const g=buildGame(name);
+         if(g.learningSetting){const e=gameResult(g,'natural');if(!learn.validSetting(e.learningSetting)||JSON.stringify(g.learningSetting)!==JSON.stringify(e.learningSetting))throw Error('Learning metadata missing or invalid '+name);captured++;}
          if(g.precision){
           const e=gameResult(g,'natural');
           if(!mod.validPrecisionRecord(e)||e.benchmark!==false||e.prospectiveForecast!==null)throw Error('Incorrect saved precision rule '+name+' tier '+tier);
@@ -257,20 +264,22 @@ with sync_playwright() as p:
        data.activeSession.plan=[{name:'Scoring Survival',seconds:600,mode:'timed'}];
        window.IDCPrecision.invalidate();const g=buildGame('Scoring Survival');
        if(g.target!==68||g.precision?.quarter!==3)throw Error('Actual round did not use confirmed quarter');
-       const observed=[];for(const [value,target,quarter] of [[61,60,0],[66,62,1],[70,65,2],[75,68,3]]){for(const o of data.idcCoachMemory.state.observations)if(o.skill==='scoring')o.hits=value*10;window.IDCPrecision.invalidate();const v=buildGame('Scoring Survival');if(v.target!==target||(v.precision?.quarter??0)!==quarter)throw Error('Real scoring quarter '+quarter+' expected '+target+' got '+v.target);observed.push(v.target)}
+       if(g.learningSetting?.before!==60||g.learningSetting?.after!==68||g.learningSetting?.quarter!==3)throw Error('Native learning configuration not captured');
+       const observed=[];for(const [value,target,quarter] of [[61,60,0],[66,62,1],[70,65,2],[75,68,3]]){for(const o of data.idcCoachMemory.state.observations)if(o.skill==='scoring')o.hits=value*10;window.IDCPrecision.invalidate();const v=buildGame('Scoring Survival');if(v.target!==target||(v.precision?.quarter??0)!==quarter||v.learningSetting?.after!==target||v.learningSetting?.quarter!==quarter)throw Error('Real scoring quarter '+quarter+' expected '+target+' got '+v.target);observed.push(v.target)}
        const e=gameResult(g,'natural');data.games=[e];
        if(skillSamples().scoring.length!==0||completedRows('scoring').length!==0)throw Error('Modified round polluted benchmark evidence');
-       data.activeSession.quick=true;const q=buildGame('Scoring Survival');if(q.precision)throw Error('Quick Play altered');
+       data.activeSession.quick=true;const q=buildGame('Scoring Survival');if(q.precision||q.learningSetting)throw Error('Quick Play altered or counted as learning exposure');
        data.activeSession.quick=false;data.activeSession.plan=[{name:'Double Duel',seconds:600,mode:'timed'}];data.activeSession.phase='playing';data.activeSession.pausedAt=null;currentTab='technique';window.IDCPrecision.invalidate();activeGame=buildGame('Double Duel');data.game=activeGame;
        if(activeGame.opponentEvery!==2||!activeGame.precision)throw Error('Rival pace not adjusted');
        new40Dart('miss');if(activeGame.opponent!==0||activeGame.turn!==1)throw Error('Rival scored early');
        new40Dart('miss');if(activeGame.opponent!==1||activeGame.turn!==2)throw Error('Rival did not use calibrated pace');
        undoGame();if(activeGame.opponent!==0||activeGame.turn!==1||activeGame.opponentEvery!==2)throw Error('Undo did not restore frozen rival configuration');
-       return {observed,tested:results.length,modified:results.filter(x=>x.modified).length,names:new Set(results.filter(x=>x.modified).map(x=>x.name)).size};
+       return {captured,observed,tested:results.length,modified:results.filter(x=>x.modified).length,names:new Set(results.filter(x=>x.modified).map(x=>x.name)).size};
       }finally{data=original;activeGame=oldGame;undoSnapshot=oldUndo;currentTab=oldTab;window.IDCPrecision.invalidate();save(false)}
     }""")
     assert audit['observed']==[60,62,65,68], audit
     assert audit['tested']==259, audit
+    assert audit['captured']>=20, audit
     assert audit['modified']>=70 and audit['names']>=20, audit
     print('Native precision construction audit:',audit)
     assert not errors, errors
