@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {canonicalRows,longitudinal,investigationQueue,profileLines} from '../site/longitudinal.mjs';
-import {interventionDelivery,baselineIntegrity,outcomeAudit,outcomeLines} from '../site/intervention-audit.mjs';
+import {interventionDelivery,baselineIntegrity,outcomeAudit,outcomeLines,reviewReproduction} from '../site/intervention-audit.mjs';
 import {contextualQuestions} from '../site/contextual-questions.mjs';
 import {saveReflection} from '../site/reflections.mjs';
 import {newMemory,assemble} from '../site/coach-memory.mjs';
@@ -38,3 +38,25 @@ test('edited, quick or duplicate session histories are excluded',()=>{const hist
 test('skip and comfortable never create concern prompts',()=>{for(const topic of ['skip','comfortable','unknown','other']){const history=[2,3].reduce((r,n)=>saveReflection(r,boundary(n,n),topic),[]);assert.deepEqual(contextualQuestions(history,{sessions:sessions(2,3)},boundary(9,0)),[])}});
 test('one year multi-player simulation maintains valid counts and scope separation',()=>{let seed=17;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);for(const p of [.12,.25,.40,.55]){const records=[];for(let n=729;n>=0;n--)if(rand()<.65){const rate=Math.min(.95,p+(729-n)*.0002);const hits=Array.from({length:60},()=>rand()<rate).filter(Boolean).length;records.push(row(n,{hits}));if(n%9===0)records.push(row(n,{id:'competition'+n,context:'competition',hits:Math.floor(hits*.8)}))}const groups=longitudinal(records,day);assert.equal(groups.length,2);for(const g of groups){assert.ok(g.windows.every(w=>w.observedDays<=w.days&&w.attempts>=w.observedDays&&w.dayMean>=0&&w.dayMean<=1));assert.ok(g.windows[3].attempts>=g.windows[0].attempts)}}});
 test('new dialogue works with empty host and leaves existing memory unchanged',()=>{const h=empty(),m=newMemory(),s=assemble(h,m,day,now).state,before=JSON.stringify(m);assert.equal(integratedAsk(h,s,'How have I progressed this year?',day,now).type,'longitudinal');assert.equal(integratedAsk(h,s,'What happened to my interventions?',day,now).type,'intervention-audit');assert.equal(JSON.stringify(m),before)});
+
+test('reproduction of intervention review detects changed follow-up while intact baseline remains',()=>{
+ const before=Array.from({length:7},(_,i)=>row(20+i));
+ const after=Array.from({length:7},(_,i)=>row(5+i,{hits:30}));
+ const i={...item,baselineIds:before.map(o=>o.id),reviewDay:day,adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}};
+ assert.equal(reviewReproduction(i,before,[...before,...after],day).status,'reproduced');
+ assert.equal(reviewReproduction(i,before,[...before,...after.slice(0,6)],day).status,'outcome-changed');
+ assert.equal(reviewReproduction(i,before,[...before,...after.map(o=>({...o,hits:24}))],day).status,'outcome-changed');
+ assert.equal(reviewReproduction(i,before,[...before,...after],ago(1)).status,'not-reviewed');
+});
+test('historical outcome audit marks corrected follow-up results unverified',()=>{
+ const before=Array.from({length:7},(_,i)=>row(20+i));
+ const after=Array.from({length:7},(_,i)=>row(5+i,{hits:30}));
+ const i={...item,baselineIds:before.map(o=>o.id),status:'completed',reviewDay:day,adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}};
+ const r=outcomeAudit(empty(),{interventions:[i],observations:[...before,...after.slice(1)]},{focus:before},day);
+ assert.equal(r[0].status,'review-needs-verification');
+ assert.equal(r[0].integrity.status,'intact');
+});
+test('no empty baseline or invalid historical adherence can be treated as verified',()=>{
+ assert.equal(baselineIntegrity({...item,baselineIds:[]},[],[],day).status,'baseline-edited');
+ assert.equal(reviewReproduction({...item,reviewDay:day,adherence:-1,outcome:{status:'observed-improvement'}},[],[],day).status,'unverifiable');
+});
