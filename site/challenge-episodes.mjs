@@ -14,7 +14,7 @@ export const FIXED_PROTOCOLS=Object.freeze({
 const minAttempts={scoring:30,doubles:60,checkout:12,bull:30,singles:60,trebles:60};
 const scoreUnits=(skill,v)=>skill==='scoring'?v:100*v;
 const within=(v,a,b)=>dayValid(v)&&v>=a&&v<=b;
-function recordedConfounder(state,from,to){
+export function recordedConfounder(state,from,to){
  return (state.readiness??[]).some(r=>within(r.day,from,to)&&r.context==='practice'&&(r.pain||r.fatigue==='high'||r.pressure==='high'))||
  (state.clinic??[]).some(r=>within(r.day,from,to)&&r.pain)||
  (state.setups??[]).some(r=>within(r.day,from,to))||
