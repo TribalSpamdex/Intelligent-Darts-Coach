@@ -48,3 +48,36 @@ test('M3: held-out serial nulls and missing clustered histories are measured at 
  assert.ok(results[3].interventionFlags>=100,JSON.stringify(results[3]));
  assert.ok(results[3].wrongDirection<=15,JSON.stringify(results[3]));
 });
+
+test('Independent varied-volume and ability stationary/alternative cohorts: 2,400 new series',()=>{
+ const cases=[['stable-beginner',.12,.8,0,.15],['stable-elite',.72,.8,0,.15],['clustered-elite',.72,.96,0,.25],['small-decline',.48,.8,-.08,.15],['large-decline',.48,.8,-.18,.15],['gradual-improve',.30,.85,.16,.15],['recovered-slump',.42,.8,-.2,.15],['missing-stable',.42,.9,0,.45]];
+ const results=[];
+ for(const [scenario,base,rho,delta,missing] of cases){
+  let seed=(0x1334f789+results.length*9817)>>>0;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+  const out={scenario,improving:0,declining:0,unclear:0,insufficient:0};
+  for(let i=0;i<300;i++){
+   let noise=0;const rows=[];
+   for(let d=0;d<56;d++){
+    noise=rho*noise+(random()-.5)*.10;
+    const shift=scenario==='gradual-improve'?delta*d/55:scenario==='recovered-slump'?(d>=14&&d<28?delta:0):d>=28?delta:0;
+    if(random()<missing)continue;
+    const p=Math.min(.999,Math.max(.001,base+noise+shift)),attempts=[15,30,60,90][Math.floor(random()*4)];
+    let hits=0;for(let j=0;j<attempts;j++)hits+=Number(random()<p);
+    rows.push({id:'r'+d,day:day(d),skill:'doubles',context:'practice',protocol:'fixed',hits,attempts});
+   }
+   const result=robustTrend(rows,{asOf:day(55)});
+   out[result.status]=(out[result.status]??0)+1;
+  }
+  results.push(out);
+ }
+ console.log('Varied-volume trend sensitivity audit: '+JSON.stringify(results));
+ for(const i of [0,1,2,7])assert.ok(results[i].improving+results[i].declining<=30,JSON.stringify(results[i]));
+ assert.ok(results[4].declining>=150);
+ for(const i of [3,4])assert.ok(results[i].improving<=5);
+ assert.ok(results[5].declining<=5);
+ assert.ok(results[6].declining<=10);
+ // Mild and gradual signals are deliberately measured rather than declared
+ // resolved: a conservative long-window flag is not the entire coaching
+ // decision and these cohorts are not prospective human outcomes.
+});
