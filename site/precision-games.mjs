@@ -101,7 +101,9 @@ export function precisionRound(game,decisions,options={}){
  const step=legacy?delta:quarterDelta(delta,q);
  const next=field==='targets'?old.map(v=>bounded(v,step,min,max)):bounded(old,step,min,max);
  if(same(old,next)||!feasible(game,field,next))continue;
- const provenance={version:legacy?1:2,skill,tier:d.tier,field,before:old,after:next,...(legacy?{}:{quarter:q,...(basis?{basis}:{})})};
+ let actualQuarter=q;
+ if(!legacy)for(let k=1;k<q;k++){const step=quarterDelta(delta,k),candidate=field==='targets'?old.map(v=>bounded(v,step,min,max)):bounded(old,step,min,max);if(same(candidate,next)){actualQuarter=k;break}}
+ const provenance={version:legacy?1:2,skill,tier:d.tier,field,before:old,after:next,...(legacy?{}:{quarter:actualQuarter,...(basis?{basis}:{})})};
  const out={...game,[field]:next,precision:provenance,challengeTuning:'precision',challengeTuningVersion:legacy?'IDC-1.5':'IDC-1.6',challengeMessage:'Personalised challenge: '+field+' '+(Array.isArray(old)?old.join(', '):old)+' → '+(Array.isArray(next)?next.join(', '):next)+'.'};
  if(field==='targets')out.target=next[game.step??0];
  if(game.name==='Focused Checkouts')out.config={...game.config,lives:next};
