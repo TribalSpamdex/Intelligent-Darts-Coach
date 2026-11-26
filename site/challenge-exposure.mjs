@@ -14,8 +14,8 @@ function validRound(g,s,a,now){
 export function extractLearningExposure(host,day,now=Date.now()){
  if(!host||!Array.isArray(host.sessions)||!Array.isArray(host.games)||!dayValid(day)||!Number.isFinite(now))throw Error('Invalid exposure history');
  const sessions=new Map(),duplicates=new Set(),games=new Map(),conflicts=new Set(),rounds=new Map(),out=[],blockedDays=new Set();
- for(const s of host.sessions){if(!s||!id(s.id)||!dayValid(s.date)||s.date>day)continue;const k=String(s.id);if(sessions.has(k))duplicates.add(k);else sessions.set(k,s)}
- for(const g of host.games){if(!g||!id(g.sessionId)||!Number.isFinite(g.at)||g.at>now)continue;const k=JSON.stringify([String(g.sessionId),g.at,g.name,g.exerciseIndex]);if(games.has(k)&&!same(games.get(k),g))conflicts.add(k);else games.set(k,g)}
+ for(const s of host.sessions){if(!s||!id(s.id)||!dayValid(s.date)||s.date>day||dayGap(s.date,day)>180)continue;const k=String(s.id);if(sessions.has(k))duplicates.add(k);else sessions.set(k,s)}
+ for(const g of host.games){if(!g||!id(g.sessionId)||!sessions.has(String(g.sessionId))||!Number.isFinite(g.at)||g.at>now)continue;const k=JSON.stringify([String(g.sessionId),g.at,g.name,g.exerciseIndex]);if(games.has(k)&&!same(games.get(k),g))conflicts.add(k);else games.set(k,g)}
  for(const [k,g] of games){const i=String(g.sessionId),a=rounds.get(i)??[];a.push({g,conflict:conflicts.has(k)});rounds.set(i,a)}
  for(const [key,s] of sessions){
  if(s.quick===true)continue;
