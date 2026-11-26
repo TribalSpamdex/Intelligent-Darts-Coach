@@ -28,5 +28,6 @@ export function decideTransfer({report,confirmation,edited=[],memory,session,que
 export function applyTransfer(queue,decision){
  if(decision.status!=='transferred')return false;
  const a=queue[decision.from],b=queue[decision.to];if(!a||!b||a===b||a.seconds<600||b.seconds<300||b.seconds>900||decision.seconds!==300)throw Error('Invalid allocation');
+ decision.delivery={version:1,donor:{name:a.name,before:a.seconds,after:a.seconds-300},receiver:{name:b.name,before:b.seconds,after:b.seconds+300}};
  a.seconds-=300;b.seconds+=300;a.wholeCoach.plannedMinutes=a.seconds/60;b.wholeCoach.plannedMinutes=b.seconds/60;return true;
 }
