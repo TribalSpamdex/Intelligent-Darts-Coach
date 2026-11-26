@@ -1,3 +1,4 @@
+import {reflectionInsights,label as reflectionLabel} from './reflections.mjs';
 import {ask,interpret} from './engine/coach-dialogue.mjs';
 import {projectTargets,summaries,compareTargets,combinedDoubleComparison,personalisedCheckout,targetProfile} from './host-targets.mjs';
 import {gameProfile} from './game-profile.mjs';
@@ -7,10 +8,10 @@ import {nextActions} from './engine/next-actions.mjs';
 import {fullReport} from './engine/executive.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?'];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
-export function integratedAsk(host,state,text,day,now=Date.now(),checks=[]){
+export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],reflections=[]){
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
  if(/^(what do you know about me|show (my )?memory|player memory)$/.test(q)){
@@ -36,10 +37,11 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[]){
  const p=targetProfile(projectTargets(host,day,now,checks).rows),kind=/weakest|worst/.test(q)?'weak':'strong',x=p[kind];
  return reply('target-profile',[x.length?x.map(o=>o.target+' ('+o.comparisons+' peer comparisons)').join(', '):'No consistent '+(kind==='weak'?'weak':'strong')+' double established yet.',p.limitation]);
  }
+ if(/^(how did my practice feel|practice reflections|how did training feel)$/.test(q)){const review=reflectionInsights(reflections,host,day);return reply('reflections',[review.count+' recent player-reported reflections linked to saved training.',...review.repeated.map(x=>reflectionLabel(x.topic)+' across '+x.days+' days. '+x.question),review.limitation])}
  const intent=interpret(text,day);
  if(intent.kind==='query'&&intent.request.type==='checkout'){
  const {score,darts}=intent.request.payload,r=personalisedCheckout(state,projectTargets(host,day,now,checks).rows,score,darts);
  return reply('checkout',[r.guidance,...(r.suggested?['Suggested: '+r.suggested.join(' → '),'Standard: '+r.standard.join(' → '),r.personalisation]:r.setup.slice(0,3).map(x=>'Aim '+x.target+' to leave '+x.remaining)),...(r.comparison?[r.comparison.days+' matched days; observed finishing-double difference '+pct(r.comparison.delta)+'.']:[])]);
  }
- return ask(state,text,day)
+ const result=ask(state,text,day);if(result.type==='next-actions'){const review=reflectionInsights(reflections,host,day);for(const x of review.repeated)result.lines.push('Additional player-reported concern: '+x.question+' ('+x.days+' days)')}return result
 }
