@@ -29,21 +29,39 @@ export function progressEvidence(observations,day){
 // Only identical fixed practice protocols can justify a harder half. Any
 // adequately sampled contradictory protocol vetoes the change.
 const fixed=(skill,p)=>({scoring:'IDC V6.2 assessment scoring 60 darts',doubles:'IDC V6.2 assessment D1-D20 fixed 60',checkout:'IDC V6.2 assessment fixed 12 three-dart visits',bull:'IDC V6.2 assessment any bull 30'}[skill]===p)||skill==='scoring'&&p==='IDC V6.2 Scoring Challenge fixed 30 darts'||skill==='bull'&&p==='IDC V6.2 Bull Accuracy any bull 30'||p==='IDC precision fixed '+skill;
+// Reuse the established independent-day confirmation test to find the
+// highest supported continuous measurement. This is an engineering bound,
+// not a statistical confidence interval or a forecast of match performance.
+export function confirmedAbility(rows,max){
+ if(!rows.length)return null;
+ return Math.min(...rows.map(r=>{
+  if(!r.confirm(0))return 0;
+  if(r.confirm(max))return max;
+  let low=0,high=max;
+  for(let i=0;i<44;i++){const mid=(low+high)/2;if(r.confirm(mid))low=mid;else high=mid}
+  return low;
+ }));
+}
+const continuous=(ability,lower,width)=>ability===null?0:Math.max(0,Math.min(3,4*(ability-lower)/width));
+function model(rows,day,max,lower,width){
+ const ability=confirmedAbility(rows,max);
+ return {confirmedAbility:ability,challenge:continuous(ability,lower,width),evidence:rows.map(r=>({protocol:r.protocol,days:r.days,attempts:r.attempts,weeks:r.weeks,median28:r.value,median7:distribution(r.daily.filter(x=>dayGap(x.day,day)<7).map(x=>x.value)).median}))};
+}
 export function precisionDecisions(observations,day,tiers){
  const rows=progressEvidence(observations,day),out={};
  for(const skill of Object.keys(SKILL_THRESHOLDS)){
  const tier=tiers[skill];if(!Number.isInteger(tier)||tier<1||tier>7)continue;
- const {midpoint,quarters}=tierRange(skill,tier);
+ const {lower,upper,midpoint,quarters}=tierRange(skill,tier);
  const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&fixed(skill,r.protocol)&&r.adequate&&dayGap(r.last,day)<=7);
  const quarter=eligible.length?quarters.filter(boundary=>eligible.every(r=>r.confirm(boundary))).length:0;
  const qualifying=quarter?eligible.filter(r=>r.confirm(quarters[quarter-1])):[];
- out[skill]={tier,quarter,half:quarter>=2?'upper':'foundation',midpoint,quarters,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
+ out[skill]={tier,quarter,...model(eligible,day,isScore(skill)?180:100,lower,upper-lower),half:quarter>=2?'upper':'foundation',midpoint,quarters,protocols:qualifying.map(r=>r.protocol),reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
  }
  // Ring-specific foundation exercises require actual single/treble measurements.
  for(const [skill,boundaries] of [['singles',[50,65,80]],['trebles',[10,20,30]]]){
  const eligible=rows.filter(r=>r.skill===skill&&r.context==='practice'&&r.adequate&&dayGap(r.last,day)<=7&&(r.protocol==='IDC precision fixed '+skill||skill==='singles'&&['IDC V6.2 assessment large singles 60','IDC V6.2 daily large singles 60'].includes(r.protocol)));
  const quarter=eligible.length?boundaries.filter(boundary=>eligible.every(r=>r.confirm(boundary))).length:0;
- out[skill]={quarter,protocols:quarter?eligible.map(r=>r.protocol):[],reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
+ out[skill]={quarter,...model(eligible,day,100,boundaries[0]-(boundaries[1]-boundaries[0]),4*(boundaries[1]-boundaries[0])),protocols:quarter?eligible.map(r=>r.protocol):[],reason:!eligible.length?'insufficient-comparable-evidence':quarter?'confirmed':'not-confirmed'};
  }
  return out;
 }
