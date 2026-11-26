@@ -1,4 +1,4 @@
-import {SKILLS,summarise,mean,sd,plan} from './engine.mjs';
+import {SKILLS,summarise,mean,sd,plan,serialMargin} from './engine.mjs';
 import {dayValid,dayGap} from './context.mjs';
 import {targetSummaries} from './target-evidence.mjs';
 export const CHANGE_FIELDS=['equipment','technique','routine','practice schedule','environment','injury or discomfort'];
@@ -73,7 +73,7 @@ export function confirmCurrentDecline(m,issue,day){
  const recent=summarise(rows.filter(o=>recentDays.includes(o.day))),baseline=summarise(rows.filter(o=>baselineDays.includes(o.day)));
  if(!recent||!baseline||recent.days<7||baseline.days<7||recent.attempts<60||baseline.attempts<60||dayGap(recentDays[0],day)>28||dayGap(recentDays.at(-1),day)>7)return {status:'insufficient',reason:'Require seven recent and seven preceding comparable measured days, with recent data current.'};
  const floor=['scoring','firstNine'].includes(issue.skill)?5:.08;
- const change=recent.dayMean-baseline.dayMean,noise=2.5*Math.sqrt(recent.daySD**2/recent.days+baseline.daySD**2/baseline.days);
+ const change=recent.dayMean-baseline.dayMean,noise=serialMargin(baseline,recent);
  const halves=[recent.daily.slice(0,3),recent.daily.slice(3)].map(x=>mean(x.map(o=>o.value))-baseline.dayMean);
  const consistent=halves.every(x=>x<=-floor*.75);
  const short=consistent&&change<=-Math.max(floor,noise);
@@ -81,7 +81,7 @@ export function confirmCurrentDecline(m,issue,day){
  const longBase=summarise(rows.filter(o=>older14.includes(o.day))),longRecent=summarise(rows.filter(o=>last14.includes(o.day)));
  let persistent=false,long=null;
  if(longBase&&longRecent&&longBase.days>=7&&longRecent.days===14&&longBase.attempts>=60&&dayGap(last14[0],day)<=35){
- const delta=longRecent.dayMean-longBase.dayMean,margin=2.5*Math.sqrt(longRecent.daySD**2/longRecent.days+longBase.daySD**2/longBase.days);
+ const delta=longRecent.dayMean-longBase.dayMean,margin=serialMargin(longBase,longRecent);
  const weeks=[longRecent.daily.slice(0,7),longRecent.daily.slice(7)].map(x=>mean(x.map(o=>o.value))-longBase.dayMean);
  persistent=weeks.every(x=>x<=-floor)&&delta<=-Math.max(floor,margin)&&halves.every((_,i)=>mean(recent.daily.slice(i===0?0:3,i===0?3:7).map(o=>o.value))-longBase.dayMean<=-floor*.75);
  long={change:delta,noise:margin,weeks,baselineDays:longBase.days,recentDays:longRecent.days};
