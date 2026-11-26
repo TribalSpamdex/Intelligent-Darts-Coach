@@ -3351,7 +3351,7 @@ function dc40ExplorationEligibility(now=Date.now(),policy=null){
   evidence:allowed?{evaluable:feedback[eligible[0]].evaluable,signal:feedback[eligible[0]].positiveSignal?'encouraging':'unknown'}:null,
   reason:allowed?'bounded near-tie experiment; observational outcomes only':'insufficient history, recent experiment or category safety limit'};
 }
-function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true){
+function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true,preparation=null){
  const primary=TRAINING_LIBRARY[focus]||TRAINING_LIBRARY.scoring;
  const recent=(data.sessions||[]).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
  const alreadyToday=dc22GamesPlayedToday();
@@ -3362,13 +3362,15 @@ function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true){
  const exploration=dc40ExplorationEligibility(Date.now(),policy);let explored=false,exploredGame=null,dc47Trial=null;
  const methodCandidates=[],methodEnabled=allowTrials&&!exploration.allowed&&window.IDCPolicy?.methodEnabled?.()===true;
  let measuredPreferences={};try{measuredPreferences=window.IDCPolicy?.preferredDrills?.()??{}}catch(e){}
+ const familiar=new Set(preparation?.familiar?(data.sessions||[]).filter(s=>s?.completed===true&&!s.quick&&Number.isFinite(s.start)&&s.start<=Date.now()&&s.start>=Date.now()-28*DAY_MS).flatMap(s=>(s.activities||[]).filter(a=>a.seconds>=300).map(a=>a.name)):[]);
+ const eventHint=name=>{const category=dc28GameCategory(name),c=policy.categories?.[category];if(c?.policySafety||c?.overexposed)return 0;return (familiar.has(name)?-6:0)+(preparation?.focus===category?-4:0)};
  const theme=[primary,TRAINING_LIBRARY[FOCUS[(FOCUS.indexOf(focus)+2)%5]],TRAINING_LIBRARY[FOCUS[(FOCUS.indexOf(focus)+3)%5]]];
  for(let i=0;i<count;i++){
   const pool=theme[i%theme.length]||primary;
   const fresh=all.filter(n=>!alreadyToday.has(n)&&!selected.includes(n));
   const candidates=fresh.length?fresh:all.filter(n=>!selected.includes(n));
   if(!candidates.length)break; // Repeat only after exhausting the full eligible library.
-  const ranked=candidates.map(name=>({name,score:dc10GameChoiceScore(name,focus,i,primary,recent,alreadyToday,profiles,seed,effects)+(pool.includes(name)?-13:0)+dc28GameHint(name,categoryPlan)+dc32GameHint(name,policy)-((measuredPreferences[dc28GameCategory(name)]===name&&!policy.categories?.[dc28GameCategory(name)]?.policySafety&&!policy.categories?.[dc28GameCategory(name)]?.overexposed)?4:0)}));
+  const ranked=candidates.map(name=>({name,score:dc10GameChoiceScore(name,focus,i,primary,recent,alreadyToday,profiles,seed,effects)+(pool.includes(name)?-13:0)+dc28GameHint(name,categoryPlan)+dc32GameHint(name,policy)+eventHint(name)-((measuredPreferences[dc28GameCategory(name)]===name&&!policy.categories?.[dc28GameCategory(name)]?.policySafety&&!policy.categories?.[dc28GameCategory(name)]?.overexposed)?4:0)}));
   ranked.sort((a,b)=>a.score-b.score||a.name.localeCompare(b.name));
   let choice=ranked[0];
   // At most one small comparison in a session, only if the ordinary planner
@@ -3904,9 +3906,14 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
  const focus=focusForDay(extra),sessionsToday=(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick).length;
  const count=sessionsToday>=2?3:4;
  const unified=dc39UnifiedDecision(extra),wholePolicy=unified.policy;
- const chosen=chooseSessionGames(focus,count,wholePolicy,!extra&&!preview);
+ let preparation=null;
+ try{preparation=window.IDCPolicy?.competitionPlan?.()??null}catch(e){preparation={phase:'unverified',focus:null,familiar:true,deferEscalation:true}}
+ const close=preparation?.deferEscalation===true;
+ if(close)unified.masteryDecision=null;
+ const chosen=chooseSessionGames(focus,count,wholePolicy,!extra&&!preview&&!close&&(!preparation||preparation.phase==='ordinary'),preparation);
  const dayIntent=coach62Intent(unified);
- const need=coach62SessionNeed(dayIntent,wholePolicy);
+ if(close){dayIntent.focus=null;dayIntent.target=null}
+ const need=close?null:coach62SessionNeed(dayIntent,wholePolicy);
  if(need&&!chosen.exploration?.trial&&!chosen.some(n=>dc28GameCategory(n)===need.key)){
   const recent=dc22GamesPlayedToday();
   const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===need.key&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
@@ -3919,7 +3926,7 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
    chosen[donor]=pool[0];
   }
  }
- const complement=coach62Complement(chosen,extra,wholePolicy,need?.key);
+ const complement=close?null:coach62Complement(chosen,extra,wholePolicy,need?.key);
  const plan=skipWarmup?[]:[{name:'Warm-up',seconds:600,mode:'timed'}];
  if(!extra&&!data.bigSingles.some(b=>b?.day===dateKey()&&b.complete))plan.push({name:'Big Singles',mode:'benchmark'});
  if(unified.masteryDecision&&chosen.length>=2){
@@ -3927,7 +3934,7 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
    mastery:{...unified.mastery,mode:unified.masteryDecision.mode},coachDecision:unified.masteryDecision});
  }
  const profiles=dc18ChallengeProfiles(chosen);
- const lengths=chosen.map((name,i)=>dc32GameMinutes(name,i,wholePolicy,profiles));
+ const lengths=chosen.map((name,i)=>close?(i===0?15:10):dc32GameMinutes(name,i,wholePolicy,profiles));
  if(need&&!chosen.exploration?.trial){
   const receiver=chosen.findIndex(n=>dc28GameCategory(n)===need.key);
   const donor=lengths.map((m,i)=>({m,i})).filter(x=>x.i!==receiver&&x.m>=10&&dc28GameCategory(chosen[x.i])!==need.key).sort((a,b)=>b.m-a.m)[0]?.i??-1;
@@ -3946,6 +3953,7 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
  // This record is stored with the active session at its creation, before
  // future outcomes exist. It has no effect on any player-history measurements.
  plan.unifiedAudit=dc39FinalizeDecision(unified,plan);
+ if(preparation&&preparation.phase!=='ordinary')plan.unifiedAudit.competition=clone(preparation);
  plan.unifiedAudit.balancedFirst=dc44BalancedAudit(unified,plan);
  plan.unifiedAudit.everydayCoach=dc55EverydayCoach(wholePolicy);
  plan.unifiedAudit.exploration=chosen.exploration||{selected:false,reason:'not evaluated'};
@@ -4212,11 +4220,11 @@ function allocateRemaining(s){
  }else if(mastery)mastery.seconds+=remaining-(review?300:0)-mastery.seconds;
  else if(review)review.seconds=300;
  // Calculate actual final minutes, after the scheduler has met the clock budget.
- const legacyTransfer=dc43LearningTransfer(s,queue);
+ const legacyTransfer=s.unifiedAudit?.competition?.deferEscalation?{status:'no-transfer',reason:'Familiar preparation near recorded competition'}:dc43LearningTransfer(s,queue);
  let idcReceiver=null;
  if(window.IDCPolicy){try{const result=window.IDCPolicy.transfer(s,queue,legacyTransfer,s.wholeSessionAudit?.policy);if(s.wholeSessionAudit){s.wholeSessionAudit.idcTransfer=result;if(result.status==='transferred'&&result.delivery)idcReceiver=queue[result.to]??null;}}catch(e){if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer={status:"unchanged",reason:"Independent allocation unavailable"};}}
  // Apply at the final clock boundary, only after both existing allocation policies decline a transfer.
- if(window.IDCPolicy?.methodChoice&&!s.extra&&!s.quick&&dateKey(s.start)===dateKey()&&legacyTransfer?.status==='no-transfer'&&s.wholeSessionAudit?.idcTransfer?.status==='unchanged'&&!s.coachDayIntent?.focus&&!s.coachComplement&&!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.name==='Target Mastery'||e.dc47TrialId)){
+ if(window.IDCPolicy?.methodChoice&&!s.unifiedAudit?.competition?.deferEscalation&&!s.extra&&!s.quick&&dateKey(s.start)===dateKey()&&legacyTransfer?.status==='no-transfer'&&s.wholeSessionAudit?.idcTransfer?.status==='unchanged'&&!s.coachDayIntent?.focus&&!s.coachComplement&&!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.name==='Target Mastery'||e.dc47TrialId)){
   try{
    const played=dc22GamesPlayedToday();
    const options=(s.unifiedAudit?.idcMethodCandidates||[]).flatMap(o=>{
