@@ -22,9 +22,9 @@ import {projectExposure} from '../site/host-exposure.mjs';
 test('actual practice exposure excludes Quick Play, mixed games and unverified double variants',()=>{const h=empty();h.sessions=[{id:1,date:day,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0},{name:'Doubles Survival',seconds:900,exerciseIndex:1,exerciseId:'e'},{name:'Warm-up',seconds:600,exerciseIndex:2},{name:'Shanghai Combo',seconds:300,exerciseIndex:3}]},{id:2,date:day,quick:true,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0}]}];let x=projectExposure(h,day);assert.deepEqual(x.exposure,[{day,skill:'bull',minutes:10}]);assert.equal(x.unclassifiedSeconds,1200);h.games=[{name:'Doubles Survival',sessionId:1,exerciseId:'e',quick:false,variant:'doubles'}];x=projectExposure(h,day);assert.equal(x.exposure.find(e=>e.skill==='doubles').minutes,15);assert.equal(x.complete,false);assert.equal(assemble(h,null,day,now).state.exposure.length,2);assert.equal(change(h,null,'fact',{key:'grip',value:'front',evidence:'reported'}).state.exposure.length,0)});
 
 test('historical invalid intervention cannot drive a new allocation or rewrite stored history',()=>{
- const h=fixture(),obs=assemble(h,null,day,now).state.observations,base=obs.slice(0,7),scope=base[0];
- const i={id:'past',skill:scope.skill,context:scope.context,protocol:scope.protocol,action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:'2026-11-08',responseDay:'2026-11-08',reviewAfterDays:14,maximumDays:21,reviewDay:'2026-11-14',baselineIds:base.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.25,noise:0}};
- const m=newMemory();m.state.interventions=[i];m.baselines.past=base;
+ const h=fixture(),obs=assemble(h,null,day,now).state.observations,scope=obs[0],base=Array.from({length:7},(_,n)=>({...scope,id:'historical-'+n,day:'2026-10-'+(10+n),hits:40}));
+ const i={id:'past',skill:scope.skill,context:scope.context,protocol:scope.protocol,action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:'2026-10-17',responseDay:'2026-10-17',reviewAfterDays:14,maximumDays:21,reviewDay:'2026-10-31',baselineIds:base.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.25,noise:0}};
+ const m=newMemory();m.state.observations=base;m.state.interventions=[i];m.baselines.past=base;
  const before=JSON.stringify(m),result=assess(h,m,day,now);
  assert.equal(result.questionableOutcomes[0].id,'past');
  assert.notEqual(result.report.decision,'temporary-focus');
