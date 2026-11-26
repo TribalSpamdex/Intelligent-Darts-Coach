@@ -39,8 +39,9 @@ export function developmentProfile(host,state,day,now=Date.now()){
  return {skills:bySkill,ledger,windows:ledgerWindows(ledger,day),limitation:'Recorded training volume and comparable performance are displayed together, not converted to improvement per minute. No inference about unlogged training or causation.'};
 }
 function goalRows(state,day){
+ const goals=(state.goals??[]).filter(g=>g.status==='active'&&g.start<=day);if(!goals.length)return [];
  const observations=canonicalRows([...state.observations,...actualLegObservations(state.legs??[],day)],day);
- return (state.goals??[]).filter(g=>g.status==='active'&&g.start<=day).map(g=>{
+ return goals.map(g=>{
   const p=goalProgress({...state,observations},g,day);
   const remaining=p.current===null?null:Math.max(0,g.target-p.current);
   return {id:g.id,skill:g.skill,protocol:g.protocol,context:g.context,review:g.review,status:p.status,reviewDue:p.reviewDue,days:p.days,current:p.current,target:g.target,gap:remaining,daysToReview:Math.max(0,dayGap(day,g.review))};
