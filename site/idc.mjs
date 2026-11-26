@@ -95,7 +95,7 @@ $('idcLearningReview').onclick=()=>{refresh();run('idcLearningResult',p=>{const 
 $('idcChallengeReview').onclick=()=>{refresh();run('idcChallengeResult',p=>{const d=data(),x=assemble(d.host,d.raw,d.day),a=progressionAnswer(d.host,x.state,'challenge progression',d.day);for(const t of a.lines)line(p,t)})};
 let briefSignature=null;
 function refreshBrief(d,x,signature){
- const nextSignature=d.day+'|'+signature;
+ const nextSignature=d.day+'|'+String(host.active())+'|'+signature;
  if(nextSignature===briefSignature)return;
  briefSignature=nextSignature;
  run('idcBrief',p=>{
