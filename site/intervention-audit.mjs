@@ -2,6 +2,7 @@
 import {dayValid,dayGap} from './engine/context.mjs';
 import {validObservation,summarise} from './engine/engine.mjs';
 import {evaluation} from './engine/reasoning.mjs';
+import {retentionReview} from './engine/learning.mjs';
 import {canonicalRows} from './longitudinal.mjs';
 export function interventionDelivery(host,item,day){
  if(!dayValid(day)||!item||typeof item.id!=='string'||!dayValid(item.responseDay)||item.responseDay>day||!Array.isArray(host.sessions))throw Error('Invalid intervention audit');
@@ -44,16 +45,30 @@ export function reviewReproduction(item,baseline,observations,day){
  const agrees=result.status===item.outcome.status&&sameNumber(result.delta,item.outcome.delta)&&sameNumber(result.noise,item.outcome.noise);
  return {status:agrees?'reproduced':'outcome-changed',current:result.status,limitation:'Numerical reproduction cannot prove unchanged record identities or causal effect.'};
 }
+export function verifiedRetention(state,item,baseline,day){
+ const records=Array.isArray(item.retentionHistory)?item.retentionHistory:[];
+ if(reviewReproduction(item,baseline,state.observations,day).status!=='reproduced')return {valid:[],invalid:records.filter(o=>o.reviewDay<=day).length};
+ const valid=[],invalid=[];
+ for(const saved of records){
+  if(!dayValid(saved?.reviewDay)){invalid.push(saved);continue}
+  if(saved.reviewDay>day)continue;
+  const result=retentionReview(state,item.id,saved.reviewDay);
+  const same=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<1e-10;
+  if(result.status===saved.status&&same(result.delta,saved.delta)&&same(result.noise,saved.noise))valid.push(saved);else invalid.push(saved);
+ }
+ return {valid,invalid:invalid.length};
+}
 export function outcomeAudit(host,state,baselines,day){
  return state.interventions.filter(i=>i.responseDay&&i.responseDay<=day&&i.status!=='declined').map(item=>{
   const integrity=baselineIntegrity(item,baselines[item.id]??[],state.observations,day),delivery=interventionDelivery(host,item,day);
   const reproduction=reviewReproduction(item,baselines[item.id]??[],state.observations,day);
+  const retention=verifiedRetention(state,item,baselines[item.id]??[],day);
   const status=integrity.status==='baseline-edited'?'baseline-edited':['outcome-changed','unverifiable'].includes(reproduction.status)?'review-needs-verification':item.reviewDay&&item.reviewDay>day?'accepted':item.outcome?.status??item.status;
-  return {id:item.id,skill:item.skill,protocol:item.protocol,status,integrity,delivery,reproduction,limitation:'An observed outcome is not proof that the intervention caused it. Historical outcome labels can become stale if source records change.'};
+  return {id:item.id,skill:item.skill,protocol:item.protocol,status,integrity,delivery,reproduction,retention:{verified:retention.valid.length,invalid:retention.invalid},limitation:'An observed outcome is not proof that the intervention caused it. Historical outcome labels can become stale if source records change.'};
  });
 }
 export function outcomeLines(rows){
- return rows.length?rows.slice(-15).flatMap(r=>[r.skill+' | '+r.protocol+' | '+r.status,r.delivery.sessions+' completed sessions with recorded five-minute allocation ('+r.delivery.plannedMinutes+' planned minutes). '+r.delivery.limitation,'Historical review check: '+r.reproduction.status+'.',r.limitation]):['No accepted intervention history recorded.'];
+ return rows.length?rows.slice(-15).flatMap(r=>[r.skill+' | '+r.protocol+' | '+r.status,r.delivery.sessions+' completed sessions with recorded five-minute allocation ('+r.delivery.plannedMinutes+' planned minutes). '+r.delivery.limitation,'Historical review check: '+r.reproduction.status+'. Retention checks: '+r.retention.verified+' reproduced, '+r.retention.invalid+' require verification.',r.limitation]):['No accepted intervention history recorded.'];
 }
 
 // A transient learning view: preserve the stored history, but block automatic repetition
@@ -65,7 +80,15 @@ export function verifiedLearningState(state,baselines,day){
   if(!['completed','unsuccessful'].includes(item.status)||!item.reviewDay||item.reviewDay>day)return item;
   const b=Object.hasOwn(baselines,item.id)?baselines[item.id]:[];
   const check=reviewReproduction(item,b,state.observations,day);
-  if(check.status==='reproduced')return item;
+  if(check.status==='reproduced'){
+   const retention=verifiedRetention(state,item,b,day);
+   if(retention.invalid){
+    questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:'retention-changed'});
+    // Invalidate the historical benefit as a reason to repeat the adjustment.
+    return {...item,outcome:{status:'unclear'},retentionHistory:retention.valid};
+   }
+   return {...item,retentionHistory:retention.valid};
+  }
   questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:check.status});
   return {...item,outcome:{status:'unclear'},retentionHistory:[]};
  });
