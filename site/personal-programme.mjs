@@ -30,20 +30,22 @@ export function planPreview(host,state,report,events,day,now=Date.now()){
  const agenda=developmentAgenda(host,state,day,{report,now}),event=eventContext(events,day);
  if(agenda.wellbeing)return {status:'wellbeing',segments:[],reason:agenda.actions[0].next,focus:null,event};
  if(event.phase==='competition-day')return {status:'competition',segments:[],reason:'Competition day. Use a comfortable familiar warm-up and normal match routine rather than prescribing extra training.',focus:null,event};
- const rows=base(),open=(state.interventions??[]).find(i=>i.status==='accepted'&&i.responseDay<=day);
+ const rows=base(),open=(state.interventions??[]).find(i=>i.status==='accepted'&&dayValid(i.responseDay)&&i.responseDay<=day);
+ const pending=(state.interventions??[]).some(i=>i.status==='proposed'&&i.proposedDay<=day);
+ const shortfall=open?deliveryGate(host,open,day,now):null;
  // Preview only. Use an accepted focus, not a descriptive association or
  // forecast, and only while the existing engine independently supports it.
  let focus=null;
- if(event.phase!=='near-event'&&open&&dayValid(open.responseDay)&&!deliveryGate(host,open,day,now).defer&&core.has(open.skill)&&open.context==='practice'&&report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id&&dayGap(open.responseDay,day)>=0&&dayGap(open.responseDay,day)<open.reviewAfterDays){
+ if(event.phase!=='near-event'&&open&&!shortfall.defer&&!pending&&core.has(open.skill)&&open.context==='practice'&&report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id&&dayGap(open.responseDay,day)>=0&&dayGap(open.responseDay,day)<open.reviewAfterDays){
   const to=rows.find(x=>x.skill===open.skill),from=rows.filter(x=>x.skill!==open.skill&&x.minutes>=10&&core.has(x.skill)).sort((a,b)=>b.minutes-a.minutes||a.skill.localeCompare(b.skill))[0];
   if(to&&from){to.minutes+=5;from.minutes-=5;to.reason='Accepted focus preview; native allocation safeguards still decide actual session.';focus=open.skill}
  }
  // Prefer no additional changes while a focus or comparison is active.
- const blocked=open||(state.trials??[]).some(x=>x.status==='active'&&x.start<=day)||event.phase!=='ordinary';
+ const blocked=open||pending||report?.verification?.status!=='passed'||(state.trials??[]).some(x=>x.status==='active'&&x.start<=day)||event.phase!=='ordinary';
  if(!blocked){
   const learning=personalLearning(host,state,day,now);
   for(const row of rows){
-   const evidence=learning.find(x=>x.skill===row.skill)?.supported.filter(x=>x.kind==='method'&&dayGap(x.latest,day)<=28)??[];
+   const evidence=learning.find(x=>x.skill===row.skill)?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
    const distinct=[...new Set(evidence.map(x=>x.favoured.name))];
    // Different methods or protocol disagreements are reasons not to select.
    if(distinct.length===1&&evidence.every(x=>x.other.name!==distinct[0])&&evidence.every(x=>x.protocol===evidence[0].protocol)){
@@ -51,7 +53,7 @@ export function planPreview(host,state,report,events,day,now=Date.now()){
    }
   }
  }
- return {status:'preview',segments:[{skill:'warmup',minutes:10,drill:'Comfortable warm-up',reason:'Keep routine familiar.'},...rows,{skill:'application',minutes:10,drill:'301 or 101 application',reason:'Apply skills in normal play.'}],focus,event,reason:'Illustrative 60-minute scheduled-session preview only. Existing native planner, readiness, consent, benchmark and workload rules remain authoritative.'};
+ return {status:'preview',segments:[{skill:'warmup',minutes:10,drill:'Comfortable warm-up',reason:'Keep routine familiar.'},...rows,{skill:'application',minutes:10,drill:'301 or 101 application',reason:'Apply skills in normal play.'}],focus,event,reason:'Illustrative 60-minute scheduled-session preview only. Existing native planner, readiness, consent, benchmark and workload rules remain authoritative.'+(shortfall?.defer?' Existing adjustment needs delivery review before further allocation.':'')+(pending?' A proposed adjustment is awaiting consent.':'')};
 }
 export function blockPreview(host,state,report,events,day,now=Date.now()){
  const p=planPreview(host,state,report,events,day,now);
