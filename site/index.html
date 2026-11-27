@@ -972,7 +972,7 @@ html[data-appearance=light] body nav[aria-label="Main navigation"]:not(#dc590a):
 <details class="techTopic"><summary><span class="techTopicIcon">◎</span><span><strong>Aiming & grouping</strong><small>Control your routine, not every dart</small></span></summary><div class="techContent"><svg viewBox="0 0 320 148" role="img" aria-label="Target diagram contrasting a tight group and a scattered group"><rect x="8" y="8" width="304" height="132" rx="14" fill="#07130d"/><g fill="none" stroke="#568c6a" stroke-width="2"><circle cx="94" cy="75" r="43"/><circle cx="94" cy="75" r="29"/><circle cx="94" cy="75" r="14"/><circle cx="226" cy="75" r="43"/><circle cx="226" cy="75" r="29"/><circle cx="226" cy="75" r="14"/></g><g fill="#a5ffd0"><circle cx="88" cy="72" r="4"/><circle cx="99" cy="79" r="4"/><circle cx="95" cy="67" r="4"/><circle cx="194" cy="58" r="4"/><circle cx="250" cy="97" r="4"/><circle cx="223" cy="41" r="4"/></g><g fill="#b5dfc7" font-size="11" text-anchor="middle"><text x="94" y="131">Tighter group</text><text x="226" y="131">Wider spread</text></g></svg><p>Choose a precise target and keep your eyes there as you throw. A clear aiming routine is more repeatable than changing technique after each miss.</p><p>Look at clusters over several visits: a consistent group away from the target is different from darts scattered unpredictably.</p><div class="techExercise"><b>Try it:</b> Record ten three-dart visits at 20. Note whether the misses tend to land in 1, 5 or elsewhere. Treat the pattern as information, not proof of a mechanical fault.</div></div></details>
 <details class="techTopic"><summary><span class="techTopicIcon">➤</span><span><strong>Dart flight & setup</strong><small>Points, barrels, stems and flights</small></span></summary><div class="techContent"><svg viewBox="0 0 320 152" role="img" aria-label="Diagram comparing nose-up, level and nose-down dart entry angles"><rect x="8" y="8" width="304" height="136" rx="14" fill="#07130d"/><path d="M270 16V138" stroke="#9bd7b0" stroke-width="5"/><g stroke="#a5ffd0" stroke-width="5" stroke-linecap="round"><path d="M105 33L256 54"/><path d="M105 77L256 77"/><path d="M105 122L256 100"/></g><g fill="#b8e9cb" font-size="10"><text x="14" y="34">Nose up</text><text x="14" y="78">Level</text><text x="14" y="123">Nose down</text></g></svg><p>Flight shape, stem length, barrel balance and point length can change how a dart stabilises and enters the board. The same setup can behave differently for different throwing styles.</p><p>Change one component at a time, use enough throws to judge it and prioritise consistent grouping over a particular entry angle.</p><div class="techExercise"><b>Try it:</b> Compare two stem lengths over several identical three-dart visits. Record grouping and comfort before making a permanent change.</div></div></details>
 <details class="techTopic"><summary><span class="techTopicIcon">⑳</span><span><strong>Checkouts & board management</strong><small>Plan your next dart before throwing</small></span></summary><div class="techContent"><div class="checkoutExample"><div><small>EXAMPLE · 61 LEFT</small><strong>T15 → D8</strong><span>45 + 16 = 61</span></div><div><small>ALTERNATIVE</small><strong>S25 → D18</strong><span>25 + 36 = 61</span></div></div><p>Consider the double you prefer and the score a miss might leave. A good checkout route isn't simply the shortest mathematical combination: it should be playable for you.</p><p>When a dart hits the wrong segment, recalculate from the actual remaining score. Avoid leaving one point or a finish that isn't available.</p><div class="techExercise"><b>Try it:</b> Play finishes 41–61. Before every visit, name your preferred route and one alternative if the opening dart misses.</div></div></details>
-<details class="techTopic"><summary><span class="techTopicIcon">◷</span><span><strong>Rhythm & match pressure</strong><small>Maintain the same routine under jeopardy</small></span></summary><div class="techContent"><div class="rhythmDiagram"><span>Settle</span><b>›</b><span>Focus</span><b>›</b><span>Throw</span><b>›</b><span>Reset</span></div><p>Pressure changes attention. Keep your routine short and repeatable: settle your feet, pick the target, throw at your normal pace, then reset for the next dart.</p><p>A failed visit doesn't mean the routine was wrong. Judge changes over many sessions, especially when pressure differs.</p><div class="techExercise"><b>Try it:</b> Give yourself three darts at a double for five rounds. Use the exact same pre-throw routine whether the previous round was a win or a loss.</div></div></details>
+<details class="techTopic"><summary><span class="techTopicIcon">◷</span><span><strong>Rhythm & match pressure</strong><small>Maintain the same routine under jeopardy</small></span></summary><div class="techContent"><div class="rhythmDiagram"><span>Settle</span><b>›</b><span>Focus</span><b>›</b><span>Throw</span><b>›</b><span>Reset</span></div><p>Pressure changes attention. Keep your routine short and repeatable: settle your feet, pick the target, throw at your normal pace, then reset for the next dart.</p><p>A failed visit doesn't mean the routine was wrong. Judge changes over many sessions, especially when pressure differs.</p><div class="techExercise"><b>Try it:</b> Give yourself three darts at a double for five rounds. Use the exact same pre-throw routine whether the previous round met the target or not.</div></div></details>
 </div></div></section>
 <section id="settings" class="hidden">
 <div class="card"><h2>Weekly Training Days</h2><p class="muted">Select five days. The coach handles the training on those days.</p><div class="dayRow" id="days"></div><p id="dayStatus" class="muted"></p></div><div class="card"><h2>Training Data</h2><p class="muted">Data is stored in this browser or Home Screen app, not on GitHub. Updates at the same address should preserve it. Safari and a Home Screen app may have different saved data. Keep an external backup.</p><h3>1. Protect Your Training</h3>
@@ -1347,16 +1347,8 @@ function checkpointDate(){
 }
 let data=load(),activeStage=null,currentTab="home",activeGame=null,undoSnapshot=null,flash="";
 let roundAnnouncementTimer=null;
-function announceRound(number,previous=""){
- const el=$("roundAnnouncement");if(!el)return;
- if(roundAnnouncementTimer!==null)clearTimeout(roundAnnouncementTimer);
- $("roundAnnouncementTitle").textContent="ROUND "+number;
- $("roundAnnouncementPrevious").textContent=previous;
- $("roundAnnouncementPrevious").classList.toggle("hidden",!previous);
- el.classList.remove("hidden");
- const card=$("roundAnnouncementCard");card.style.animation="none";void card.offsetWidth;card.style.animation="";
- roundAnnouncementTimer=setTimeout(()=>{el.classList.add("hidden");roundAnnouncementTimer=null},1450);
-}
+function announceRound(){hideRoundAnnouncement()}
+
 function hideRoundAnnouncement(){if(roundAnnouncementTimer!==null){clearTimeout(roundAnnouncementTimer);roundAnnouncementTimer=null}const el=$("roundAnnouncement");if(el)el.classList.add("hidden")}
 
 /* V5.10.1: A failed main write must not be reported as success. Keep the
@@ -2531,7 +2523,7 @@ function dc21ResearchHTML(){
     forecast.signal==='worse'?'Forecasts currently underperform a neutral prediction on this check.':
     'Uncertain: the current observations do not clearly separate the coach from a neutral prediction.')+'</p>';
  }else html+='<p class="muted">Waiting for at least 40 eligible rounds on 20 separate days. No performance verdict yet.</p>';
- html+='<h3>Historical-Rate Comparison</h3><p>'+historical.rounds+' eligible forecasts on '+historical.days+' days, each against a win rate estimated from at least eight previous recorded days for that exact game and tier.</p>';
+ html+='<h3>Historical-Rate Comparison</h3><p>'+historical.rounds+' eligible forecasts on '+historical.days+' days, each against a completion rate estimated from at least eight previous recorded days for that exact game and tier.</p>';
  if(historical.ready){
   html+='<p>Day-balanced squared error: coach '+escNum(historical.model)+' versus earlier-results reference '+escNum(historical.historical)+'.</p>'+
    '<p>Estimated advantage: '+escNum(historical.gain)+'; approximate 95% day-cluster interval '+escNum(historical.lower95)+' to '+escNum(historical.upper95)+'.</p>'+
@@ -4083,7 +4075,7 @@ const QUICK_DESCRIPTIONS={
  "Last Dart Rescue":"Solve five last-dart situations. Wrong target costs a life.",
  "Risk or Reward":"Choose SAFE (normal scoring) or RISK (+35 bonus points if you meet the higher target). Miss a risky target and lose 50 points and a life. Reach the goal to win.",
  "170 Challenge":"Attempt a 170 finish inside your dart allowance; busts and missed attempts cost a life.",
- "First Nine Siege":"Three visits (nine darts) to beat a cumulative scoring target. An exact, finite win/loss challenge.",
+ "First Nine Siege":"Three visits (nine darts) to beat a cumulative scoring target. A fixed scoring challenge.",
  "Last Dart Standing":"Six one-dart situations. Decide whether to finish or set up before throwing. Wrong decisions cost lives.",
  "Pressure Cricket":"Close the three displayed numbers and beat a simulated opponent\u2019s scoring pace.",
  "Bull Blackjack":"Reach exactly 150 bull points before your darts run out. Over 150 is an instant loss.",
@@ -4151,7 +4143,7 @@ function renderQuick(){
  $("quickStart").textContent=session()?'Session in progress':needs?'Complete assessment first':randomQuickPending?'Play Random Game':'Play Game';
  $("quickIntro").textContent=needs?'Complete your assessment or choose Quick Start in Train before playing.':session()?'A training or Quick Play session is in progress. Finish it before starting another.':'Choose a game. The coach applies your existing independent hidden skill level automatically.';
  const rows=data.sessions.filter(x=>x.quick).slice(-8).reverse();
- $("quickHistory").innerHTML=rows.length?rows.map(x=>{const rounds=data.games.filter(g=>g.sessionId===x.id&&g.quick&&g.completion==="natural");const w=rounds.filter(g=>g.win===true).length,l=rounds.filter(g=>g.loss===true).length;return '<div class="entry"><strong>'+esc(x.quickGame||'Quick Play')+'</strong> · '+esc(x.date)+' · '+num(x.minutes).toFixed(1)+' min · '+w+' WIN / '+l+' LOSE</div>'}).join(''):'<p class="muted">No Quick Play sessions yet.</p>';
+ $("quickHistory").innerHTML=rows.length?rows.map(x=>{const rounds=data.games.filter(g=>g.sessionId===x.id&&g.quick&&g.completion==="natural");return '<div class="entry"><strong>'+esc(x.quickGame||'Quick Play')+'</strong> · '+esc(x.date)+' · '+num(x.minutes).toFixed(1)+' min · '+rounds.length+' rounds recorded</div>'}).join(''):'<p class="muted">No Quick Play sessions yet.</p>';
 }
 function startQuickPlay(){
  if(!idcPhysicalAllowed())return;
@@ -5589,11 +5581,40 @@ function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.p
  }
  return e}
 /* Round completion records the result and restarts the SAME game. The exercise clock never resets. */
-function endRound(){const s=session();if(!s||s.phase!=="playing"||s.pausedAt||!activeGame)return;const item=currentExercise(),previousGame=clone(undoSnapshot||activeGame),previousTotals={bestDouble:data.bestDouble,bestCheckout:data.bestCheckout,doublesHit:data.doublesHit,doublesThrown:data.doublesThrown},result=gameResult(activeGame,"natural");s.lastRoundUndo={previousGame,previousTotals,resultAt:result.at,name:result.name};data.games.push(result);s.roundsCompleted++;s.round++;flash=(result.win===true?"WIN":result.win===false?"LOSE":"Round ended")+" · Round "+s.roundsCompleted+" saved";activeGame=buildGame(item.name,activeGame);data.game=activeGame;undoSnapshot=null;save();announceRound(s.round,(result.win===true?"WIN":result.win===false?"LOSE":"ROUND COMPLETE")+" · Previous round"+(result.name==="Setup Shot"&&result.details?.setupOutcome?" · "+result.details.setupOutcome.replaceAll("-"," "):""))}
+/* Player-facing progress only: use actual chronological logs, never infer a streak from totals. */
+function dcVisibleProgress(g,s,exercise,history){
+ const checkout=['Checkout Climb','Focused Checkouts'].includes(g?.name);
+ if(!checkout&&!['Doubles Survival','Doubles Streak','Treble Hunt'].includes(g?.name))return null;
+ let hits=0,streak=0,best=0;
+ const consume=r=>{
+  const log=checkout?r.attemptLog:r.targetLog;
+  const expected=checkout?(r.success+r.fail):r.thrown;
+  if(!Number.isSafeInteger(expected)||expected<0||(!Array.isArray(log)&&expected!==0)||(Array.isArray(log)&&log.length!==expected)){streak=0;return}
+  for(const entry of log||[]){
+   if(entry?.hit===true||entry?.hit===1){hits++;streak++;best=Math.max(best,streak)}
+   else streak=0;
+  }
+ };
+ if(s?.id&&exercise?.provenanceId&&Array.isArray(history)){
+  const rows=[];
+  for(let i=history.length-1;i>=0;i--){
+   const r=history[i];
+   if(r?.sessionId!==s.id||r.exerciseId!==exercise.provenanceId)break;
+   rows.push(r.name===g.name&&r.variant===g.variant&&r.completion==='natural'?r:null);
+  }
+  for(let i=rows.length-1;i>=0;i--){if(rows[i])consume(rows[i]);else streak=0}
+ }
+ consume(g);
+ return {hits,streak,best,checkout};
+}
+function dcVisibleRoundResult(value){
+ return String(value||'Activity completed').replace(/\b(?:WIN|LOSE)\s*·\s*/gi,'');
+}
+function endRound(){const s=session();if(!s||s.phase!=="playing"||s.pausedAt||!activeGame)return;const item=currentExercise(),previousGame=clone(undoSnapshot||activeGame),previousTotals={bestDouble:data.bestDouble,bestCheckout:data.bestCheckout,doublesHit:data.doublesHit,doublesThrown:data.doublesThrown},result=gameResult(activeGame,"natural");s.lastRoundUndo={previousGame,previousTotals,resultAt:result.at,name:result.name};data.games.push(result);s.roundsCompleted++;s.round++;flash="";activeGame=buildGame(item.name,activeGame);data.game=activeGame;undoSnapshot=null;save();hideRoundAnnouncement()}
 function playExercise(){
  const s=session();if(!s||s.phase!=="rules"||!idcPhysicalAllowed())return;
  if(s.pausedAt){s.pausedTotal+=Math.max(0,Date.now()-s.pausedAt);s.pausedAt=null}
- s.phase="playing";s.activityStarted=Date.now();save();if(activeGame&&!(["Warm-up","Big Singles","Review"].includes(activeGame.name)))announceRound(s.round);
+ s.phase="playing";s.activityStarted=Date.now();save();hideRoundAnnouncement();
 }
 function nextExercise(){
  const s=session();if(!s||s.phase!=="complete")return;
@@ -5722,26 +5743,26 @@ function pauseSession(){const s=session();if(!s||s.phase==="rules"||s.phase==="c
 function finishView(){const wasQuick=data.sessions.length&&data.sessions[data.sessions.length-1].quick;$("sessionFinished").classList.add("hidden");show(wasQuick?"quick":"home")}
 /* TRAINING DISPLAY */
 const EXTRA_RULES={
- "Last Dart Standing":"Six one-dart situations. For an even remainder choose a finishing double; for an odd remainder choose a setup single. Then record whether your dart hit its chosen target. Wrong route or miss costs a life. Solve all six to WIN.",
- "Pressure Cricket":"Close each of the three displayed numbers with three marks each. Single = 1 mark, double = 2, treble = 3. A closed number earns twice its value. A fixed simulated rival scores after every three darts. Close all three AND finish ahead to WIN.",
- "Bull Blackjack":"Bank 25 for outer bull or 50 for bullseye. Reach the EXACT displayed target before your darts expire. Go over and you LOSE immediately.",
- "Neighbour Trap":"Aim at the displayed large single. A hit adds one progress. Hitting either neighbouring single removes one progress; a different miss uses a dart without progress. Reach the target before darts run out to WIN.",
- "Double Jackpot":"Choose from the four displayed doubles (or beginner singles). Each target can score ONCE per round. After a hit you must choose a different unused target. Bank the exact goal without going over. A bust loses the round.",
+ "Last Dart Standing":"Six one-dart situations. For an even remainder choose a finishing double; for an odd remainder choose a setup single. Then record whether your dart hit its chosen target. Wrong route or miss costs a life. Solve all six.",
+ "Pressure Cricket":"Close each of the three displayed numbers with three marks each. Single = 1 mark, double = 2, treble = 3. A closed number earns twice its value. A fixed simulated rival scores after every three darts. Close all three AND finish ahead.",
+ "Bull Blackjack":"Bank 25 for outer bull or 50 for bullseye. Reach the EXACT displayed target before your darts expire. Going over ends the round immediately.",
+ "Neighbour Trap":"Aim at the displayed large single. A hit adds one progress. Hitting either neighbouring single removes one progress; a different miss uses a dart without progress. Reach the target before darts run out.",
+ "Double Jackpot":"Choose from the four displayed doubles (or beginner singles). Each target can score ONCE per round. After a hit you must choose a different unused target. Bank the exact goal without going over. A bust ends the round.",
  "Dartboard Bingo":"The coach calls one random double at a time. Record each dart as Hit or Miss. You get a skill-adjusted dart allowance per call. Hit doubles disappear; missed doubles return later. Any horizontal line of FIVE is BINGO; all 20 is FULL HOUSE. A fresh random card follows each completed round.",
  "Target Mastery":"Coach-selected practice across singles, doubles, trebles, bull, checkouts, straight darts, target switching, setup, scoring and pressure. Each drill measures only what you actually record.",
- "High-Low":"Enter five three-dart visit totals. Starting from the displayed score, each visit must alternate HIGHER then LOWER than the previous visit by at least the displayed gap. If that direction would be impossible, follow the direction shown. Four correct comparisons to WIN; run out of lives or visits to LOSE.",
- "Split the Difference":"Throw pairs of three-dart visits and enter each total. Each second visit must be within the displayed tolerance of the first. Match at least two of three pairs to WIN; two failed pairs means LOSE.",
- "Checkout Poker":"Pick a checkout card from the three available. You have three darts to check out on a double. Record Checkout completed or Failed 3 darts. Choose and finish two different cards within the total attempts to WIN.",
- "Double Bull Bridge":"Complete three stages in strict order: nominated double, bull, nominated double. Record one dart at a time. Hit all three stages within your total dart allowance to WIN.",
- "Double Duel":"Play first-to-four points against a fixed virtual rival. Each dart targets the shown double. Hit earns a point. The rival earns a point on its fixed turn interval. The shown target tells you whether to aim at singles or doubles. First to four wins.",
- "Halve It":"Six three-dart visits, each at a different called target. Record how many darts hit that EXACT target (0–3). A blank visit halves your score. Beat the required total after six visits to WIN; otherwise LOSE.",
- "Outside Doubles":"Aim at the called double. Record Double Hit, Inside Single or Outside Miss. Hitting the inside single costs a life. Clear all required doubles to WIN; run out of lives or darts to LOSE.",
- "101 Sprint":"Checkout 101, finishing on a double. You have a tier-dependent TOTAL dart allowance. Tap Miss for each failed dart; tap Checkout Hit and enter the darts actually used to finish. Finish within the allowance to WIN.",
- "Golf Five":"Five nominated holes. Each hole means hitting the displayed section. Hit on dart 1, 2 or 3 to score that many strokes; missing all three is four strokes. Finish at or below par to WIN.",
- "Cricket Countdown":"Close each displayed target with THREE marks. Single = 1, double = 2, treble = 3; bull 25 = 1 or 50 = 2. Close every target inside the dart budget to WIN.",
- "Double Double":"Hit each nominated double in order, with your total dart allowance. Hit/Miss per dart. All doubles = WIN; run out = LOSE.",
+ "High-Low":"Enter five three-dart visit totals. Starting from the displayed score, each visit must alternate HIGHER then LOWER than the previous visit by at least the displayed gap. If that direction would be impossible, follow the direction shown. Aim for four correct comparisons before lives or visits run out.",
+ "Split the Difference":"Throw pairs of three-dart visits and enter each total. Each second visit must be within the displayed tolerance of the first. Match at least two of three pairs; two failed pairs end the round.",
+ "Checkout Poker":"Pick a checkout card from the three available. You have three darts to check out on a double. Record Checkout completed or Failed 3 darts. Choose and finish two different cards within the total attempts.",
+ "Double Bull Bridge":"Complete three stages in strict order: nominated double, bull, nominated double. Record one dart at a time. Hit all three stages within your total dart allowance.",
+ "Double Duel":"Play first-to-four points against a fixed virtual rival. Each dart targets the shown double. Hit earns a point. The rival earns a point on its fixed turn interval. The shown target tells you whether to aim at singles or doubles. First to four points completes the match.",
+ "Halve It":"Six three-dart visits, each at a different called target. Record how many darts hit that EXACT target (0–3). A blank visit halves your score. Aim to beat the required total after six visits.",
+ "Outside Doubles":"Aim at the called double. Record Double Hit, Inside Single or Outside Miss. Hitting the inside single costs a life. Clear all required doubles before lives or darts run out.",
+ "101 Sprint":"Checkout 101, finishing on a double. You have a tier-dependent TOTAL dart allowance. Tap Miss for each failed dart; tap Checkout Hit and enter the darts actually used to finish. Finish within the allowance.",
+ "Golf Five":"Five nominated holes. Each hole means hitting the displayed section. Hit on dart 1, 2 or 3 to score that many strokes; missing all three is four strokes. Aim to finish at or below par.",
+ "Cricket Countdown":"Close each displayed target with THREE marks. Single = 1, double = 2, treble = 3; bull 25 = 1 or 50 = 2. Close every target inside the dart budget.",
+ "Double Double":"Hit each nominated double in order, with your total dart allowance. Hit/Miss per dart. Clear all doubles before darts run out.",
  "Double-In 201":"Enter the visit total, counting only the opening double and subsequent darts. Enter 0 if no double was hit. Confirm the opening double and which dart hit it. Later visits use a three-dart total. Finish exactly on a double; bust leaves your score unchanged.",
- "Switchback":"Hit each called target in strict sequence, switching numbers each time. A miss knocks you TWO steps backwards. Clear the full route before running out of darts to WIN.",
+ "Switchback":"Hit each called target in strict sequence, switching numbers each time. A miss knocks you TWO steps backwards. Clear the full route before running out of darts.",
  "Shanghai Combo":"Complete S, then D, then T on the SAME number, in order. Tap Hit or Miss for each dart. Misses cost lives; complete all three to win the round.",
  "Bull Bank":"Bank bull points: 25 for outer bull, 50 for bullseye, 0 for a miss. Reach the goal before your darts run out.",
  "Number Lock":"Close all THREE numbered targets in ANY order. Hit the shown ring for each number, or record Miss. Misses use your allowance.",
@@ -5750,14 +5771,14 @@ const EXTRA_RULES={
  "Treble Hunt":"Hit the displayed target with each dart. A miss costs a life. Clear the hit goal before your lives run out; then repeat.",
  "Doubles Streak":"Hit the displayed target to build a streak. A miss breaks it and costs a life. Reach the target streak before lives run out.",
  "501 Pressure":"Start on 501. Record three-dart visit totals; finish exactly on a double within your adaptive dart allowance. A bust does not reduce your remaining score.",
- "Setup Shot":"Five attempts at each starting score, then a new random score. Each attempt is one three-dart visit. WIN by leaving the displayed range. Finishing (zero), leaving one, going below zero or outside the range LOSES. Do not check out.",
+ "Setup Shot":"Five attempts at each starting score, then a new random score. Each attempt is one three-dart visit. Aim to leave the displayed range. Finishing (zero), leaving one, going below zero or outside the range ends the attempt. Do not check out.",
  "Last Dart Rescue":"Five one-dart checkout situations. First CHOOSE the correct finishing target; a wrong route costs a life. Then record Hit or Miss for the dart.",
  "Risk or Reward":"Before each three-dart visit choose Safe or Risky. Beat the higher Risk target for a +35 bonus. Miss it and lose 50 banked points and a life. Reach the bank goal to win.",
- "First Nine Siege":"You have exactly three three-dart visits, nine darts total. Enter each visit score. Beat your tier-specific total to WIN; otherwise LOSE.",
+ "First Nine Siege":"You have exactly three three-dart visits, nine darts total. Enter each visit score. Aim to beat the displayed total.",
  "170 Challenge":"Start on 170 and finish exactly on a double before the visit budget expires. Bust leaves your score unchanged.",
  "301 Pressure":"Start on 301. Enter every visit score. You must finish exactly on a double or bullseye. A bust is an invalid finish: your score stays unchanged and you lose one LIFE. Your dart limit comes from your measured scoring, doubles and match play. When you finish, tap 1, 2 or 3 to record the actual darts used."
 };
-const RULES={"Warm-up":"Throw comfortably for the full 10 minutes. Find a steady stance and rhythm. When time ends, select Next Exercise.","Big Singles":"Throw exactly 3 darts at each number from 1 to 20. Tap Hit ONLY for the large single section; otherwise tap Miss. After dart 60, select Next Exercise.","Doubles Survival":"Aim at the displayed double. Tap Hit or Miss for each dart; rounds repeat until time expires.","Scoring Challenge":"Throw 3 darts and enter the total. Repeat for 10 visits, then begin another round.","Staying Straight":"Aim at 20s, then 19s down to 16s. Score single 1, double 2, treble 3. A miss moves on.","Checkout Climb":"Finish the shown score within 3 darts. Hit: +5 to target; fail: −1. Below 50 ends a round.","Focused Checkouts":"Clear the selected checkout range in 3 darts per finish. Checkout Hit records a finish; Missed Dart records an unsuccessful dart. Lose all lives and the round restarts.","Bull Accuracy":"Throw 30 darts at the bull. Record 50, 25 or Miss. Another round starts automatically.","Bull Survival":"Aim at the shown bull area. Hit it within the allowed darts; then repeat the challenge.","Bull Streak":"Hit the shown bull area repeatedly. A miss resets your streak and uses a life. Reach the streak goal to WIN, or run out of lives to LOSE.","Review":"Finish with relaxed throws. Keep the same easy rhythm until the timer ends."};
+const RULES={"Warm-up":"Throw comfortably for the full 10 minutes. Find a steady stance and rhythm. When time ends, select Next Exercise.","Big Singles":"Throw exactly 3 darts at each number from 1 to 20. Tap Hit ONLY for the large single section; otherwise tap Miss. After dart 60, select Next Exercise.","Doubles Survival":"Aim at the displayed double. Tap Hit or Miss for each dart; rounds repeat until time expires.","Scoring Challenge":"Throw 3 darts and enter the total. Repeat for 10 visits, then begin another round.","Staying Straight":"Aim at 20s, then 19s down to 16s. Score single 1, double 2, treble 3. A miss moves on.","Checkout Climb":"Finish the shown score within 3 darts. Hit: +5 to target; fail: −1. Below 50 ends a round.","Focused Checkouts":"Clear the selected checkout range in 3 darts per finish. Checkout Hit records a finish; Missed Dart records an unsuccessful dart. Lose all lives and the round restarts.","Bull Accuracy":"Throw 30 darts at the bull. Record 50, 25 or Miss. Another round starts automatically.","Bull Survival":"Aim at the shown bull area. Hit it within the allowed darts; then repeat the challenge.","Bull Streak":"Hit the shown bull area repeatedly. A miss resets your streak and uses a life. Reach the streak goal before running out of lives.","Review":"Finish with relaxed throws. Keep the same easy rhythm until the timer ends."};
 function button(text,code){return '<button onclick="'+code+'">'+text+'</button>'}
 let dc88Resume=null;
 function dc88Open(){const s=session(),d=$('dc88Dialog');if(!s||s.phase!=="playing"||d.open)return;dc88Resume=null;$('dc88RulesTitle').textContent=$('exerciseName').textContent+' · Rules';$('dc88RulesText').textContent=[$('exerciseRules').textContent,$('dc80Goal').dataset.full||$('dc80Goal').textContent,$('dc80Condition').textContent].filter(Boolean).join('\n\n');if(!s.pausedAt){pauseSession();dc88Resume={id:s.id,index:s.index,at:s.pausedAt}}d.onclose=()=>{const p=dc88Resume;dc88Resume=null;const now=session();if(p&&now&&now.id===p.id&&now.index===p.index&&now.pausedAt===p.at&&now.phase==='playing'&&!document.hidden)pauseSession()};d.showModal()}
@@ -5877,7 +5898,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   html=g.targets.map(n=>g.locked.includes(n)?'<button disabled>✓ '+g.ring+n+'</button>':button(g.ring+n,"numberLockDart("+n+")")).join("")+button("Miss","numberLockDart(0)");break;
  case "Halve It":
   heading=g.targets[Math.min(g.index,g.targets.length-1)];detail="Visit "+(g.index+1)+"/6 · Hit this exact target with 0–3 darts";
-  mini="Bank: "+g.points+" · Win goal: "+g.goal+" · Halves: "+g.halves;
+  mini="Bank: "+g.points+" · Goal: "+g.goal+" · Halves: "+g.halves;
   html=button("0 hits","newGameDart(0)")+button("1 hit","newGameDart(1)")+button("2 hits","newGameDart(2)")+button("3 hits","newGameDart(3)");break;
  case "Outside Doubles":
   heading="D"+g.targets[Math.min(g.index,g.targets.length-1)];detail="Double "+(g.index+1)+"/"+g.targets.length;
@@ -5899,7 +5920,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  }
  case "Double Double":
   heading="D"+g.targets[Math.min(g.index,g.targets.length-1)];detail="Double "+(g.index+1)+"/"+g.targets.length+" · Darts left "+(g.allowed-g.thrown);
-  mini="Hit all nominated doubles to win";
+  mini="Hit all nominated doubles";
   html=button("Hit","newGameDart('hit')")+button("Miss","newGameDart('miss')");break;
  case "Double-In 201":{
   const darts=clamp(Math.round(num(g.nextVisitDarts)||3),1,3);
@@ -5922,14 +5943,14 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Must finish on a double";html=padMarkup()+button("Enter Score","scoringVisit()");break;
  case "Setup Shot":
   heading=String(g.remaining);detail="LEAVE 2–"+g.goal+" · DO NOT CHECK OUT";
-  mini="Zero, one, overshoot or outside range = LOSS";html=padMarkup()+button("Enter Score","scoringVisit()");break;
+  mini="Zero, one, overshoot or outside range ends the attempt";html=padMarkup()+button("Enter Score","scoringVisit()");break;
  case "Last Dart Rescue":
   {const needed=g.targets[Math.min(g.index,g.targets.length-1)],correct=needed===50?"BULL":"D"+(needed/2),wrong=needed===50?"D20":"D"+(needed===40?16:needed===32?20:needed===24?10:needed===16?12:20);
   heading=String(needed);detail="Choose the correct one-dart finish · Situation "+(g.index+1)+"/5";mini="Lives left: "+g.lives+" · Wrong route costs a life";
   html=g.aim?button("Hit " +correct,"rescueDart(true)")+button("Miss","rescueDart(false)"):button(correct,"rescueAim('"+correct+"')")+button(wrong,"rescueAim('"+wrong+"')");break;}
  case "First Nine Siege":
   heading=g.points+" / "+g.goal;detail="Nine-dart scoring challenge · Visit "+(g.visits+1)+"/3";
-  mini="Hit the cumulative points target to WIN";html=padMarkup()+button("Enter Score","scoringVisit()");break;
+  mini="Hit the cumulative points target";html=padMarkup()+button("Enter Score","scoringVisit()");break;
  case "Risk or Reward":
   heading=g.points+" / "+g.goal;detail="Visit "+(g.visits+1)+"/"+g.maxVisits+" · Lives "+g.lives;
   mini=g.choice.toUpperCase()+" target: "+riskTarget(g)+" or more · Risk success +35 bonus, risk failure −50 and 1 life";
@@ -5988,8 +6009,8 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Matched "+g.matched+"/2 · Failed "+g.failed+"/2 · Pair "+(g.pairs+1)+"/3";
   html=padMarkup()+button("Enter Visit","new40Score()");break;
  case "Checkout Poker":
-  heading=g.chosen?String(g.chosen):"PICK A CARD";detail="Win two different checkout cards";
-  mini="Wins "+g.wins+"/2 · Attempts "+g.attempts+"/"+g.allowed;
+  heading=g.chosen?String(g.chosen):"PICK A CARD";detail="Finish two different checkout cards";
+  mini="Checkouts "+g.wins+"/2 · Attempts "+g.attempts+"/"+g.allowed;
   html=g.chosen?button("Checkout completed","new40Dart('hit')")+button("Failed 3 darts","new40Dart('miss')"):g.cards.filter(n=>!(g.cardsUsed||[]).includes(n)).map(n=>button(String(n),"new40Choice("+n+")")).join("");break;
  case "Double Bull Bridge":
   heading=g.stages[Math.min(g.index,2)];detail="Double → Bull → Double, in that order";
@@ -6014,7 +6035,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  'Staying Straight':['KEEP HITTING '+heading,g.roundPointGoal?'First miss ends this number · reach '+g.roundPointGoal+' points overall':'First miss ends this number · maximise points'],
  'Checkout Climb':['FINISH '+heading,g.finishGoal?(g.success+'/'+g.finishGoal+' finishes · '+(g.failedVisitLimit-g.fail)+' failed visits left'):g.ruleVersion==='foundation-climb-v1'?(g.success+'/2 finishes · +5 on success · −1 after three misses · below 20 ends'):'Double-out · success +5 · failure −1 · below 50 ends'],
  'Focused Checkouts':['FINISH '+heading,'Double-out · clear range before lives expire'],
- 'Scoring Survival':['SCORE '+g.target+' OR MORE','5 successful visits wins · low score costs a life'],
+ 'Scoring Survival':['SCORE '+g.target+' OR MORE','5 successful visits · low score costs a life'],
  'Scoring Ladder':['SCORE '+g.target+' OR MORE','Clear 4 steps · failure costs a life and a step'],
  'Treble Hunt':['REACH '+g.goal+' HITS','Miss costs a life · no lives = loss'],
  'Doubles Streak':['BUILD '+g.goal+' CONSECUTIVE HITS','Miss breaks streak and costs a life'],
@@ -6053,7 +6074,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  'Double Duel':['FIRST TO 4 POINTS','Beat rival within 12 turns']
  };
  const goal=goals[g.name];objective.classList.toggle('hidden',!goal);
- if(goal){$('dc80Goal').textContent=goal[0];$('dc80Condition').textContent=goal[1];$('dc80BlockLabel').textContent=g.name==='Setup Shot'&&g.practiceBlock?'Attempt '+g.practiceBlock.attempt+' of 5':'';}
+ if(goal){$('dc80Goal').textContent=goal[0];$('dc80Condition').textContent=goal[1].replace(/= loss\b/gi,'ends the round');$('dc80BlockLabel').textContent=g.name==='Setup Shot'&&g.practiceBlock?'Attempt '+g.practiceBlock.attempt+' of 5':'';}
 
  const danger=$('dc22Danger');
  if(danger){
@@ -6070,7 +6091,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   else if(g.name==='Staying Straight'){remaining=5-g.index;label='NUMBERS LEFT'}
   else if(g.name==='Halve It'){remaining=g.targets.length-g.index;label='TARGETS LEFT'}
   else if(g.name==='Golf Five'){remaining=5-g.index;label='HOLES LEFT'}
-  else if(g.name==='Double Duel'){remaining=4-g.player;label='POINTS TO WIN'}
+  else if(g.name==='Double Duel'){remaining=4-g.player;label='POINTS TO GO'}
   else if(g.name==='First Nine Siege'){remaining=3-g.visits;label='VISITS LEFT'}
   else if(g.name==='Split the Difference'){remaining=3-g.pairs;label='PAIRS LEFT'}
   else if(g.name==='Double-In 201'&&!g.entered){remaining=g.entryLimit-g.entryMisses;label='ENTRY DARTS LEFT'}
@@ -6103,6 +6124,15 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   $("miniMetrics").innerHTML='<div class="checkoutHud"><span class="hudChip">Busts <b>'+g.busts+'</b></span><span class="hudChip">Double-out</span><span class="hudGuide">Bust = invalid finish; score stays the same. Final dart must hit a double or bullseye.</span></div>';
  }else $("miniMetrics").textContent=mini;$("roundFlash").textContent=g.name==="Review"?"":"ROUND "+s.round;$("roundFlash").classList.toggle("hidden",g.name==="Review"||g.name==="Warm-up"||g.name==="Big Singles");
  if(phase==="playing")dc88Compact(g,heading,detail,mini,danger&&!danger.classList.contains("hidden")?danger.querySelector("span").textContent:"");
+ if(phase==="playing"){
+  const progress=dcVisibleProgress(g,s,e,data.games);
+  if(progress){
+   $('roundFlash').textContent='STREAK '+progress.streak;
+   const metric=(progress.checkout?'Checkouts: ':'Hits: ')+progress.hits+' · Best streak: '+progress.best;
+   const host=$('miniMetrics'),prior=host.textContent;
+   host.textContent=metric+(prior?' · '+prior:'');
+  }
+ }
  const controls=$("gameControls");
  const controlMode=g.name==="Double-In 201"?(g.entered?(g.entryTailActive?"201-tail":"201-scoring"):(g.dc591Opening?"201-confirm":"201-entry")):"standard";
  const keepsPad=["Scoring Challenge","Scoring Survival","Scoring Ladder","301 Pressure","501 Pressure","Double-In 201","Risk or Reward","First Nine Siege","170 Challenge","Setup Shot","High-Low","Split the Difference"].includes(g.name);
@@ -6484,7 +6514,7 @@ function dc34PracticeSnapshot(player=data){
  const categories={scoring:{rounds:0,games:new Set()},doubles:{rounds:0,games:new Set()},checkout:{rounds:0,games:new Set()},bull:{rounds:0,games:new Set()}};
  const unclassified={rounds:0,games:new Set()};
  for(const g of valid){const category=g.application===true?null:dc28GameCategory(g.name),bucket=categories[category]||unclassified;bucket.rounds++;bucket.games.add(g.name)}
- return {total:valid.length,incomplete,categories:Object.fromEntries(Object.entries(categories).map(([key,val])=>[key,{rounds:val.rounds,games:val.games.size}])),unclassified:{rounds:unclassified.rounds,games:unclassified.games.size},recent:valid.slice(-5).reverse().map(g=>({name:g.name,result:typeof g.result==='string'?g.result:'Activity completed'}))};
+ return {total:valid.length,incomplete,categories:Object.fromEntries(Object.entries(categories).map(([key,val])=>[key,{rounds:val.rounds,games:val.games.size}])),unclassified:{rounds:unclassified.rounds,games:unclassified.games.size},recent:valid.slice(-5).reverse().map(g=>({name:g.name,result:dcVisibleRoundResult(g.result)}))};
 }
 function dc34RenderPracticeSnapshot(){
  const host=$('earlyPracticeSummary');if(!host)return;
@@ -7433,9 +7463,8 @@ function renderRecords(){
   const rows=all.filter(x=>x.name===name);const best={};for(const g of rows)for(const m of recordMetrics(g)){
    const key=m.label;const old=best[key];if(!old||(m.higher?m.value>old.value:m.value<old.value))best[key]={...m,at:g.at,tier:g.tierAtStart||g.checkoutTierAtStart||null,quick:g.quick};
   }
-  const wins=rows.filter(x=>x.win===true).length,losses=rows.filter(x=>x.loss===true).length;
   const metrics=Object.values(best).map(m=>'<div class="recordMetric"><span>'+esc(m.label)+'</span><strong>'+m.value+'</strong><small>'+esc(formatDate(m.at))+(m.tier?' · Tier '+m.tier:'')+(m.quick?' · Quick Play':'')+'</small></div>').join('');
-  return '<details class="recordSection"><summary>'+esc(name)+' <span>'+wins+'W / '+losses+'L</span></summary>'+(metrics||'<p class="muted">No completed rounds yet.</p>')+'</details>';
+  return '<details class="recordSection"><summary>'+esc(name)+' <span>'+rows.length+' rounds</span></summary>'+(metrics||'<p class="muted">No completed rounds yet.</p>')+'</details>';
  });out.innerHTML=sections.join('');
 }
 /* V5.15.4: comparable Mastery performance, not pooled percentages that hide targets. */
@@ -7573,19 +7602,19 @@ function renderProgress(){coach62Week();
   '<details><summary class="pill">Measured double accuracy by number</summary><div class="targetGrid">'+doublesIntel.samples.map(x=>'<div>D'+x.target+'<strong>'+x.hits+'/'+x.darts+'</strong><small>'+(x.ready?'Repeat evidence':'Collecting')+'</small></div>').join('')+'</div></details></div>'+
   '<div class="entry" style="margin-top:14px"><h3>Checkout Intelligence · Finish Difficulty</h3><p class="muted">Actual completed checkout attempts grouped by starting score. Different finishing ranges are not treated as interchangeable.</p>'+
   checkoutIntel.map(x=>'<p>'+esc(x.name)+': '+x.hits+'/'+x.attempts+' finishes'+(x.ready?' · measured across '+x.days+' days':' · gathering evidence')+'</p>').join('')+'</div>'+
-  '<div class="entry" style="margin-top:14px"><h3>Pressure Consistency · Early Evidence</h3><p class="muted">Compares competitive WIN rates in the same game and hidden difficulty, one vote per day. This is a trend, not proof that a drill caused improvement.</p>'+
+  '<div class="entry" style="margin-top:14px"><h3>Pressure Consistency · Early Evidence</h3><p class="muted">Compares goal-completion rates in the same game and hidden difficulty, one vote per day. This is a trend, not proof that a drill caused improvement.</p>'+
   (pressureIntel.filter(x=>x.improving).length?pressureIntel.filter(x=>x.improving).slice(0,4).map(x=>'<p>✓ '+esc(x.name)+' · more consistent across '+x.days+' days</p>').join(''):'<p>Collecting repeated comparable pressure results.</p>')+'</div>';
  const audit=dc20Audit();
  $("singlesProgress").innerHTML+='<div class="entry" style="margin-top:14px"><h3>Coach Forecast Audit · Prospective Evidence</h3>'+ 
-  '<p class="muted">Predictions are locked before standard competitive rounds, then compared with actual wins and losses. One result per game and day. Recovery, Quick Play and modified challenges are excluded. This checks forecasting, NOT whether adaptive training causes improvement.</p>'+ 
+  '<p class="muted">Predictions are locked before standard competitive rounds, then compared with actual goal completion. One result per game and day. Recovery, Quick Play and modified challenges are excluded. This checks forecasting, NOT whether adaptive training causes improvement.</p>'+ 
   '<p>'+audit.rounds+' matched rounds across '+audit.days+' days'+(audit.enough?' · comparison ready':' · collecting independent evidence')+'</p>'+ 
   (audit.enough?'<p>Coach prediction error: '+audit.brier.toFixed(3)+' · neutral 50% prediction: '+audit.neutral.toFixed(3)+' (lower is better)</p>':
    '<p>At least 40 comparable rounds on 20 separate days are needed before showing a prediction-error comparison.</p>')+
   '<details><summary class="pill">Probability calibration</summary>'+audit.groups.map((x,i)=>'<p>'+
-   ['Below 35%','35–65%','Above 65%'][i]+': '+x.n+' rounds'+(x.n>=10?' · forecast '+(x.p*100).toFixed(0)+'% · actual '+(x.won*100).toFixed(0)+'% wins':' · gathering evidence')+'</p>').join('')+'</details></div>';
+   ['Below 35%','35–65%','Above 65%'][i]+': '+x.n+' rounds'+(x.n>=10?' · forecast '+(x.p*100).toFixed(0)+'% · actual '+(x.won*100).toFixed(0)+'% completed':' · gathering evidence')+'</p>').join('')+'</details></div>';
  const blocks=[...(data.coach.completedBlocks||[])].reverse();$("blockReport").innerHTML=blocks.length?blocks.map(b=>'<div class="entry"><h3>Training Block '+(num(b.index)+1)+'</h3><p>'+formatDate(b.start)+' to '+formatDate(b.end-1)+'</p>'+(b.highlights&&b.highlights.length?b.highlights.map(h=>'<p>✓ '+esc(h.name)+': improved by '+num(h.improvement).toFixed(1)+esc(h.unit)+'</p>').join(''):'<p>Block completed. Your coach has prepared the next phase.</p>')+'</div>').join(''):'<p class="muted">The first four-week review appears once sufficient training data is available.</p>';
  $("sessionHistory").innerHTML=data.sessions.slice(-30).reverse().map(s=>'<div class="entry"><strong>'+esc(s.date||'Session')+'</strong> · '+num(s.minutes).toFixed(1)+' minutes'+(s.quick?' · Quick Play':s.extra?' · Extra session':'')+(s.coachReport?'<details><summary>Coach’s Report</summary>'+[['Today’s Achievements',s.coachReport.good],['Training Completed',s.coachReport.highlight],['Coach’s Next Steps',s.coachReport.plan]].filter(x=>x[1]).map(([name,msg])=>'<p><strong>'+esc(name)+':</strong> '+esc(msg)+'</p>').join('')+'</details>':'')+'</div>').join('')||'<p>No sessions recorded yet.</p>';
- $("gameHistory").innerHTML=data.games.slice(-40).reverse().map(g=>'<div class="entry"><strong>'+esc(g.name==="Doubles Survival"&&g.variant==="singles"?'Singles Survival':g.name||'Game')+'</strong> · '+esc(g.result||'Completed')+(g.completion==='partial'?' (partial)':'')+'</div>').join('')||'<p>No games recorded yet.</p>';
+ $("gameHistory").innerHTML=data.games.slice(-40).reverse().map(g=>'<div class="entry"><strong>'+esc(g.name==="Doubles Survival"&&g.variant==="singles"?'Singles Survival':g.name||'Game')+'</strong> · '+esc(dcVisibleRoundResult(g.result||'Completed'))+(g.completion==='partial'?' (partial)':'')+'</div>').join('')||'<p>No games recorded yet.</p>';
  $("historySection").classList.toggle('hidden',!historyVisible);$("historyToggle").textContent=historyVisible?'Hide Training History':'View Training History';
 }
 
