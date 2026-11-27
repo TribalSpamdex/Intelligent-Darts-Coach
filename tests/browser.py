@@ -25,6 +25,25 @@ with sync_playwright() as p:
     assert 'Decision: balanced' in page.locator('#idcReport').inner_text()
     assert 'Eligible measurements: 0' in page.locator('#idcReport').inner_text()
     assert 'Maintain your balanced practice' in page.locator('#idcBrief').inner_text()
+    # Exercise sparse two-day feedback through both real Coach UI entry points.
+    sparse=page.evaluate("""()=>{
+      const saved=clone(data.idcCoachMemory);
+      try{
+       const today=dateKey(),old=dateKey(Date.now()-26*DAY_MS);
+       data.idcCoachMemory.state.observations=[
+        {id:'sparse-older',day:old,skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:35},
+        {id:'sparse-recent',day:today,skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:20}
+       ];
+       window.IDCPrecision.invalidate();
+       document.getElementById('idcReview').click();
+       const review=document.getElementById('idcReport').innerText;
+       document.getElementById('idcQuestion').value='review my performance';
+       document.getElementById('idcAsk').click();
+       const answer=document.getElementById('idcAnswer').innerText;
+       return {review,answer};
+      }finally{data.idcCoachMemory=saved;window.IDCPrecision.invalidate()}
+    }""")
+    assert '35% to 20%' in sparse['review'] and 'Decision: balanced' in sparse['review'] and '-15 percentage points' in sparse['answer'], sparse
     page.locator('#idcExample').click()
     assert 'SIMULATION ONLY' in page.locator('#idcReport').inner_text()
     assert 'temporary-focus' in page.locator('#idcReport').inner_text()
@@ -273,6 +292,32 @@ with sync_playwright() as p:
             page.locator('#idcQuestion').fill(question)
             page.locator('#idcAsk').click()
             assert expected.lower() in page.locator('#idcAnswer').inner_text().lower(), question
+    else:
+        # WebKit must actually launch and execute the cached coach offline, not
+        # just wait for service-worker registration. Restore online afterwards.
+        inventory=page.evaluate("""async()=>{
+          const sw=await fetch('./sw.js',{cache:'no-store'}).then(r=>r.text());
+          const name=sw.match(/const CACHE='([^']+)'/)[1], keys=await caches.keys();
+          if(!keys.includes(name))return {expected:0,missing:['active generation absent']};
+          const c=await caches.open(name),assets=JSON.parse(sw.match(/const ASSETS=(\\[[^;]+\\]);/)[1]);
+          const expected=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))],missing=[];
+          for(const a of expected)if(!await c.match(a))missing.push(a);
+          return {expected:expected.length,missing};
+        }""")
+        assert inventory['expected']>=160 and not inventory['missing'], inventory
+        try:
+            ctx.set_offline(True)
+            page.reload()
+            page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+            page.locator('#navTechnique').click()
+            page.locator('#idcExample').click()
+            assert 'temporary-focus' in page.locator('#idcReport').inner_text()
+            page.locator('#idcQuestion').fill('Checkout 81 with 2 darts')
+            page.locator('#idcAsk').click()
+            assert 'legal finish' in page.locator('#idcAnswer').inner_text()
+            print('WebKit offline relaunch and Coach passed:',inventory['expected'])
+        finally:
+            ctx.set_offline(False)
     page.locator('#idcStatsPanel').evaluate('(e)=>e.open=true')
     page.locator('#idcStatsType').select_option('Actual match statistics')
     page.locator('#idcStatsReview').click()
