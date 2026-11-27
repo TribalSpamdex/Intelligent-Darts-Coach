@@ -64,3 +64,14 @@ test('SOL51 legacy benchmark IDs stay unchanged when no real provenance collisio
  assert.equal(r[0].id,'IDC:host-v62:game:'+at+':Scoring Challenge:scoring');
  assert.equal(JSON.stringify(h),JSON.stringify(host([game('one')])));
 });
+
+test('SOL51 a legacy null session cannot collide with a real session named legacy',()=>{
+ const h=host([game(null,false),game('legacy',false)]);
+ assert.equal(projectEvidence(h,{today:day,now}).observations.length,2);
+});
+import {quickAdaptiveMeasurements} from '../site/v62-evidence.mjs';
+test('SOL51 adaptive settings with different actual allowances retain separate denominators',()=>{
+ const games=[6,10].map((allowed,i)=>({...game('bridge-'+i),name:'Double Bull Bridge',tierAtStart:4,benchmark:false,hits:3,thrown:4,details:{name:'Double Bull Bridge',stages:['D20','BULL','D16'],index:3,allowed,hits:3,thrown:4,skillTrace:['hit','miss','hit','hit'].map(value=>({value}))}}));
+ assert.equal(quickAdaptiveMeasurements(host(games),day,now).length,2);
+ const protocols=new Set(projectTargets(host(games),day,now).rows.map(r=>r.protocol));assert.equal(protocols.size,2);
+});

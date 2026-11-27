@@ -54,7 +54,7 @@ def run_sol51_audit(browser):
         page.evaluate("data.games=data.games.slice(0,1);save(false);window.IDCPrecision.invalidate();renderQuick()")
         assert not page.locator('#quickGames').get_by_role('button',name='501 Pressure',exact=True).count()
         # Native validation rejects an impossible bull mark before snapshot/trace.
-        page.evaluate("""()=>{quickChoice='Cricket Countdown';$('quickDuration').value='300';startQuickPlay();playExercise();activeGame.targets=[25];activeGame.marks=[0];activeGame.index=0;save(false)}""")
+        page.evaluate("""()=>{quickChoice='Cricket Countdown';$('quickDuration').value='300';startQuickPlay();playExercise();activeGame.targets=[25];activeGame.marks=[0];activeGame.index=0;save(false);renderTraining()}""")
         before=page.evaluate('JSON.stringify(activeGame)')
         page.evaluate('newGameDart(3)')
         assert page.evaluate('JSON.stringify(activeGame)')==before
@@ -83,15 +83,19 @@ def run_pinned51_upgrade_audit(browser):
             path=urlsplit(self.path).path
             if path=='/observer.html':
                 payload=b'<!doctype html><title>Upgrade observer</title>'
+            elif not path.startswith('/site/'):
+                self.send_error(404);return
             elif not state['candidate']:
-                try:payload=baseline(path.lstrip('/') or 'index.html')
+                try:payload=baseline(path[len('/site/'): ] or 'index.html')
                 except subprocess.CalledProcessError:self.send_error(404);return
-            else:return super().do_GET()
+            else:
+                self.path=self.path[len('/site'):]
+                return super().do_GET()
             self.send_response(200);self.send_header('Content-Type','text/html' if path.endswith('.html') or path=='/' else 'text/javascript');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
     server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(SITE)))
     thread=Thread(target=server.serve_forever,daemon=True);thread.start()
     ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
-    url='http://127.0.0.1:'+str(server.server_port)+'/index.html'
+    url='http://127.0.0.1:'+str(server.server_port)+'/site/index.html'
     try:
         page=ctx.new_page();page.goto(url);ready(page)
         page.wait_for_function('navigator.serviceWorker.controller!==null')
@@ -102,10 +106,10 @@ def run_pinned51_upgrade_audit(browser):
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         wait_async(page,"async()=>!!(await navigator.serviceWorker.getRegistration()).waiting",'actual dev51 waiting')
         assert page.evaluate("async()=>{const c=await caches.keys();return c.includes('IDC:assets:2.0.0-dev50') && c.includes('IDC:assets:2.0.0-dev51')}")
-        observer=ctx.new_page();observer.goto(url.replace('/index.html','/observer.html'))
+        observer=ctx.new_page();observer.goto(url.replace('/site/index.html','/observer.html'))
         assert observer.evaluate('navigator.serviceWorker.controller===null')
         page.close()
-        wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./');return !!r.active&&!r.waiting&&!(await caches.keys()).includes('IDC:assets:2.0.0-dev50')}",'actual dev51 activation')
+        wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');return !!r.active&&!r.waiting&&!(await caches.keys()).includes('IDC:assets:2.0.0-dev50')}",'actual dev51 activation')
         page=ctx.new_page();page.goto(url);observer.close();ready(page)
         assert 'dev51' in page.title()
         assert page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillTrace.length===1 && activeGame.skillTraceVersion===undefined && localStorage.getItem('dartsCoachV4')==='SOL51-LEGACY'")

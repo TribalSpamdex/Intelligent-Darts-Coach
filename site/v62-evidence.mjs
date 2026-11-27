@@ -58,7 +58,7 @@ export function fixedGameSources(games){
  for(const g of games){if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;const base='game:'+g.at+':'+g.name,keys=groups.get(base)??new Set();keys.add(roundIdentity(g));groups.set(base,keys)}
  // Preserve historic benchmark IDs when unambiguous, including intervention
  // baselines. Only genuine collisions require a provenance suffix.
- return new Map(games.filter(Boolean).map(g=>{const base='game:'+g.at+':'+g.name;return [roundIdentity(g),base+(groups.get(base)?.size>1?':s'+String(g.sessionId??'legacy'):'')]}));
+ return new Map(games.filter(Boolean).map(g=>{const base='game:'+g.at+':'+g.name;return [roundIdentity(g),base+(groups.get(base)?.size>1?':s'+JSON.stringify(g.sessionId==null?null:String(g.sessionId)):'')]}));
 }
 const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
 export function canonicalSkillGames(games=[],conflicts=null,window=null){
@@ -306,7 +306,7 @@ export function extraQuickRounds(host,day,now=Date.now()){
 // Descriptive adaptive protocols. Never converted into fixed calibration or dose.
 export function quickAdaptiveMeasurements(host,day,now=Date.now()){
  const parents=trainingParentIndex(host.sessions??[]),groups=new Map();
- const add=(g,label,hits,attempts,scoring=false,perDart=false,unit=null)=>{const key=g.name+' · '+label+' · '+(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting'),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart,unit:unit??(scoring&&!perDart?'visits':'darts')};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
+ const add=(g,label,hits,attempts,scoring=false,perDart=false,unit=null,setting=null)=>{const key=g.name+' · '+label+' · '+(setting??(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting')),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart,unit:unit??(scoring&&!perDart?'visits':'darts')};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
  for(const g of canonicalSkillGames(host.games??[],null,{since:now-84*86400000,until:now})){
   if(!g||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
   if(['Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference'].includes(g.name)&&count(g.visits,1000)&&g.visits>=1&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every(n=>possible.has(n))&&(['Risk or Reward','High-Low','Split the Difference'].includes(g.name)||g.scores.reduce((a,b)=>a+b,0)===g.points)&&(g.name!=='First Nine Siege'||g.visits===3))add(g,g.name==='First Nine Siege'?'first nine, three fixed visits':'contextual three-dart visits',g.scores.reduce((a,b)=>a+b,0),g.visits,true);
@@ -318,7 +318,7 @@ export function quickAdaptiveMeasurements(host,day,now=Date.now()){
   if(['Bull Survival','Bull Streak'].includes(g.name)&&['50','25/50','CENTRE'].includes(g.target)&&count(g.thrown,1000)&&g.thrown>0&&Array.isArray(g.targetLog)&&g.targetLog.length===g.thrown&&g.targetLog.every(x=>x?.target===g.target&&typeof x.hit==='boolean')&&g.targetLog.filter(x=>x.hit).length===g.hits)add(g,g.target==='50'?'bullseye only':g.target==='25/50'?'either bull':'centre practice area',g.hits,g.thrown);
   if(g.name==='Staying Straight'&&Array.isArray(g.targets)&&JSON.stringify(g.targets)===JSON.stringify([20,19,18,17,16])&&[g.hits,g.misses,g.counts].every(x=>Array.isArray(x)&&x.length===5&&x.every(n=>count(n,1000)))&&g.misses.every(n=>n===1)&&g.hits.reduce((a,b)=>a+b,0)+5===g.darts&&g.counts.every((n,i)=>n>=g.hits[i]&&n<=3*g.hits[i])&&g.counts.reduce((a,b)=>a+b,0)===g.points)for(let i=0;i<5;i++)add(g,'number lane '+g.targets[i]+' (any ring)',g.hits[i],g.hits[i]+1);
  }
- for(const r of extraQuickRounds(host,day,now))for(const x of r.metrics)add(r.g,x.label,x.hits,x.attempts,x.scoring,x.perDart,x.unit);
+ for(const r of extraQuickRounds(host,day,now))for(const x of r.metrics)add(r.g,x.label,x.hits,x.attempts,x.scoring,x.perDart,x.unit,r.setting);
  return [...groups.values()].map(x=>({...x,days:x.days.size}));
 }
 export function quickAbilityLines(host,day,now=Date.now()){
