@@ -51,3 +51,17 @@ test('DEV54 future, Quick Start and carried-forward assessments do not reset cur
   assert.equal(currentConditionRows(rows(),state(),day,h,now).length,140);
  }
 });
+
+import {targetDevelopment,contextualDrillPreferences} from '../site/host-targets.mjs';
+function targets(){const h=quick();for(const g of h.games){g.name='Target Mastery';g.masteryMode='segment';g.thrown=15;g.hits=g.day<ago(27)?12:3;g.targetLog=Array.from({length:15},(_,i)=>({ring:'D',target:16,hit:i<g.hits}));}for(const s of h.sessions)s.quickGame='Target Mastery';return h;}
+test('DEV54 target recommendations cannot see a future reassessment',()=>{
+ const h=targets(),before=targetDevelopment(h,state(),day,now);assert.equal(before.focus?.target,'D16');
+ h.assessment={version:6,finished:true,completedAt:now+ms,offsetMinutes:0};
+ assert.deepEqual(targetDevelopment(h,state(),day,now+2*ms),before);
+});
+test('DEV54 Quick Start and carried-forward assessments preserve measured target adaptations',()=>{
+ for(const flag of ['quickStart','carriedForward']){const h=targets();h.assessment={...host().assessment,[flag]:true};assert.equal(contextualDrillPreferences(targetDevelopment(h,state(),day,now)).doubles,'Doubles Streak');}
+});
+test('DEV54 genuine current target reassessment still requests fresh comparable data',()=>{
+ const h=targets();h.assessment=host().assessment;assert.equal(targetDevelopment(h,state(),day,now).focus,null);
+});

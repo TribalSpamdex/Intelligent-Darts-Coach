@@ -40,7 +40,7 @@ test('SOL51 paired players receive different bounded next actions from actual sa
 test('SOL51 contextual review rejects hot-day volume, missing current evidence, mixed protocols and changes',()=>{
  const h=targetHistory();assert.equal(targetDevelopment({...h,games:h.games.filter(g=>g.at<now-8*ms)},state,day,now).focus,null);
  assert.equal(targetDevelopment(h,{...state,changes:[{day}]},day,now).focus,null);
- assert.equal(targetDevelopment({...h,assessment:{finished:true,completedAt:now-28*ms}},state,day,now).focus,null);
+ assert.equal(targetDevelopment({...h,assessment:{version:6,finished:true,completedAt:now-28*ms,offsetMinutes:0}},state,day,now).focus,null);
  const hot=targetHistory();for(const g of hot.games){g.day=day;g.at=now-1000}hot.sessions=hot.sessions.map(s=>({...s,date:day,start:now-2000}));assert.equal(targetDevelopment(hot,state,day,now).focus,null);
  const reversed=targetHistory(false);for(const g of reversed.games){g.masteryMode='straight';g.sessionId+='-reverse';if(g.at<now-28*ms){g.hits=3;g.targetLog=g.targetLog.map((x,i)=>({...x,hit:i<3}))}}reversed.sessions=reversed.sessions.map(s=>({...s,id:s.id+'-reverse'}));
  const mixed=targetDevelopment({...h,games:[...h.games,...reversed.games],sessions:[...h.sessions,...reversed.sessions]},state,day,now);assert.equal(mixed.focus,null);assert.ok(mixed.mixed.length);
