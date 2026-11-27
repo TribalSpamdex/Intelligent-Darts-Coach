@@ -92,13 +92,15 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
  export function quickSkillGames(host,day,now=Date.now()){
   const index=trainingParentIndex([...(host.sessions??[]),...(host.activeQuickSession?[host.activeQuickSession]:[])]),groups=new Map(),bad=new Set();
   for(const g of host.games??[]){
-   if(!g||g.quick!==true||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(g.day)||g.day>day||localDay(g.at,g.offsetMinutes)!==g.day)continue;
-   const k=String(g.sessionId),s=index.parents.get(k);
-   if(!s||index.duplicates.has(k)||s.quick!==true||s.quickGame!==g.name||!Number.isFinite(s.start)||s.start<=0||g.at<s.start)continue;
-   const id=JSON.stringify([k,g.name,g.at]),signature=JSON.stringify(g);
+   if(!g||typeof g.name!=='string'||!Number.isFinite(g.at)||g.at<=0||g.at>now)continue;
+   const k=String(g.sessionId),id=JSON.stringify([k,g.name,g.at]),signature=JSON.stringify(g);
    if(groups.has(id)&&groups.get(id).signature!==signature)bad.add(id);else groups.set(id,{g,signature});
   }
-  return [...groups].filter(([id])=>!bad.has(id)).map(([,x])=>x.g);
+  return [...groups].filter(([id])=>!bad.has(id)).map(([,x])=>x.g).filter(g=>{
+   if(g.quick!==true||g.completion!=='natural'||g.recovery||g.challengeTuning||!dayOK(g.day)||g.day>day||localDay(g.at,g.offsetMinutes)!==g.day)return false;
+   const k=String(g.sessionId),s=index.parents.get(k);
+   return s&&!index.duplicates.has(k)&&s.quick===true&&s.quickGame===g.name&&Number.isFinite(s.start)&&s.start>0&&g.at>=s.start;
+  });
  }
  export function masteryMeasurements(g){
   if(g.name!=='Target Mastery'||!count(g.hits,15))return [];
@@ -140,9 +142,12 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
   }
   return out;
  }
- export function quickSkillLines(host,day,now=Date.now()){
-  const rows=quickSkillMeasurements(host,day,now).filter(x=>(Date.parse(day)-Date.parse(x.day))/86400000<84),groups=new Map();
+ export function quickSkillProfiles(host,day,now=Date.now(),days=84){
+  const rows=quickSkillMeasurements(host,day,now).filter(x=>(Date.parse(day)-Date.parse(x.day))/86400000<days),groups=new Map();
   for(const r of rows){const k=JSON.stringify([r.protocol,r.target]),g=groups.get(k)??{...r,attempts:0,hits:0,days:new Set()};g.attempts+=r.attempts;g.hits+=r.hits;g.days.add(r.day);groups.set(k,g)}
-  const ranked=[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.protocol.localeCompare(b.protocol)||a.target.localeCompare(b.target));
+  return [...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.protocol.localeCompare(b.protocol)||a.target.localeCompare(b.target));
+ }
+ export function quickSkillLines(host,day,now=Date.now()){
+  const ranked=quickSkillProfiles(host,day,now);
   return [ranked.length?ranked.length+' measured Quick Play game/target profiles in the last 84 days.':'No eligible completed Quick Play skill measurements yet.',...ranked.slice(0,40).map(g=>g.protocol+' · '+g.target+': '+(g.kind==='scoring'?(g.hits/g.attempts).toFixed(1)+' average · '+g.attempts+' visits':g.hits+'/'+g.attempts+' ('+(100*g.hits/g.attempts).toFixed(1)+'%)')+' · '+g.days.size+' measured days.'),...(ranked.length>40?['Showing 40 of '+ranked.length+' profiles.']:[]),'Adaptive games are descriptive and target-specific, not fixed ability benchmarks. Quick Play does not complete a scheduled session or establish training dose.'];
  }

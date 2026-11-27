@@ -1,3 +1,4 @@
+import {quickSkillProfiles} from './v62-evidence.mjs';
 import {manualTargetRows} from './manual-target-samples.mjs';
 import {skillProfiles} from './skill-statistics.mjs';
 import {projectTargets} from './host-targets.mjs';
@@ -11,11 +12,13 @@ const fmt=(v,skill)=>['scoring','firstNine'].includes(skill)?num(v):pct(v);
 const window=(r,days)=>r.windows.find(w=>w.days===days);
 const card=(title,metrics,detail=[],bars=[])=>({title,metrics,detail,bars});
 const field=(label,value)=>({label,value:String(value)});
-export const PERIODS=Object.freeze({'Detailed skill statistics':[7,28,84,365],'Detailed target statistics':[7,28,84],'Detailed scoring statistics':[7,28,84],'Detailed checkout statistics':[7,28,84],'Practice volume':[7,28,84,365],'Actual match statistics':[7,28,84,365]});
+export const PERIODS=Object.freeze({'Detailed skill statistics':[7,28,84,365],'Quick Play statistics':[7,28,84],'Detailed target statistics':[7,28,84],'Detailed scoring statistics':[7,28,84],'Detailed checkout statistics':[7,28,84],'Practice volume':[7,28,84,365],'Actual match statistics':[7,28,84,365]});
 export function snapshotView(host,state,type,filter,days,day,now=Date.now(),checks=[]){
  if(!PERIODS[type]?.includes(days))throw Error('Choose an available statistics period');
  const f=String(filter??'').trim().toLowerCase(),cards=[];
- if(type==='Detailed skill statistics'){
+ if(type==='Quick Play statistics'){
+ for(const r of quickSkillProfiles(host,day,now,days))cards.push(card(r.protocol+' · '+r.target,[field(r.kind==='scoring'?'Three-dart average':'Hit rate',r.kind==='scoring'?num(r.hits/r.attempts):pct(r.hits/r.attempts)),field(r.kind==='scoring'?'Visits':'Hits / attempts',r.kind==='scoring'?r.attempts:r.hits+' / '+r.attempts),field('Recorded days',r.days.size)],['Separate recorded Quick Play skill results. Not scheduled-training dose. Adaptive games are not fixed benchmarks.'],r.kind==='scoring'?[]:[{label:'Hit rate',value:r.hits,total:r.attempts}]));
+ }else if(type==='Detailed skill statistics'){
  const skill=f==='first nine'?'firstNine':f;
  for(const r of skillProfiles([...state.observations,...actualLegObservations(state.legs??[],day)],day).filter(r=>!f||r.skill===skill)){
  const w=window(r,days),d=w.distribution;
