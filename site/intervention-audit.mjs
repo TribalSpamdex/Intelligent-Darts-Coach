@@ -1,6 +1,7 @@
 // Audit completed-session evidence separately from the player's reported adherence.
-import {dayValid,dayGap} from './engine/context.mjs';
-import {validObservation,summarise} from './engine/engine.mjs';
+import {dayValid,dayGap,asOfState} from './engine/context.mjs';
+import {validObservation,summarise,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine/engine.mjs';
+import {attributableAllocation} from './coaching-accountability.mjs';
 import {evaluation} from './engine/reasoning.mjs';
 import {retentionReview} from './engine/learning.mjs';
 import {canonicalRows} from './longitudinal.mjs';
@@ -9,7 +10,7 @@ export function interventionDelivery(host,item,day){
  const until=dayValid(item.reviewDay)&&item.reviewDay<day?item.reviewDay:day;
  const seen=new Map(),conflicts=new Set();
  for(const s of host.sessions){
-  if(!s||s.quick!==false||!['number','string'].includes(typeof s.id)||!dayValid(s.date)||s.date<item.responseDay||s.date>until)continue;
+  if(!s||s.quick!==false||s.completed!==true||!['number','string'].includes(typeof s.id)||!dayValid(s.date)||s.date<item.responseDay||s.date>until)continue;
   const k=String(s.id);if(seen.has(k))conflicts.add(k);else seen.set(k,s);
  }
  let sessions=0,planned=0;const days=new Set(),exclusions=[];
@@ -58,13 +59,14 @@ export function verifiedRetention(state,item,baseline,day){
  }
  return {valid,invalid:invalid.length};
 }
-export function outcomeAudit(host,state,baselines,day){
+export function outcomeAudit(host,state,baselines,day,now=Date.now()){
+ state=asOfState(state,day);
  return state.interventions.filter(i=>i.responseDay&&i.responseDay<=day&&i.status!=='declined').map(item=>{
   const integrity=baselineIntegrity(item,baselines[item.id]??[],state.observations,day),delivery=interventionDelivery(host,item,day);
   const reproduction=reviewReproduction(item,baselines[item.id]??[],state.observations,day);
   const retention=verifiedRetention(state,item,baselines[item.id]??[],day);
   const status=integrity.status==='baseline-edited'?'baseline-edited':['outcome-changed','unverifiable'].includes(reproduction.status)?'review-needs-verification':item.reviewDay&&item.reviewDay>day?'accepted':item.outcome?.status??item.status;
-  return {id:item.id,skill:item.skill,protocol:item.protocol,status,integrity,delivery,reproduction,retention:{verified:retention.valid.length,invalid:retention.invalid},limitation:'An observed outcome is not proof that the intervention caused it. Historical outcome labels can become stale if source records change.'};
+  return {id:item.id,skill:item.skill,protocol:item.protocol,status,integrity,delivery,reproduction,retention:{verified:retention.valid.length>0&&attributableAllocation(host,item,day,now)?retention.valid.length:0,invalid:retention.invalid},limitation:'An observed outcome is not proof that the intervention caused it. Historical outcome labels can become stale if source records change.'};
  });
 }
 export function outcomeLines(rows){
@@ -74,9 +76,10 @@ export function outcomeLines(rows){
 // A transient learning view: preserve the stored history, but block automatic repetition
 // when a previous outcome is no longer reproducible. Never turn an invalid negative
 // outcome into a positive recommendation.
-export function verifiedLearningState(state,baselines,day){
+export function verifiedLearningState(state,baselines,day,host=null,now=Date.now()){
  const questionable=[];
  const interventions=state.interventions.map(item=>{
+  item={...item};delete item[ALLOCATION_PROOF];delete item[REVIEW_UNVERIFIED];
   if(!['completed','unsuccessful'].includes(item.status)||!item.reviewDay||item.reviewDay>day)return item;
   const b=Object.hasOwn(baselines,item.id)?baselines[item.id]:[];
   const check=reviewReproduction(item,b,state.observations,day);
@@ -85,12 +88,12 @@ export function verifiedLearningState(state,baselines,day){
    if(retention.invalid){
     questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:'retention-changed'});
     // Invalidate the historical benefit as a reason to repeat the adjustment.
-    return {...item,outcome:{status:'unclear'},retentionHistory:retention.valid};
+    return {...item,[REVIEW_UNVERIFIED]:true,retentionHistory:retention.valid};
    }
-   return {...item,retentionHistory:retention.valid};
+   return {...item,[ALLOCATION_PROOF]:host!==null&&attributableAllocation(host,item,day,now),retentionHistory:retention.valid};
   }
   questionable.push({id:item.id,skill:item.skill,protocol:item.protocol,context:item.context,reason:check.status});
-  return {...item,outcome:{status:'unclear'},retentionHistory:[]};
+  return {...item,[REVIEW_UNVERIFIED]:true,retentionHistory:[]};
  });
  return {state:{...state,interventions},questionable};
 }

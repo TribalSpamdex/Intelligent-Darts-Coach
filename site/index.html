@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#020605"><title>Intelligent Darts Coach V1.9.0-dev</title>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#020605"><title>Intelligent Darts Coach V2.0.0-dev</title>
 <style>
 :root{--bg:var(--dc-t0,#020605);--panel:var(--dc-t1,#0d1814);--panel2:var(--dc-t2,#14231d);--line:var(--dc-t3,#29463b);--green:var(--dc-t4,#7fffb8);--text:#f3fbf7;--muted:var(--dc-t5,#9fb7af);--red:#db7777}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:15px Arial,sans-serif}button,input,textarea{font:inherit}button{border:0;border-radius:10px;background:var(--green);color:var(--dc-t6,#102019);padding:13px;font-weight:700;cursor:pointer}button.secondary{background:#3b4e60;color:#fff}button.danger{background:var(--red);color:white}button:disabled{opacity:.4}header{padding:19px 12px;text-align:center;background:#192633}header h1{margin:0;font-size:26px;color:var(--green)}header small{display:block;margin-top:6px;color:var(--muted)}nav{display:flex;position:sticky;top:0;z-index:10;background:#192633;border-top:1px solid #344656}nav button{flex:1;border-radius:0;background:transparent;color:#bbcbd7;padding:13px 3px;font-size:13px}nav button.selected{color:var(--green);border-bottom:2px solid var(--green)}section{padding-bottom:25px}.card{background:var(--panel);margin:12px;border-radius:16px;padding:16px}h2{margin:0 0 14px;font-size:20px}h3{color:var(--green);font-size:16px}p{line-height:1.5}.muted{color:var(--muted)}.hidden{display:none!important}.primary{width:100%;padding:18px;font-size:17px}.row{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0}.row button{flex:1;min-width:75px}.big{font-size:43px;color:var(--green);font-weight:800;text-align:center;margin:12px 0}.hero{text-align:center;padding:25px 12px}.heroIcon{font-size:43px;margin-bottom:10px}.hero h2{font-size:27px;margin-bottom:9px}.hero p{color:var(--muted)}.info{background:var(--panel2);padding:12px;border-radius:9px;margin:10px 0;line-height:1.5}.progress{height:7px;background:#35495a;border-radius:20px;overflow:hidden}.progress div{height:100%;background:var(--green);width:0}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.metric{padding:12px 5px;text-align:center;background:var(--panel2);border-radius:9px}.metric strong{display:block;font-size:24px;color:var(--green)}.metric small{display:block;font-size:11px;color:var(--muted);margin-top:6px}.dayRow{display:flex;gap:5px;flex-wrap:wrap}.dayRow label{flex:1;min-width:70px;background:var(--panel2);border-radius:8px;padding:12px 4px;text-align:center}input[type=checkbox]{accent-color:var(--green)}input[type=number]{padding:13px;border:0;border-radius:9px;max-width:100%;background:white;color:#111;font-size:18px}.entry{padding:13px 0;border-bottom:1px solid var(--line)}.tag{display:inline-block;padding:6px 9px;background:#364a5b;border-radius:8px;font-size:12px;color:#d9e7ee}.rule{line-height:1.4;color:#d8e7ed;white-space:pre-line}.targetGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:7px 0}.targetGrid div{text-align:center;background:var(--panel2);border-radius:8px;padding:7px 2px;font-size:11px}.targetGrid div.active{outline:2px solid var(--green)}.targetGrid strong{display:block;font-size:16px;color:var(--green);margin-top:3px}.rulePanel{background:var(--panel2);padding:11px;border-radius:10px;margin:10px 0}.center{text-align:center}.statLine{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #3d5060;padding:10px 0}.statLine span:last-child{text-align:right}button.linklike{background:transparent;color:var(--muted);padding:10px}.resultCard{padding:17px;background:var(--dc-t7,#294639);border-radius:13px;text-align:center}.resultCard strong{color:var(--green);font-size:20px}input[type=file]{max-width:100%;margin:12px 0}.backupText{display:block;width:100%;min-height:160px;max-height:380px;resize:vertical;overflow:auto;margin:12px 0;padding:12px;background:#0e1822;color:#e9f5f8;border:1px solid var(--line);border-radius:10px;font-size:12px;font-family:monospace;line-height:1.45}.backupStatus{padding:11px;border-radius:9px;background:var(--panel2);color:var(--muted);margin:10px 0;line-height:1.5;font-size:13px}.backupStatus.ok{color:var(--green)}.backupStatus.error{color:#ffabab}.backupActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.backupHelp{color:var(--muted);font-size:12px;line-height:1.6}.backupDivider{border:0;border-top:1px solid var(--line);margin:22px 0}
@@ -928,7 +928,7 @@ html[data-appearance=light] body nav[aria-label="Main navigation"]:not(#dc590a):
 </section>
 <section id="records" class="hidden"><div class="card"><h2>🏆 Personal Bests</h2><p class="muted">Records from completed games, scheduled sessions and Quick Play. Results are kept at their original difficulty.</p><div id="recordOverview"></div></div><div class="card"><h2>Records by game</h2><div id="recordGames"></div></div></section>
 <section id="technique" class="hidden">
-<div class="card" id="idcCoach"><h2>Your Coach</h2><p class="muted">Your coach learns from eligible saved benchmarks. Existing training remains balanced unless you accept a supported adjustment.</p><p id="idcSync" aria-live="polite">Loading local coaching evidence…</p><div class="idc-actions"><button id="idcReview" type="button">Review my performance</button><button id="idcExample" type="button">Run isolated comparison</button></div><div id="idcReport" aria-live="polite"></div><label for="idcQuestion">Ask Coach</label><input id="idcQuestion" maxlength="300" placeholder="Checkout 81 with 2 darts" style="width:100%;margin:8px 0"><button id="idcAsk" type="button">Ask</button><div id="idcAnswer" aria-live="polite"></div><details><summary>Questions you can ask</summary><div id="idcExamples"></div></details><details id="idcDeepPanel"><summary>Deep player intelligence</summary><p class="muted">Optional local analyses based on recorded training, benchmarks and actual legs. These reviews do not start a trial or change your training plan.</p><div id="idcDeepQuestions"></div></details><details><summary>Target and finishing intelligence</summary><p class="muted">Read-only results from the last 84 days. Fixed and adaptive measurements remain separate.</p><button id="idcTargetReview" type="button">Review target accuracy</button><details><summary>Optional two-double check</summary><p>Throw 10 darts at each of two doubles, alternating blocks of five in the same conditions. Record hits only. Repeat on other days if you want to compare them. This does not change your scheduled training or original assessment statistics.</p><form id="idcPair"><label>First double <select name="first" id="idcPairA"></select></label><label>Hits from 10 attempts <input name="firstHits" type="number" min="0" max="10" step="1" required></label><label>Second double <select name="second" id="idcPairB"></select></label><label>Hits from 10 attempts <input name="secondHits" type="number" min="0" max="10" step="1" required></label><label><input name="comparable" type="checkbox"> Same conditions and normal equipment for both targets</label><button type="submit">Save two-double check</button></form><div id="idcPairHistory"></div><div id="idcPairStatus" aria-live="polite"></div></details><button id="idcGameReview" type="button">Review scoring and finishing</button><div id="idcTargetsResult" aria-live="polite"></div></details><details id="idcProgressionPanel"><summary>Personal improvement milestones</summary><p class="muted">2.5-point scoring milestones and 2.5 percentage-point accuracy milestones, based on comparable recorded measurements. These are not hidden gameplay tiers.</p><button id="idcMilestoneReview" type="button">Review my progress milestones</button><div id="idcMilestoneResult" aria-live="polite"></div><button id="idcChallengeReview" type="button">Review challenge results</button><div id="idcChallengeResult" aria-live="polite"></div><button id="idcLearningReview" type="button">Which difficulty helps me improve?</button><div id="idcLearningResult" aria-live="polite"></div></details><details id="idcPrecisionCheckPanel"><summary>Optional repeatable skill checks</summary><p class="muted">One complete check per skill per day. Use normal equipment and conditions. These are separate measured protocols, not extra scheduled training or assessment results.</p><form id="idcPrecisionCheckForm"><label>Skill <select name="skill" id="idcPrecisionCheckSkill"></select></label><p id="idcPrecisionCheckRules"></p><label>Measured total <input name="hits" type="number" min="0" step="1" required></label><label><input name="complete" type="checkbox" required> I completed the entire stated check</label><button type="submit">Save measured result</button></form><div id="idcPrecisionCheckStatus" aria-live="polite"></div><div id="idcPrecisionCheckHistory"></div></details><details id="idcStatsPanel"><summary>Detailed performance statistics</summary><p class="muted">Read-only analysis of comparable recorded results. Missing measurements are unknown, not zero.</p><label for="idcStatsType">Statistics</label><select id="idcStatsType"><option value="Detailed skill statistics">Skill profiles</option><option value="Detailed target statistics">Target accuracy</option><option value="Detailed scoring statistics">Scoring distribution</option><option value="Detailed checkout statistics">Checkout distribution</option><option value="Practice volume">Practice volume</option><option value="Evidence coverage">Evidence coverage</option><option value="Actual match statistics">Actual match legs</option><option value="Practice versus competition">Practice vs competition</option><option value="Actual miss patterns">Actual match miss patterns</option><option value="Manual practice miss patterns">Manual practice miss patterns</option><option value="Weekly statistics">Weekly history</option></select><label for="idcStatsPeriod">Period</label><select id="idcStatsPeriod"><option value="7">7 days</option><option value="28" selected>28 days</option><option value="84">84 days</option><option value="365">365 days</option></select><label for="idcStatsFilter">Optional skill, target or checkout score</label><input id="idcStatsFilter" maxlength="30" placeholder="D16, doubles or 81" autocomplete="off"><button id="idcStatsReview" type="button">Show statistics</button><div id="idcStatsResult" aria-live="polite"></div></details><details id="idcSamplePanel"><summary>Record a fixed 20-dart target sample</summary><p class="muted">Optional practice benchmark. Throw 20 darts at the same target and record each actual segment, including MISS. One sample per target per day. This is separate from scheduled training.</p><form id="idcSampleForm"><label>Intended target <select name="aim" id="idcSampleAim"></select></label><label>20 actual segments <textarea name="actual" maxlength="160" required rows="4" autocapitalize="characters" spellcheck="false" placeholder="D16 S16 D16 MISS ..."></textarea></label><button type="submit">Validate and preview sample</button></form><div id="idcSamplePreview" aria-live="polite"></div><div id="idcSampleHistory"></div></details><details id="idcLegPanel"><summary>Log actual match or practice legs</summary><p class="muted">Optional manual entry. Use actual board segments, one visit per line. Example: T20 S20 S5. If you know the intended target, enter T20&gt;S20. Unknown aim is not counted as a missed double. Do not enter bot results as real competition.</p><form id="idcLegForm"><label>Date <input name="day" type="date" required></label><label>Starting score <select name="start"><option>501</option><option>301</option><option>201</option><option>101</option><option>701</option></select></label><label>Context <select name="context"><option value="practice">Practice</option><option value="competition">Actual competition</option></select></label><label><input type="checkbox" name="doubleIn"> Double-in</label><label>Outcome <select name="result"><option value="won">Won / finished</option><option value="lost">Lost / opponent finished</option><option value="abandoned">Abandoned</option></select></label><label>Actual visits <textarea name="visits" maxlength="5000" rows="5" required autocapitalize="characters" spellcheck="false" placeholder="T20 S20 S5"></textarea></label><button type="submit">Validate and preview leg</button></form><div id="idcLegPreview" aria-live="polite"></div><div id="idcLegHistory"></div></details><details id="idcMemoryPanel"><summary>Player memory and investigations</summary><p class="muted">Saved only in IDC training data and its backups. Facts and observations are player-reported, not inferred from scores.</p><form id="idcFact"><label>Fact <input name="key" required maxlength="80" placeholder="Preferred double"></label><label>Value <input name="value" required maxlength="2000" placeholder="D16"></label><button type="submit">Save / correct fact</button><p id="idcFactStatus" aria-live="polite"></p></form><form id="idcReady"><h3>Readiness today</h3><label>Fatigue <select name="fatigue"><option>unknown</option><option>low</option><option>normal</option><option>high</option></select></label><label>Pressure <select name="pressure"><option>unknown</option><option>low</option><option>normal</option><option>high</option></select></label><label>Confidence <select name="confidence"><option>unknown</option><option>low</option><option>normal</option><option>high</option></select></label><label><input type="checkbox" name="pain"> Throwing is uncomfortable or painful</label><button type="submit">Save readiness</button></form><form id="idcClinic"><h3>Technical observation</h3><label>Comparable benchmark <select name="scope" id="idcScopes" required></select></label><label>Domain <select name="domain" id="idcDomains"></select></label><label>Observation <select name="observation" id="idcObservations"></select></label><label>Condition <select name="condition" id="idcConditions"></select></label><label>Method <select name="method" id="idcMethods"></select></label><label>Notes <textarea name="note" maxlength="500"></textarea></label><label><input type="checkbox" name="pain"> Pain or discomfort</label><button type="submit">Save observation</button></form><form id="idcSetup"><h3>Equipment snapshot</h3><label>Setup name <input name="name" required maxlength="100"></label><div id="idcSetupFields"></div><label>Comfort <select name="comfort"><option>unknown</option><option>comfortable</option><option>uncomfortable</option></select></label><button type="submit">Save setup</button></form><form id="idcGoal"><h3>Development goal</h3><label>Benchmark <select name="scope" id="idcGoalScopes" required></select></label><label>Target (three-dart average or accuracy %) <input name="target" type="number" min="0.1" max="180" step="0.1" required></label><label>Review date <input name="review" type="date" required></label><button type="submit">Save goal</button></form><details><summary>Practice reflections</summary><div id="idcReflectionHistory"></div></details><div id="idcMemoryHistory"></div><div id="idcMemoryStatus" aria-live="polite"></div></details></div>
+<div class="card" id="idcCoach"><h2>Your Coach</h2><p class="muted">Your coach learns from eligible saved benchmarks. Existing training remains balanced unless you accept a supported adjustment.</p><p id="idcSync" aria-live="polite">Loading local coaching evidence…</p><div class="idc-actions"><button id="idcReview" type="button">Review my performance</button><button id="idcExample" type="button">Run isolated comparison</button></div><section id="idcBrief" aria-live="polite" class="card"></section><div id="idcReport" aria-live="polite"></div><label for="idcQuestion">Ask Coach</label><input id="idcQuestion" maxlength="300" placeholder="Checkout 81 with 2 darts" style="width:100%;margin:8px 0"><button id="idcAsk" type="button">Ask</button><div id="idcAnswer" aria-live="polite"></div><details><summary>Questions you can ask</summary><div id="idcExamples"></div></details><details id="idcAutonomyPanel"><summary>Personal coaching and planning</summary><p class="muted">Local evidence-led reviews. Session previews do not replace your scheduled training.</p><div id="idcAutonomyQuestions"></div><h3>Upcoming competitions</h3><form id="idcEventForm"><label>Competition name <input name="name" maxlength="100" required placeholder="League match"></label><label>Date <input name="day" type="date" required></label><label>Type <select name="kind"><option value="league">League</option><option value="tournament">Tournament</option><option value="friendly">Friendly</option><option value="other">Other</option></select></label><button type="submit">Save competition locally</button></form><div id="idcEventStatus" aria-live="polite"></div><div id="idcEvents"></div></details><details id="idcDeepPanel"><summary>Deep player intelligence</summary><p class="muted">Optional local analyses based on recorded training, benchmarks and actual legs. These reviews do not start a trial or change your training plan.</p><div id="idcDeepQuestions"></div></details><details><summary>Target and finishing intelligence</summary><p class="muted">Read-only results from the last 84 days. Fixed and adaptive measurements remain separate.</p><button id="idcTargetReview" type="button">Review target accuracy</button><details><summary>Optional two-double check</summary><p>Throw 10 darts at each of two doubles, alternating blocks of five in the same conditions. Record hits only. Repeat on other days if you want to compare them. This does not change your scheduled training or original assessment statistics.</p><form id="idcPair"><label>First double <select name="first" id="idcPairA"></select></label><label>Hits from 10 attempts <input name="firstHits" type="number" min="0" max="10" step="1" required></label><label>Second double <select name="second" id="idcPairB"></select></label><label>Hits from 10 attempts <input name="secondHits" type="number" min="0" max="10" step="1" required></label><label><input name="comparable" type="checkbox"> Same conditions and normal equipment for both targets</label><button type="submit">Save two-double check</button></form><div id="idcPairHistory"></div><div id="idcPairStatus" aria-live="polite"></div></details><button id="idcGameReview" type="button">Review scoring and finishing</button><div id="idcTargetsResult" aria-live="polite"></div></details><details id="idcProgressionPanel"><summary>Personal improvement milestones</summary><p class="muted">2.5-point scoring milestones and 2.5 percentage-point accuracy milestones, based on comparable recorded measurements. These are not hidden gameplay tiers.</p><button id="idcMilestoneReview" type="button">Review my progress milestones</button><div id="idcMilestoneResult" aria-live="polite"></div><button id="idcChallengeReview" type="button">Review challenge results</button><div id="idcChallengeResult" aria-live="polite"></div><button id="idcLearningReview" type="button">Which difficulty helps me improve?</button><div id="idcLearningResult" aria-live="polite"></div></details><details id="idcPrecisionCheckPanel"><summary>Optional repeatable skill checks</summary><p class="muted">One complete check per skill per day. Use normal equipment and conditions. These are separate measured protocols, not extra scheduled training or assessment results.</p><form id="idcPrecisionCheckForm"><label>Skill <select name="skill" id="idcPrecisionCheckSkill"></select></label><p id="idcPrecisionCheckRules"></p><label>Measured total <input name="hits" type="number" min="0" step="1" required></label><label><input name="complete" type="checkbox" required> I completed the entire stated check</label><button type="submit">Save measured result</button></form><div id="idcPrecisionCheckStatus" aria-live="polite"></div><div id="idcPrecisionCheckHistory"></div></details><details id="idcStatsPanel"><summary>Detailed performance statistics</summary><p class="muted">Read-only analysis of comparable recorded results. Missing measurements are unknown, not zero.</p><label for="idcStatsType">Statistics</label><select id="idcStatsType"><option value="Detailed skill statistics">Skill profiles</option><option value="Detailed target statistics">Target accuracy</option><option value="Detailed scoring statistics">Scoring distribution</option><option value="Detailed checkout statistics">Checkout distribution</option><option value="Practice volume">Practice volume</option><option value="Evidence coverage">Evidence coverage</option><option value="Actual match statistics">Actual match legs</option><option value="Practice versus competition">Practice vs competition</option><option value="Actual miss patterns">Actual match miss patterns</option><option value="Manual practice miss patterns">Manual practice miss patterns</option><option value="Weekly statistics">Weekly history</option></select><label for="idcStatsPeriod">Period</label><select id="idcStatsPeriod"><option value="7">7 days</option><option value="28" selected>28 days</option><option value="84">84 days</option><option value="365">365 days</option></select><label for="idcStatsFilter">Optional skill, target or checkout score</label><input id="idcStatsFilter" maxlength="30" placeholder="D16, doubles or 81" autocomplete="off"><button id="idcStatsReview" type="button">Show statistics</button><div id="idcStatsResult" aria-live="polite"></div></details><details id="idcSamplePanel"><summary>Record a fixed 20-dart target sample</summary><p class="muted">Optional practice benchmark. Throw 20 darts at the same target and record each actual segment, including MISS. One sample per target per day. This is separate from scheduled training.</p><form id="idcSampleForm"><label>Intended target <select name="aim" id="idcSampleAim"></select></label><label>20 actual segments <textarea name="actual" maxlength="160" required rows="4" autocapitalize="characters" spellcheck="false" placeholder="D16 S16 D16 MISS ..."></textarea></label><button type="submit">Validate and preview sample</button></form><div id="idcSamplePreview" aria-live="polite"></div><div id="idcSampleHistory"></div></details><details id="idcLegPanel"><summary>Log actual match or practice legs</summary><p class="muted">Optional manual entry. Use actual board segments, one visit per line. Example: T20 S20 S5. If you know the intended target, enter T20&gt;S20. Unknown aim is not counted as a missed double. Do not enter bot results as real competition.</p><form id="idcLegForm"><label>Date <input name="day" type="date" required></label><label>Starting score <select name="start"><option>501</option><option>301</option><option>201</option><option>101</option><option>701</option></select></label><label>Context <select name="context"><option value="practice">Practice</option><option value="competition">Actual competition</option></select></label><label><input type="checkbox" name="doubleIn"> Double-in</label><label>Outcome <select name="result"><option value="won">Won / finished</option><option value="lost">Lost / opponent finished</option><option value="abandoned">Abandoned</option></select></label><label>Actual visits <textarea name="visits" maxlength="5000" rows="5" required autocapitalize="characters" spellcheck="false" placeholder="T20 S20 S5"></textarea></label><button type="submit">Validate and preview leg</button></form><div id="idcLegPreview" aria-live="polite"></div><div id="idcLegHistory"></div></details><details id="idcMemoryPanel"><summary>Player memory and investigations</summary><p class="muted">Saved only in IDC training data and its backups. Facts and observations are player-reported, not inferred from scores.</p><form id="idcFact"><label>Fact <input name="key" required maxlength="80" placeholder="Preferred double"></label><label>Value <input name="value" required maxlength="2000" placeholder="D16"></label><button type="submit">Save / correct fact</button><p id="idcFactStatus" aria-live="polite"></p></form><form id="idcReady"><h3>Readiness today</h3><label>Fatigue <select name="fatigue"><option>unknown</option><option>low</option><option>normal</option><option>high</option></select></label><label>Pressure <select name="pressure"><option>unknown</option><option>low</option><option>normal</option><option>high</option></select></label><label>Confidence <select name="confidence"><option>unknown</option><option>low</option><option>normal</option><option>high</option></select></label><label><input type="checkbox" name="pain"> Throwing is uncomfortable or painful</label><button type="submit">Save readiness</button></form><form id="idcClinic"><h3>Technical observation</h3><label>Comparable benchmark <select name="scope" id="idcScopes" required></select></label><label>Domain <select name="domain" id="idcDomains"></select></label><label>Observation <select name="observation" id="idcObservations"></select></label><label>Condition <select name="condition" id="idcConditions"></select></label><label>Method <select name="method" id="idcMethods"></select></label><label>Notes <textarea name="note" maxlength="500"></textarea></label><label><input type="checkbox" name="pain"> Pain or discomfort</label><button type="submit">Save observation</button></form><form id="idcSetup"><h3>Equipment snapshot</h3><label>Setup name <input name="name" required maxlength="100"></label><div id="idcSetupFields"></div><label>Comfort <select name="comfort"><option>unknown</option><option>comfortable</option><option>uncomfortable</option></select></label><button type="submit">Save setup</button></form><form id="idcGoal"><h3>Development goal</h3><label>Benchmark <select name="scope" id="idcGoalScopes" required></select></label><label>Target (three-dart average or accuracy %) <input name="target" type="number" min="0.1" max="180" step="0.1" required></label><label>Review date <input name="review" type="date" required></label><button type="submit">Save goal</button></form><details><summary>Practice reflections</summary><div id="idcReflectionHistory"></div></details><div id="idcMemoryHistory"></div><div id="idcMemoryStatus" aria-live="polite"></div></details></div>
 
 <div class="card techniqueHero"><span class="techEyebrow">THE PLAYERS' GUIDE</span><h2>Build a throw you can repeat.</h2><p>A practical library for stance, grip, release, flight and finishing. Explore one topic at a time, then test it on the board.</p><div class="techNotice">There is no single perfect throwing style. Use these as experiments, not compulsory positions. The coach cannot see your mechanics.</div></div>
 <div class="card"><h2>Technique library</h2><p class="muted">Tap a topic to see the diagram, details and a simple practice test.</p>
@@ -993,7 +993,7 @@ html[data-appearance=light] body nav[aria-label="Main navigation"]:not(#dc590a):
 <p>Clear all test sessions, games, statistics, assessments, assessment history and coaching progress. Your training days and throwing hand stay saved. After resetting, choose the full assessment or Quick Start to begin training.</p>
 <p><strong>Permanent action.</strong> Make a JSON backup first. Reset asks for one confirmation.</p>
 <button class="danger" onclick="resetTrainingStatistics()">Reset Everything</button><div id="resetMessage" aria-live="polite">No statistics have been reset.</div>
-</div><p class="appVersionInfo" style="text-align:center;margin:20px 14px">Intelligent Darts Coach · V1.9.0-dev</p></section>
+</div><p class="appVersionInfo" style="text-align:center;margin:20px 14px">Intelligent Darts Coach · V2.0.0-dev</p></section>
 <div id="checkoutDartPicker" class="hidden" role="dialog" aria-modal="true" aria-labelledby="checkoutPickerTitle"><div class="checkoutPickerCard"><h2 id="checkoutPickerTitle">How many darts to check out?</h2><p id="checkoutPickerSubtitle">Choose the number of darts you actually threw. Your final dart must have hit a double or bullseye.</p><div id="checkoutChoices" class="checkoutChoices"><button type="button" onclick="chooseCheckoutDarts(1)">1</button><button type="button" onclick="chooseCheckoutDarts(2)">2</button><button type="button" onclick="chooseCheckoutDarts(3)">3</button></div><button type="button" class="checkoutConfirm primary" id="checkoutConfirmBtn" onclick="confirmCheckoutDarts()" disabled>Confirm Checkout</button><button type="button" class="checkoutSecondary" id="checkoutBustBtn" onclick="checkoutDidNotFinish()">Bust / Didn't finish on a double</button><button type="button" class="checkoutSecondary" onclick="closeCheckoutDartPicker()">Cancel · Go back</button><p class="checkoutNote" id="checkoutPickerNote">Select 1, 2 or 3 darts to confirm the finish.</p></div></div><dialog id="dcRC2Reset" aria-labelledby="dcRC2ResetTitle" style="color:var(--text);background:#080c0a;border:1px solid #29463b;border-radius:18px;padding:24px;max-width:calc(100% - 32px);width:400px">
 <h2 id="dcRC2ResetTitle">Reset all data?</h2><p>Are you sure you want to delete all your training data, statistics and progress?</p><p>This also removes IDC coaching memory. This action cannot be undone.</p><div class="row"><button id="dcRC2ResetNo" type="button" onclick="document.getElementById('dcRC2Reset').close()">No</button><button class="danger" type="button" onclick="dcRC2ConfirmReset()">Yes, delete</button></div></dialog>
 <script>
@@ -1017,7 +1017,7 @@ function setAccentTheme(name){
 }
 setAccentTheme("green");
 
-const KEY="IDC:training:v1",CHECKPOINT_KEY="IDC:training:checkpoint:v1",OLD_KEYS=["IDC:legacy:v3","IDC:legacy:v2"],$=id=>document.getElementById(id);
+const KEY="IDC:training:v1",CHECKPOINT_KEY="IDC:training:checkpoint:v1",RECOVERY_FENCE="IDC:training:recovery-fence:v1",OLD_KEYS=["IDC:legacy:v3","IDC:legacy:v2"],$=id=>document.getElementById(id);
 const STAGES=["scoring","doubles","bull","checkout","legs","singles"],STAGE_NAMES={scoring:"60-Dart Match Scoring",doubles:"Doubles Assessment",bull:"Bull Accuracy",checkout:"Guided Checkout Assessment",legs:"301 Match Calibration",singles:"Big Singles Accuracy"};
 const CHECKOUT_TARGETS=[41,42,43,44,45,46,47,48,49,50],STRAIGHT_TARGETS=[20,19,18,17,16];
 const ORDER=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5],DAY_NAMES=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -1034,7 +1034,7 @@ function newAssessment(){return{version:6,scoring:[],doubles:[],bull:[],singles:
 function assessmentWarmup(){const a=data.assessment;return a.warmup||(a.warmup={elapsedMs:0,startedAt:null,complete:false})}
 function warmupMs(){const w=assessmentWarmup();return Math.min(600000,num(w.elapsedMs)+(w.startedAt?Math.max(0,Date.now()-w.startedAt):0))}
 function pauseAssessmentWarmup(){const w=assessmentWarmup();if(w.startedAt){w.elapsedMs=warmupMs();w.startedAt=null;save(false)}}
-function resumeAssessmentWarmup(){const w=assessmentWarmup();if(!w.complete&&!w.startedAt){w.startedAt=Date.now();save(false)}}
+function resumeAssessmentWarmup(){if(!idcPhysicalAllowed())return;const w=assessmentWarmup();if(!w.complete&&!w.startedAt){w.startedAt=Date.now();save(false)}}
 function checkAssessmentWarmup(){const w=assessmentWarmup();if(w.complete)return true;if(warmupMs()>=600000){w.complete=true;w.elapsedMs=600000;w.startedAt=null;save(false);if(activeStage==="warmup"){activeStage="scoring";renderAssessment()}return true}return false}
 function blank(){return{sessions:[],games:[],days:[1,2,3,4,5],bestDouble:0,bestCheckout:0,doublesHit:0,doublesThrown:0,baseline:null,skills:{scoring:{level:7,results:[]},doubles:{level:7,results:[]},checkout:{level:7,results:[]},bull:{level:7,results:[]}},activeSession:null,game:null,assessment:newAssessment(),assessmentHistory:[],legacyCheckoutAttempts:[],bigSingles:[],coach:{version:4,firstStarted:null,reviews:[],lastTierChanges:{},completedBlocks:[],lastReviewedWeek:null,lastUsedEvidence:{},lastEvidenceCount:{},lastChangeEvidence:{},estimates:{}}}}
 /* Backward-compatible assessment migration. Existing completed tests are NEVER
@@ -1172,7 +1172,17 @@ function sessionBudget(){
 function sessionRemaining(){return Math.max(0,sessionBudget()-sessionElapsed())}
 /* The canonical record remains IDC:training:v1 across every release.
    A milestone checkpoint is a secondary same-origin safety copy, NOT a file or cloud sync. */
-function isValidPlayerData(d){return !!d&&typeof d==="object"&&!Array.isArray(d)&&Array.isArray(d.sessions)&&Array.isArray(d.games)&&d.assessment&&typeof d.assessment==="object"&&d.skills&&typeof d.skills==="object"}
+function isValidPlayerData(d){
+ const record=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+ if(!record(d)||!Array.isArray(d.sessions)||!Array.isArray(d.games)||!record(d.assessment)||!record(d.skills))return false;
+ // A structurally damaged primary must not win over a valid recovery copy.
+ const s=d.activeSession;
+ if(s!=null){
+  if(!record(s)||!Array.isArray(s.plan)||!s.plan.length||!Number.isInteger(s.index)||s.index<0||s.index>=s.plan.length||s.plan.some(x=>!record(x)||typeof x.name!=='string'||!x.name))return false;
+  if(d.game!=null&&(!record(d.game)||d.game.name!==s.plan[s.index].name))return false;
+ }
+ return true;
+}
 let recoveryNotice="",storageSaveError="";
 /* Lossless compact recovery only; canonical data and exported JSON remain unchanged. */
 /* A single in-memory LZW prefix. Saved bytes retain the original dc-lzw1 formats. */
@@ -1232,27 +1242,77 @@ function dc998Pack(text){
 }
 function dc998Unpack(packed,length){
  if(!Number.isSafeInteger(length)||length<0||length>50000000)throw Error('Invalid recovery length');
+ if(typeof packed!=='string'||packed.length>length||(!packed.length&&length!==0))throw Error('Invalid recovery data');
  const dict=[],bytes=new Uint8Array(length);let pos=0,next=256,prev=null;
  for(let i=0;i<256;i++)dict[i]=[i];
  for(let i=0;i<packed.length;i++){const code=packed.charCodeAt(i)-32;let entry=dict[code];if(!entry&&code===next&&prev&&next<32700)entry=prev.concat(prev[0]);if(!entry||pos+entry.length>length)throw Error('Invalid recovery code');bytes.set(entry,pos);pos+=entry.length;if(prev&&next<32700)dict[next++]=prev.concat(entry[0]);prev=entry}
  if(pos!==length)throw Error('Truncated recovery');return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
 }
 function dc998CheckpointPayload(value){
- const savedAt=Date.now(),raw=JSON.stringify(value),plain='{"savedAt":'+savedAt+',"data":'+raw+'}';
- if(raw.length<100000)return plain;
- try{const encoded=dc63PackSnapshot(raw),compact=JSON.stringify({savedAt,format:'dc-lzw1',length:encoded.length,packed:encoded.packed});return compact.length<plain.length?compact:plain}catch(e){return plain}
+ const fence=localStorage.getItem(RECOVERY_FENCE),savedAt=Date.now(),raw=JSON.stringify(value),plain='{"savedAt":'+savedAt+',"fence":'+JSON.stringify(fence)+',"data":'+raw+'}';
+ if(raw.length<100000||raw.length>50000000)return plain;
+ try{const encoded=dc63PackSnapshot(raw);if(encoded.length>50000000)return plain;const compact=JSON.stringify({savedAt,fence,format:'dc-lzw1',length:encoded.length,packed:encoded.packed});return compact.length<plain.length?compact:plain}catch(e){return plain}
 }
 function dc999PrimaryPayload(value){
  const raw=JSON.stringify(value);
- if(raw.length<100000)return raw;
- try{const encoded=dc63PackSnapshot(raw),compact=JSON.stringify({format:'dc-lzw1-primary',length:encoded.length,packed:encoded.packed});return compact.length<raw.length?compact:raw}catch(e){return raw}
+ if(raw.length<100000||raw.length>50000000)return raw;
+ try{const encoded=dc63PackSnapshot(raw);if(encoded.length>50000000)return raw;const compact=JSON.stringify({format:'dc-lzw1-primary',length:encoded.length,packed:encoded.packed});return compact.length<raw.length?compact:raw}catch(e){return raw}
+}
+// One exclusive writer per origin. A read-only tab must never silently overwrite
+// another tab's successful save. Explicit reload is required to acquire a fresh view.
+let idcWriter='pending',idcLoadedPrimary=null,idcRecoveryBlocked=false;
+const idcConflictMessage='Another tab has this player profile open, or saved data changed. Close the other tab and reload. Unsaved results can be exported first.';
+function idcAssertWriter(allowRecovery=false){
+ if(idcWriter!=='held'||localStorage.getItem(KEY)!==idcLoadedPrimary)throw Error(idcConflictMessage);
+ if(idcRecoveryBlocked&&!allowRecovery)throw Error('Saved data needs recovery. Restore a JSON backup before recording more practice.');
+}
+function idcPrimaryWrite(payload,allowRecovery=false){
+ idcAssertWriter(allowRecovery);
+ // Unchanged writes cannot invalidate a still-current recovery snapshot.
+ if(payload===idcLoadedPrimary&&!idcRecoveryBlocked)return;
+ // Invalidate old checkpoints BEFORE replacing primary: a deleted fact must
+ // never return through an earlier automatic checkpoint after a crash.
+ const previousFence=localStorage.getItem(RECOVERY_FENCE),pendingFence=crypto.randomUUID();
+ localStorage.setItem(RECOVERY_FENCE,pendingFence);
+ try{localStorage.setItem(KEY,payload)}
+ catch(error){
+  // A failed atomic setItem leaves the prior primary intact. Its current
+  // checkpoint remains valid only while both the old primary and our fence match.
+  try{
+   if(localStorage.getItem(KEY)===idcLoadedPrimary&&localStorage.getItem(RECOVERY_FENCE)===pendingFence){
+    if(previousFence===null)localStorage.removeItem(RECOVERY_FENCE);
+    else localStorage.setItem(RECOVERY_FENCE,previousFence);
+   }
+  }catch(_){/* Storage may refuse rollback too. Keep recovery fenced. */}
+  throw error;
+ }
+ idcLoadedPrimary=payload;idcRecoveryBlocked=false;
+}
+function idcAcquireWriter(){
+ if(!navigator.locks||typeof crypto.randomUUID!=='function'){idcWriter='unavailable';storageSaveError='Exclusive storage protection unavailable. Use a supported browser and export a backup.';return}
+ navigator.locks.request(KEY,{mode:'exclusive',ifAvailable:true},lock=>{
+  if(!lock){idcWriter='readonly';storageSaveError=idcConflictMessage;return}
+  idcWriter='held';
+  if(localStorage.getItem(KEY)!==idcLoadedPrimary){idcWriter='readonly';storageSaveError=idcConflictMessage;return}
+  if(!idcRecoveryBlocked){
+   const recovered=recoveryNotice.startsWith('A local recovery copy was loaded');
+   if(save(false)&&recovered)checkpointData();
+  }
+  // Keep the exclusive lock for the document lifetime. The browser releases
+  // it when the owning document is closed; a second tab is deliberately read-only.
+  return new Promise(()=>{});
+ }).catch(()=>{idcWriter='unavailable';storageSaveError='Exclusive storage protection failed. Reload before editing.'});
 }
 function load(){
+ let fence=null,found=false;
+ try{idcLoadedPrimary=localStorage.getItem(KEY);fence=localStorage.getItem(RECOVERY_FENCE)}catch(e){idcRecoveryBlocked=true}
  for(const key of [KEY,CHECKPOINT_KEY,...OLD_KEYS]){
   try{
    const raw=localStorage.getItem(key);
    if(!raw)continue;
+   found=true;
    const parsed=JSON.parse(raw);
+   if(key!==KEY&&fence!==null&&(key!==CHECKPOINT_KEY||parsed?.fence!==fence))continue;
    const d=key===KEY&&parsed?.format==='dc-lzw1-primary'?JSON.parse(dc998Unpack(parsed.packed,parsed.length)):key===CHECKPOINT_KEY&&parsed?.format==='dc-lzw1'?JSON.parse(dc998Unpack(parsed.packed,parsed.length)):key===CHECKPOINT_KEY&&parsed&&parsed.data?parsed.data:parsed;
    if(isValidPlayerData(d)){
     if(key===CHECKPOINT_KEY)recoveryNotice="A local recovery copy was loaded because the main record was unavailable. Save a backup file now.";
@@ -1260,11 +1320,12 @@ function load(){
    }
   }catch(e){}
  }
+ if(found||fence!==null||idcRecoveryBlocked){idcRecoveryBlocked=true;recoveryNotice="Saved profile cannot be recovered safely. Restore a JSON backup; damaged data has not been overwritten."}
  return normaliseData(blank());
 }
 function dc99ReplaceStoredData(replacement){
  const payload=dc999PrimaryPayload(replacement);
- localStorage.setItem(KEY,payload);dc63PackedPrefix=null; // commit first; never erase on a failed primary write
+ idcPrimaryWrite(payload,true);dc63PackedPrefix=null; // commit first; never erase on a failed primary write
  dc17SaveFailed=false;storageSaveError='';
  for(const key of [CHECKPOINT_KEY,...OLD_KEYS]){
   try{localStorage.removeItem(key)}catch(e){storageSaveError='An old recovery record could not be removed. Export a JSON backup.'}
@@ -1273,8 +1334,8 @@ function dc99ReplaceStoredData(replacement){
  catch(e){storageSaveError='The automatic recovery copy could not be updated. Save a JSON backup to Files.'}
 }
 function checkpointData(){
- if(dc17SaveFailed)return false;
- try{localStorage.setItem(CHECKPOINT_KEY,dc998CheckpointPayload(data));if(storageSaveError.includes("recovery"))storageSaveError="";return true}
+ if(dc17SaveFailed||idcWriter!=='held'||idcRecoveryBlocked)return false;
+ try{idcAssertWriter();localStorage.setItem(CHECKPOINT_KEY,dc998CheckpointPayload(data));if(storageSaveError.includes("recovery"))storageSaveError="";return true}
  catch(e){
   // Do not delete an older valid recovery checkpoint to make space.
   if(!dc17SaveFailed)storageSaveError='The automatic recovery copy could not be updated. Save a JSON backup to Files.';
@@ -1302,6 +1363,7 @@ function hideRoundAnnouncement(){if(roundAnnouncementTimer!==null){clearTimeout(
    in-memory result available for an immediate external JSON export. */
 let dc17SaveFailed=false;
 function save(render=true){
+ if(idcWriter==='pending')return false;
  // V5.74: keep a bounded, persisted activity timestamp for crash/reopen recovery.
  // This marker captures only a genuinely running exercise, never a pause.
  if(data?.activeSession?.phase==="playing"&&!data.activeSession.pausedAt)
@@ -1316,11 +1378,11 @@ function save(render=true){
  let written=false;
  try{
   const payload=dc999PrimaryPayload(data);
-  localStorage.setItem(KEY,payload);
+  idcPrimaryWrite(payload);
   written=true;dc17SaveFailed=false;
   if(!storageSaveError.includes('recovery'))storageSaveError='';
  }catch(e){
-  storageSaveError='Device storage could not save the latest result. Export a JSON backup of the CURRENT session before leaving this page.';
+  storageSaveError=idcWriter!=='held'||idcRecoveryBlocked?String(e.message):'Device storage could not save the latest result. Export a JSON backup of the CURRENT session before leaving this page.';
   if(!dc17SaveFailed){dc17SaveFailed=true;alert(storageSaveError)}
  }
  if(render)renderAll();
@@ -2358,7 +2420,7 @@ function dc21FixedProgramme(focus){
 }
 function dc21CapturePlan(s){
  if(!s||s.extra||s.quick)return null;
- const focus=focusForDay(false),actual=s.plan.filter(p=>p&&QUICK_GAMES.includes(p.name)).map(p=>p.name);
+ const focus=focusForDay(false),actual=s.plan.filter(p=>p&&!p.application&&QUICK_GAMES.includes(p.name)).map(p=>p.name);
  const fixed=dc21FixedProgramme(focus),cutoff=s.start-7*DAY_MS;
  const past=(data.sessions||[]).filter(r=>r&&!r.quick&&Number.isFinite(r.start)&&r.start>=cutoff&&r.start<s.start);
  const minutes=past.reduce((v,r)=>v+Math.max(0,Math.min(240,num(r.minutes))),0);
@@ -2793,15 +2855,32 @@ function dc29MasteryCategory(s,activity){
  }
  return categories.size===1?[...categories][0]:null;
 }
+function dc28ReliableTimeline(s,now){
+ if(!Number.isFinite(s?.start)||s.start<=0||s.start>now||!Array.isArray(s.activities)||s.activities.length>100||s.interruptedExercise)return false;
+ let last=s.start,used=0,count=0;const indexes=new Set(),ids=new Set();
+ for(const a of [...s.activities].sort((a,b)=>a?.exerciseIndex-b?.exerciseIndex)){
+  if(!a||a.interrupted||!Number.isInteger(a.seconds)||a.seconds<0||a.seconds>3600||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||indexes.has(a.exerciseIndex)||a.exerciseId!=null&&ids.has(String(a.exerciseId))||!Number.isFinite(a.at)||a.at<last||a.at>now)return false;
+  indexes.add(a.exerciseIndex);if(a.exerciseId!=null)ids.add(String(a.exerciseId));used+=a.seconds;count++;
+  if(a.seconds>(a.at-last)/1000+.5||used>(a.at-s.start)/1000+count*.5||used>7200)return false;
+  last=a.at;
+ }
+ return true;
+}
 function dc28CategoryLedger(now=Date.now()){
- const start=now-168*DAY_MS,byDay=new Map();
- for(const s of data.sessions||[]){
-  if(!s||s.quick||s.completed!==true||!Number.isFinite(s.start)||s.start<start||s.start>now||!Array.isArray(s.activities))continue;
-  const day=dateKey(s.start),item=byDay.get(day)||{day,at:s.start,counts:{scoring:0,doubles:0,checkout:0,bull:0},minutes:{scoring:0,doubles:0,checkout:0,bull:0},unknownMinutes:0,sessions:0};
+ const start=now-168*DAY_MS,byDay=new Map(),seen=new Map(),blockedDays=new Set();
+ const candidates=(data.sessions||[]).filter(s=>s&&s.quick===false&&s.completed===true&&Number.isFinite(s.start)&&s.start>=start&&s.start<=now&&Array.isArray(s.activities));
+ for(const s of candidates){
+  const day=dateKey(s.start),key=String(s.id);
+  if(!['number','string'].includes(typeof s.id)||!dc28ReliableTimeline(s,now))blockedDays.add(day);
+  if(seen.has(key)){blockedDays.add(day);blockedDays.add(seen.get(key))}else seen.set(key,day);
+ }
+ for(const s of candidates){
+  const day=dateKey(s.start);if(blockedDays.has(day))continue;
+  const item=byDay.get(day)||{day,at:s.start,counts:{scoring:0,doubles:0,checkout:0,bull:0},minutes:{scoring:0,doubles:0,checkout:0,bull:0},unknownMinutes:0,sessions:0};
   item.sessions++;item.at=Math.min(item.at,s.start);
   for(const activity of s.activities){
    if(!activity||!Number.isFinite(Number(activity.seconds))||Number(activity.seconds)<300)continue;
-   const c=activity.name==='Target Mastery'?dc29MasteryCategory(s,activity):dc28GameCategory(activity.name);
+   const c=activity.application===true?null:activity.name==='Target Mastery'?dc29MasteryCategory(s,activity):dc28GameCategory(activity.name);
    const minutes=Math.min(60,Number(activity.seconds)/60);
    if(!c){item.unknownMinutes+=minutes;continue;}
    item.counts[c]++;item.minutes[c]+=minutes;
@@ -3318,22 +3397,26 @@ function dc40ExplorationEligibility(now=Date.now(),policy=null){
   evidence:allowed?{evaluable:feedback[eligible[0]].evaluable,signal:feedback[eligible[0]].positiveSignal?'encouraging':'unknown'}:null,
   reason:allowed?'bounded near-tie experiment; observational outcomes only':'insufficient history, recent experiment or category safety limit'};
 }
-function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true){
+function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true,preparation=null,reserved=null){
  const primary=TRAINING_LIBRARY[focus]||TRAINING_LIBRARY.scoring;
  const recent=(data.sessions||[]).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
  const alreadyToday=dc22GamesPlayedToday();
  if(data.activeSession&&!data.activeSession.quick){for(const e of data.activeSession.plan||[])if(QUICK_GAMES.includes(e.name))alreadyToday.add(e.name)}
  const seed=(Math.floor(Date.now()/DAY_MS)*1103515245+(data.sessions||[]).filter(x=>x?.date===dateKey()).length*7919)>>>0;
- const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery');
+ const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery'&&n!==reserved);
  const profiles=dc18ChallengeProfiles(all),effects=dc15EffectEvidence(),categoryPlan=dc28CategoryPlanning(),selected=[],policy=sessionPolicy||dc32WholeSessionPolicy();
  const exploration=dc40ExplorationEligibility(Date.now(),policy);let explored=false,exploredGame=null,dc47Trial=null;
+ const methodCandidates=[],methodEnabled=allowTrials&&!exploration.allowed&&window.IDCPolicy?.methodEnabled?.()===true;
+ let measuredPreferences={};try{measuredPreferences=window.IDCPolicy?.preferredDrills?.()??{}}catch(e){}
+ const familiar=new Set(preparation?.familiar?(data.sessions||[]).filter(s=>s?.completed===true&&!s.quick&&Number.isFinite(s.start)&&s.start<=Date.now()&&s.start>=Date.now()-28*DAY_MS).flatMap(s=>(s.activities||[]).filter(a=>a.seconds>=300).map(a=>a.name)):[]);
+ const eventHint=name=>{const category=dc28GameCategory(name),c=policy.categories?.[category];if(c?.policySafety||c?.overexposed)return 0;return (familiar.has(name)?-6:0)+(preparation?.focus===category?-4:0)};
  const theme=[primary,TRAINING_LIBRARY[FOCUS[(FOCUS.indexOf(focus)+2)%5]],TRAINING_LIBRARY[FOCUS[(FOCUS.indexOf(focus)+3)%5]]];
  for(let i=0;i<count;i++){
   const pool=theme[i%theme.length]||primary;
   const fresh=all.filter(n=>!alreadyToday.has(n)&&!selected.includes(n));
   const candidates=fresh.length?fresh:all.filter(n=>!selected.includes(n));
   if(!candidates.length)break; // Repeat only after exhausting the full eligible library.
-  const ranked=candidates.map(name=>({name,score:dc10GameChoiceScore(name,focus,i,primary,recent,alreadyToday,profiles,seed,effects)+(pool.includes(name)?-13:0)+dc28GameHint(name,categoryPlan)+dc32GameHint(name,policy)}));
+  const ranked=candidates.map(name=>({name,score:dc10GameChoiceScore(name,focus,i,primary,recent,alreadyToday,profiles,seed,effects)+(pool.includes(name)?-13:0)+dc28GameHint(name,categoryPlan)+dc32GameHint(name,policy)+eventHint(name)-((measuredPreferences[dc28GameCategory(name)]===name&&!policy.categories?.[dc28GameCategory(name)]?.policySafety&&!policy.categories?.[dc28GameCategory(name)]?.overexposed)?4:0)}));
   ranked.sort((a,b)=>a.score-b.score||a.name.localeCompare(b.name));
   let choice=ranked[0];
   // At most one small comparison in a session, only if the ordinary planner
@@ -3353,8 +3436,13 @@ function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true){
     if(arm==='alternative'){choice=alternative;explored=true;exploredGame=alternative.name}
    }
   }
+  if(methodEnabled&&!alreadyToday.has(choice.name)){
+   const skill=dc28GameCategory(choice.name),minutes=dc32GameMinutes(choice.name,i,policy,profiles);
+   for(const a of ranked.filter(r=>r.name!==choice.name&&dc28GameCategory(r.name)===skill&&r.score-choice.score<=2.5&&!alreadyToday.has(r.name)&&dc32GameMinutes(r.name,i,policy,profiles)===minutes))methodCandidates.push({normal:choice.name,alternative:a.name,skill,normalScore:choice.score,alternativeScore:a.score,minutes});
+  }
   selected.push(choice.name);
  }
+ selected.idcMethodCandidates=methodCandidates.filter(o=>!selected.includes(o.alternative));
  selected.exploration={version:'5.27.0',selected:explored,eligible:exploration.allowed,
   category:explored?exploration.focusCategory:null,game:exploredGame,reason:exploration.reason,
   maxScoreSacrifice:2.5,notCausal:true,decisionEvidence:exploration.evidence||null,trial:dc47Trial};
@@ -3860,16 +3948,33 @@ function dc39FinalizeDecision(decision,plan){
 function dc91DevelopmentNeed(policy,extra=false,now=Date.now()){
  return coach61PracticeNeed(coach61Evidence(now),policy,now);
 }
-function generateSession(extra=false,skipWarmup=false){
+// Normal scheduled practice reserves a ten-minute application block. Extra
+// sessions and already-saved legacy plans retain their existing structure.
+function dc62InitialDrillBudget(drills,budget){
+ const mastery=drills.find(e=>e.name==='Target Mastery'),ordinary=drills.filter(e=>e!==mastery);
+ if(!ordinary.length||budget<drills.length*300)throw Error('Invalid scheduled drill budget');
+ if(mastery)mastery.seconds=Math.min(Math.max(300,Math.floor(mastery.seconds/60)*60),budget-ordinary.length*300);
+ const surplus=budget-(mastery?.seconds??0)-ordinary.length*300;
+ const weights=ordinary.map(e=>Math.max(1,num(e.seconds)/60-5)),sum=weights.reduce((a,b)=>a+b,0);
+ let spent=0;
+ ordinary.forEach((e,i)=>{const add=i===ordinary.length-1?surplus-spent:Math.floor(surplus*weights[i]/sum/60)*60;spent+=add;e.seconds=300+add;if(e.wholeCoach)e.wholeCoach.plannedMinutes=e.seconds/60});
+}
+function generateSession(extra=false,skipWarmup=false,preview=false){
  const focus=focusForDay(extra),sessionsToday=(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick).length;
  const count=sessionsToday>=2?3:4;
  const unified=dc39UnifiedDecision(extra),wholePolicy=unified.policy;
- const chosen=chooseSessionGames(focus,count,wholePolicy,!extra);
+ let preparation=null;
+ try{preparation=window.IDCPolicy?.competitionPlan?.()??null}catch(e){preparation={phase:'unverified',focus:null,familiar:true,deferEscalation:true}}
+ const close=preparation?.deferEscalation===true;
+ if(close)unified.masteryDecision=null;
+ const application=extra?null:'301 Pressure';
+ const chosen=chooseSessionGames(focus,count,wholePolicy,!extra&&!preview&&!close&&(!preparation||preparation.phase==='ordinary'),preparation,application);
  const dayIntent=coach62Intent(unified);
- const need=coach62SessionNeed(dayIntent,wholePolicy);
+ if(close){dayIntent.focus=null;dayIntent.target=null}
+ const need=close?null:coach62SessionNeed(dayIntent,wholePolicy);
  if(need&&!chosen.exploration?.trial&&!chosen.some(n=>dc28GameCategory(n)===need.key)){
   const recent=dc22GamesPlayedToday();
-  const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===need.key&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
+  const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===need.key&&n!==application&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
   const counts=chosen.map(n=>dc28GameCategory(n));
   const donor=counts.findLastIndex(k=>counts.filter(x=>x===k).length>1);
   if(pool.length&&donor>=0){
@@ -3879,7 +3984,7 @@ function generateSession(extra=false,skipWarmup=false){
    chosen[donor]=pool[0];
   }
  }
- const complement=coach62Complement(chosen,extra,wholePolicy,need?.key);
+ const complement=close?null:coach62Complement(chosen,extra,wholePolicy,need?.key,Date.now(),application);
  const plan=skipWarmup?[]:[{name:'Warm-up',seconds:600,mode:'timed'}];
  if(!extra&&!data.bigSingles.some(b=>b?.day===dateKey()&&b.complete))plan.push({name:'Big Singles',mode:'benchmark'});
  if(unified.masteryDecision&&chosen.length>=2){
@@ -3887,7 +3992,7 @@ function generateSession(extra=false,skipWarmup=false){
    mastery:{...unified.mastery,mode:unified.masteryDecision.mode},coachDecision:unified.masteryDecision});
  }
  const profiles=dc18ChallengeProfiles(chosen);
- const lengths=chosen.map((name,i)=>dc32GameMinutes(name,i,wholePolicy,profiles));
+ const lengths=chosen.map((name,i)=>close?(i===0?15:10):dc32GameMinutes(name,i,wholePolicy,profiles));
  if(need&&!chosen.exploration?.trial){
   const receiver=chosen.findIndex(n=>dc28GameCategory(n)===need.key);
   const donor=lengths.map((m,i)=>({m,i})).filter(x=>x.i!==receiver&&x.m>=10&&dc28GameCategory(chosen[x.i])!==need.key).sort((a,b)=>b.m-a.m)[0]?.i??-1;
@@ -3896,9 +4001,13 @@ function generateSession(extra=false,skipWarmup=false){
  chosen.forEach((name,i)=>plan.push({name,mode:'timed',seconds:lengths[i]*60,
   wholeCoach:{version:'5.25.0',category:dc28GameCategory(name),plannedMinutes:lengths[i],
    reason:wholePolicy.categories[dc28GameCategory(name)]?.reason||'balanced programme'}}));
- plan.push({name:'Review',mode:'timed',seconds:300});
+ if(application){
+  dc62InitialDrillBudget(plan.filter(e=>e.mode==='timed'&&e.name!=='Warm-up'),skipWarmup?3000:2400);
+  plan.push({name:application,mode:'timed',seconds:600,application:true,coachPurpose:'Practical application: use your scoring, setup and doubles together in repeated 301 legs.'});
+ }else plan.push({name:'Review',mode:'timed',seconds:300});
  plan.coachDayIntent=dayIntent;plan.coachComplement=complement;
  for(const item of plan){
+  if(item.application)continue;
   const category=dc28GameCategory(item.name);
   if(complement?.to===item.name)item.coachPurpose='Add '+COACH61_NAMES[category].toLowerCase()+' practice alongside the skills already trained '+(extra?'today.':'this week.');
   else if(dayIntent.focus&&category===dayIntent.focus)item.coachPurpose='Today’s coaching focus is '+COACH61_NAMES[category].toLowerCase()+'. '+coach61SessionAim(item);
@@ -3906,9 +4015,11 @@ function generateSession(extra=false,skipWarmup=false){
  // This record is stored with the active session at its creation, before
  // future outcomes exist. It has no effect on any player-history measurements.
  plan.unifiedAudit=dc39FinalizeDecision(unified,plan);
+ if(preparation&&preparation.phase!=='ordinary')plan.unifiedAudit.competition=clone(preparation);
  plan.unifiedAudit.balancedFirst=dc44BalancedAudit(unified,plan);
  plan.unifiedAudit.everydayCoach=dc55EverydayCoach(wholePolicy);
  plan.unifiedAudit.exploration=chosen.exploration||{selected:false,reason:'not evaluated'};
+ if(!extra&&!need&&!dayIntent.focus&&!complement&&!unified.masteryDecision&&!chosen.exploration?.eligible&&!chosen.exploration?.trial)plan.unifiedAudit.idcMethodCandidates=(chosen.idcMethodCandidates||[]).filter(o=>chosen.includes(o.normal)&&!chosen.includes(o.alternative)&&plan.some(e=>e.name===o.normal&&e.seconds===o.minutes*60));
  if(chosen.exploration?.trial){
   const t=chosen.exploration.trial;
   const planned=plan.find(p=>p.name===(t.arm==='alternative'?t.alternativeGame:t.normalGame)&&p.wholeCoach);
@@ -4043,6 +4154,7 @@ function renderQuick(){
  $("quickHistory").innerHTML=rows.length?rows.map(x=>{const rounds=data.games.filter(g=>g.sessionId===x.id&&g.quick&&g.completion==="natural");const w=rounds.filter(g=>g.win===true).length,l=rounds.filter(g=>g.loss===true).length;return '<div class="entry"><strong>'+esc(x.quickGame||'Quick Play')+'</strong> · '+esc(x.date)+' · '+num(x.minutes).toFixed(1)+' min · '+w+' WIN / '+l+' LOSE</div>'}).join(''):'<p class="muted">No Quick Play sessions yet.</p>';
 }
 function startQuickPlay(){
+ if(!idcPhysicalAllowed())return;
  if(session()){show("train");return}
  if(assessmentDue()){show("train");return}
  const duration=Number($("quickDuration").value);
@@ -4072,13 +4184,13 @@ function dc45ExerciseId(s,index){return String(s.id)+':exercise:'+index}
 function dc45InitialSnapshot(s){
  if(!s||s.provenanceInitial)return;
  s.provenanceInitial={version:'5.45.0',at:Date.now(),kind:'initial-selection',
-  exercises:s.plan.map((x,i)=>({index:i,name:x.name,mode:x.mode||null,
+  exercises:s.plan.map((x,i)=>({index:i,name:x.name,...(x.application===true?{application:true}:{}),mode:x.mode||null,
    proposedSeconds:Number.isFinite(x.seconds)?x.seconds:null,dc47TrialId:x.dc47TrialId||null}))};
 }
 function dc45LockAllocation(s){
  if(!s||s.provenanceLocked)return;
  s.provenanceLocked={version:'5.45.0',at:Date.now(),kind:'post-allocation',
-  exercises:s.plan.map((x,i)=>({id:dc45ExerciseId(s,i),index:i,name:x.name,
+  exercises:s.plan.map((x,i)=>({id:dc45ExerciseId(s,i),index:i,name:x.name,...(x.application===true?{application:true}:{}),
    mode:x.mode||null,plannedSeconds:Number.isFinite(x.seconds)?x.seconds:null,dc47TrialId:x.dc47TrialId||null}))};
 }
 function dc45EnsureProvenance(s){
@@ -4090,7 +4202,7 @@ function dc45EnsureProvenance(s){
 function session(){return data.activeSession}function currentExercise(){const s=session();return s?s.plan[s.index]:null}
 function sessionElapsed(){const s=session();return s?Math.max(0,((s.pausedAt||Date.now())-s.start-num(s.pausedTotal))/1000):0}
 function exerciseElapsed(){const s=session();if(!s)return 0;return Math.max(0,(num(s.activityAccumulated)+(s.activityStarted?(s.pausedAt||Date.now())-s.activityStarted:0))/1000)}
-function beginTraining(extra,skipWarmup=false,fromAssessment=false){if(session()){show("train");return}prepareAssessment();if(assessmentDue()){show("train");return}if(data.days.length!==5){alert("Select five training days in Settings.");show("settings");return}if(!extra&&!fromAssessment&&!data.days.includes(new Date().getDay())){alert("Today is a rest day. Extra training is available.");return}if(!extra&&!fromAssessment&&data.sessions.some(s=>s.date===dateKey()&&!s.extra&&s.completed)){alert("Today's scheduled session is already complete.");return}if(window.IDCPolicy&&!window.IDCPolicy.mayStart()){alert("Independent coach advises pausing normal training. Review your readiness and coaching evidence in Coach.");show("technique");return}if(!data.coach.firstStarted)data.coach.firstStarted=Date.now();dc30RefreshFollowUps();performCoachReview();data.activeSession={id:Date.now(),start:Date.now(),extra:!!extra,plan:generateSession(extra,skipWarmup),index:0,completed:[],pausedAt:null,pausedTotal:0,activityStarted:null,activityAccumulated:0,round:1,roundsCompleted:0,allocated:false,benchmarkSeconds:0,phase:"rules"};data.activeSession.pausedAt=data.activeSession.start;data.activeSession.coachDayIntent=clone(data.activeSession.plan.coachDayIntent);
+function beginTraining(extra,skipWarmup=false,fromAssessment=false){if(!idcPhysicalAllowed())return;if(session()){show("train");return}prepareAssessment();if(assessmentDue()){show("train");return}if(data.days.length!==5){alert("Select five training days in Settings.");show("settings");return}if(!extra&&!fromAssessment&&!data.days.includes(new Date().getDay())){alert("Today is a rest day. Extra training is available.");return}if(!extra&&!fromAssessment&&data.sessions.some(s=>s.date===dateKey()&&!s.extra&&s.completed)){alert("Today's scheduled session is already complete.");return}if(!data.coach.firstStarted)data.coach.firstStarted=Date.now();dc30RefreshFollowUps();performCoachReview();data.activeSession={id:Date.now(),start:Date.now(),quick:false,extra:!!extra,plan:generateSession(extra,skipWarmup),index:0,completed:[],pausedAt:null,pausedTotal:0,activityStarted:null,activityAccumulated:0,round:1,roundsCompleted:0,allocated:false,benchmarkSeconds:0,phase:"rules"};data.activeSession.startOffsetMinutes=new Date(data.activeSession.start).getTimezoneOffset();data.activeSession.pausedAt=data.activeSession.start;data.activeSession.coachDayIntent=clone(data.activeSession.plan.coachDayIntent);
  data.activeSession.coachComplement=clone(data.activeSession.plan.coachComplement);
  coach62SaveIntent(data.activeSession.coachDayIntent);
  data.activeSession.unifiedAudit=data.activeSession.plan.unifiedAudit||null;data.activeSession.coachPlanAudit=data.activeSession.plan.filter(e=>e.coachDecision).map(e=>({...e.coachDecision,at:data.activeSession.start}));data.activeSession.categoryPlanAudit=dc28CategoryPlanning(data.activeSession.start);data.activeSession.wholeSessionAudit={version:'5.25.0',at:data.activeSession.start,unified:data.activeSession.unifiedAudit,forecast:dc37Forecast(data.activeSession.start),policy:dc32WholeSessionPolicy(data.activeSession.start),choices:data.activeSession.plan.filter(e=>e.wholeCoach).map(e=>({game:e.name,...e.wholeCoach}))};if(!extra)data.activeSession.researchPlan=dc21CapturePlan(data.activeSession);dc45InitialSnapshot(data.activeSession);data.game=null;activeGame=null;undoSnapshot=null;$("sessionFinished").classList.add("hidden");startExercise();save();show("train")}
@@ -4143,9 +4255,10 @@ function allocateRemaining(s){
  const available=Math.floor(remaining/60)*60;
  let queue=s.plan.slice(s.index).filter(e=>e.mode==='timed');
  if(!queue.length){s.allocated=true;dc45LockAllocation(s);return}
- while(queue.length>1&&queue.length*300>available){
-  const remove=queue.findLast(e=>e.name!=='Review'&&e.name!=='Target Mastery')||
-   queue.findLast(e=>e.name!=='Review')||queue[queue.length-1];
+ const reserve=queue.find(e=>e.application===true);
+ while(queue.length>1&&queue.length*300+(reserve?300:0)>available){
+  const remove=queue.findLast(e=>e!==reserve&&e.name!=='Review'&&e.name!=='Target Mastery')||
+   queue.findLast(e=>e!==reserve&&e.name!=='Review')||queue.findLast(e=>e!==reserve);
   const pos=s.plan.indexOf(remove);if(pos>=s.index)s.plan.splice(pos,1);
   queue=queue.filter(e=>e!==remove);
  }
@@ -4153,13 +4266,14 @@ function allocateRemaining(s){
  // Fix the exact completed allocation of the controller's chosen Mastery dose
  // where time permits. Other games absorb the scheduling surplus.
  const mastery=queue.find(e=>e.name==='Target Mastery');
- const review=queue.find(e=>e.name==='Review');
- if(review)review.seconds=300;
+ const review=reserve??queue.find(e=>e.name==='Review');
+ const reservedSeconds=review?(reserve?Math.min(600,remaining):300):0;
+ if(review)review.seconds=reservedSeconds;
  const ordinary=queue.filter(e=>e.name!=='Target Mastery'&&e!==review);
  let keep=mastery?Math.max(300,Math.floor(num(mastery.seconds)/60)*60):0;
- keep=Math.min(keep,available-ordinary.length*300-(review?300:0));
+ keep=Math.min(keep,available-ordinary.length*300-reservedSeconds);
  if(mastery)mastery.seconds=Math.max(300,keep);
- const ordinarySeconds=available-(mastery?mastery.seconds:0)-(review?300:0);
+ const ordinarySeconds=available-(mastery?mastery.seconds:0)-reservedSeconds;
  if(ordinary.length){
   const surplus=ordinarySeconds-ordinary.length*300;
   const weights=ordinary.map(e=>Math.max(1,num(e.seconds)/60-5));
@@ -4167,11 +4281,29 @@ function allocateRemaining(s){
   ordinary.forEach((e,i)=>{const add=i===ordinary.length-1?surplus-spent:Math.floor(surplus*weights[i]/sum/60)*60;
    e.seconds=300+add;spent+=add});
   ordinary[ordinary.length-1].seconds+=remaining-available;
- }else if(mastery)mastery.seconds+=remaining-(review?300:0)-mastery.seconds;
- else if(review)review.seconds=300;
+ }else if(mastery)mastery.seconds+=remaining-reservedSeconds-mastery.seconds;
+ else if(review&&!reserve)review.seconds=300;
  // Calculate actual final minutes, after the scheduler has met the clock budget.
- const legacyTransfer=dc43LearningTransfer(s,queue);
- if(window.IDCPolicy){try{const result=window.IDCPolicy.transfer(s,queue,legacyTransfer,s.wholeSessionAudit?.policy);if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer=result;}catch(e){if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer={status:"unchanged",reason:"Independent allocation unavailable"};}}
+ const legacyTransfer=s.unifiedAudit?.competition?.deferEscalation?{status:'no-transfer',reason:'Familiar preparation near recorded competition'}:dc43LearningTransfer(s,queue);
+ let idcReceiver=null;
+ if(window.IDCPolicy){try{const result=window.IDCPolicy.transfer(s,queue,legacyTransfer,s.wholeSessionAudit?.policy);if(s.wholeSessionAudit){s.wholeSessionAudit.idcTransfer=result;if(result.status==='transferred'&&result.delivery)idcReceiver=queue[result.to]??null;}}catch(e){if(s.wholeSessionAudit)s.wholeSessionAudit.idcTransfer={status:"unchanged",reason:"Independent allocation unavailable"};}}
+ // Apply at the final clock boundary, only after both existing allocation policies decline a transfer.
+ if(window.IDCPolicy?.methodChoice&&!s.unifiedAudit?.competition?.deferEscalation&&!s.extra&&!s.quick&&dateKey(s.start)===dateKey()&&legacyTransfer?.status==='no-transfer'&&s.wholeSessionAudit?.idcTransfer?.status==='unchanged'&&!s.coachDayIntent?.focus&&!s.coachComplement&&!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.name==='Target Mastery'||e.dc47TrialId)){
+  try{
+   const played=dc22GamesPlayedToday();
+   const options=(s.unifiedAudit?.idcMethodCandidates||[]).flatMap(o=>{
+    const e=queue.find(x=>x.name===o.normal&&x.mode==='timed'&&x.wholeCoach?.category===o.skill);
+    if(!e||!QUICK_GAMES.includes(o.alternative)||DC10_MEASUREMENT_GAMES.has(o.alternative)||o.alternative==='Target Mastery'||dc28GameCategory(o.alternative)!==o.skill||played.has(o.alternative)||s.plan.some(x=>x.name===o.alternative))return [];
+    return [{...o,seconds:e.seconds,normalTier:dc9GameTier(o.normal),alternativeTier:dc9GameTier(o.alternative)}];
+   });
+   const decision=options.length?window.IDCPolicy.methodChoice(options,s.wholeSessionAudit.policy):{status:'unchanged'};
+   if(decision.status==='selected'){
+    const option=options.find(o=>o.normal===decision.normal&&o.alternative===decision.alternative&&o.skill===decision.skill&&o.seconds===decision.seconds);
+    const entry=option&&queue.find(e=>e.name===option.normal&&e.seconds===option.seconds&&e.wholeCoach?.category===option.skill);
+    if(entry){entry.name=option.alternative;entry.wholeCoach.reason='Player-enabled personalised drill choice';s.wholeSessionAudit.idcMethod={...decision,at:Date.now()};}
+   }
+  }catch(e){/* Preserve normal training if method selection is unavailable. */}
+ }
  if(!s.unifiedAudit?.exploration?.trial&&!queue.some(e=>e.dc47TrialId)){
   // Split long practice into complementary games while preserving category time.
   const recent=dc22GamesPlayedToday();
@@ -4180,7 +4312,7 @@ function allocateRemaining(s){
    const cat=entry.wholeCoach?.category;
    if(!cat||entry.seconds<1500)continue;
    while(entry.seconds>=1500){
-    const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===cat&&!DC10_MEASUREMENT_GAMES.has(n)&&!s.plan.some(e=>e.name===n)&&!recent.has(n));
+    const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===cat&&!DC10_MEASUREMENT_GAMES.has(n)&&!s.plan.some(e=>e.name===n)&&!recent.has(n)&&n!==s.wholeSessionAudit?.idcMethod?.normal);
     if(!pool.length)break;
     pool.sort((a,b)=>exposure(a)-exposure(b)||a.localeCompare(b));
     const total=entry.seconds;
@@ -4195,6 +4327,8 @@ function allocateRemaining(s){
   for(const e of s.plan.slice(s.index))if(e.wholeCoach)e.wholeCoach.plannedMinutes=e.seconds/60;
   if(s.wholeSessionAudit)s.wholeSessionAudit.actualScheduledChoices=s.plan.slice(s.index).filter(e=>e.wholeCoach).map(e=>({game:e.name,category:e.wholeCoach.category,minutes:e.seconds/60}));
  }
+ if(idcReceiver&&s.wholeSessionAudit?.idcTransfer?.delivery){const i=s.plan.indexOf(idcReceiver);if(i>=0)s.wholeSessionAudit.idcTransfer.delivery.receiverIndex=i;}
+ if(s.wholeSessionAudit?.idcMethod?.status==='selected'){const d=s.wholeSessionAudit.idcMethod,idx=s.plan.findIndex(e=>e.name===d.alternative&&e.seconds===d.seconds&&e.mode==='timed');if(idx>=0)d.exerciseIndex=idx;}
  s.allocated=true;dc45LockAllocation(s);
 }
 function startExercise(){const s=session();if(!s)return;if(s.index>=s.plan.length){finishSession(true);return}let item=currentExercise();if(item.name!=="Warm-up"&&item.name!=="Big Singles"&&!s.allocated)allocateRemaining(s);item=currentExercise();if(!item){finishSession(true);return}s.phase="rules";if(!s.pausedAt)s.pausedAt=Date.now();s.activityStarted=null;s.activityAccumulated=0;s.round=1;s.roundsCompleted=0;s.lastRoundUndo=null;dc45EnsureProvenance(s);activeGame=buildGame(item.name);data.game=activeGame;undoSnapshot=null;save(false)}
@@ -4285,7 +4419,7 @@ function padMarkup(){return '<div class="scorePad"><div class="scorePadDisplay">
 /* Double-in 201 uses the same on-screen keypad as every numeric game.
    D then 1–20 (D25 for bullseye), or 0 for a missed dart. */
 function dc591OpeningValid(n,d,k,allowance,room){
- return Number.isInteger(n)&&[...Array.from({length:20},(_,i)=>i+1),25].includes(d)&&Number.isInteger(k)&&k>=1&&k<=Math.min(allowance,room)&&n>=2*d&&(room===k?n===2*d:possibleVisitIn(n-2*d,room-k));
+ return Number.isInteger(n)&&Number.isInteger(room)&&room>=1&&room<=3&&Number.isInteger(allowance)&&allowance>=1&&[...Array.from({length:20},(_,i)=>i+1),25].includes(d)&&Number.isInteger(k)&&k>=1&&k<=Math.min(allowance,room)&&n>=2*d&&(room===k?n===2*d:possibleVisitIn(n-2*d,room-k));
 }
 function doubleInPadMarkup(){
  const g=activeGame,p=g.dc591Opening;
@@ -4377,6 +4511,8 @@ let pendingCheckoutDarts=null;
 let selectedCheckoutDartCount=null;
 const FINISH_DOUBLE_SCORES=[...Array.from({length:20},(_,i)=>(i+1)*2),50];
 function possibleVisitIn(score,darts){
+ if(!Number.isInteger(score)||score<0||!Number.isInteger(darts)||darts<0||darts>3)return false;
+ if(darts===0)return score===0;
  if(darts===1)return DART_SCORES.includes(score);
  if(darts===2)return DART_SCORES.some(a=>DART_SCORES.includes(score-a));
  return POSSIBLE_VISITS.has(score);
@@ -4578,6 +4714,7 @@ function dc23MasteryInput(value){
  const mode=g.mode;
  if(mode==='bull'&&!['25','50','miss'].includes(value))return;
  if(mode==='checkout'&&!['finish','finish1','finish2','finish3','miss'].includes(value))return;
+ if(mode==='checkout'&&/^finish[123]$/.test(value)&&!possibleCheckoutIn(g.checkoutExample,Number(value.slice(-1))))return;
  if(!['bull','checkout'].includes(mode)&&!['hit','miss'].includes(value))return;
  snapshot();
  let correct=false,ring=g.ring,target=g.target;
@@ -4614,7 +4751,7 @@ function dcVisitSpec(g){
  if(g.name==='Big Singles')return {targets:Array(3-g.darts.length%3).fill('S'+(Math.floor(g.darts.length/3)+1)),kind:'big'};
  if(g.name==='Bull Accuracy'||(g.name==='Target Mastery'&&g.mode==='bull'))return {targets:Array(Math.min(3-g.thrown%3,(g.goal||30)-g.thrown)).fill('BULL'),kind:'bull'};
  if(g.name==='Double Duel'){
-  const interval=[2,2,3,3,4,5,6][g.tier-1],route=g.sequence||[20,16,8,10,12,6];
+  const interval=(Number.isInteger(g.opponentEvery)&&g.opponentEvery>=2&&g.opponentEvery<=6)?g.opponentEvery:[2,2,3,3,4,5,6][g.tier-1],route=g.sequence||[20,16,8,10,12,6];
   const n=Math.min(3-g.turn%3,4-g.player,(4-g.opponent)*interval-g.turn%interval,12-g.turn);
   return {targets:Array.from({length:n},(_,i)=>(g.tier>=6?'S':'D')+route[(g.turn+i)%route.length]),kind:'duel'};
  }
@@ -5274,7 +5411,11 @@ function undoGame(){const s=session();if(!s||s.pausedAt||s.phase!=="playing")ret
  hideRoundAnnouncement();save();
 }
 function snapshot(){undoSnapshot=clone(activeGame);if(activeGame)activeGame.dc598Action=true;if(session())session().lastRoundUndo=null}
-function recordBig(hit){const g=activeGame,s=session();if(!g||g.name!=="Big Singles"||s.pausedAt||g.darts.length>=60)return;snapshot();g.darts.push(hit?1:0);if(hit)g.hits++;if(g.darts.length===60){data.bigSingles.push({day:dateKey(s.start),at:Date.now(),hits:g.hits,sessionId:s.id,exerciseId:currentExercise()?.provenanceId||null,perNumber:Array.from({length:20},(_,i)=>g.darts.slice(i*3,i*3+3).reduce((a,b)=>a+b,0)),complete:true});completeExercise("natural");return}data.game=g;save()}
+function sessionStartDay(s){
+ if(!Number.isInteger(s.startOffsetMinutes)||Math.abs(s.startOffsetMinutes)>840)return dateKey(s.start);
+ return new Date(s.start-s.startOffsetMinutes*60000).toISOString().slice(0,10)
+}
+function recordBig(hit){const g=activeGame,s=session();if(!g||g.name!=="Big Singles"||s.pausedAt||g.darts.length>=60)return;snapshot();g.darts.push(hit?1:0);if(hit)g.hits++;if(g.darts.length===60){const at=Date.now();data.bigSingles.push({day:sessionStartDay(s),at,offsetMinutes:new Date(at).getTimezoneOffset(),hits:g.hits,sessionId:s.id,exerciseId:currentExercise()?.provenanceId||null,perNumber:Array.from({length:20},(_,i)=>g.darts.slice(i*3,i*3+3).reduce((a,b)=>a+b,0)),complete:true});completeExercise("natural");return}data.game=g;save()}
 /* V5.65: A wrong 60th Big Singles tap must be correctable before moving on.
    Reverse exactly this exercise's saved daily benchmark, completion and extra clock
    before resuming at dart 60. No other game record or prior benchmark is touched. */
@@ -5314,7 +5455,7 @@ function checkoutHit(){if(session()?.phase!=="playing")return;const g=activeGame
 function bullDart(value){if(![0,25,50].includes(value)||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Accuracy"||session().pausedAt)return;snapshot();g.thrown++;if(value===50)g.inner++;else if(value===25)g.outer++;else g.misses++;if(g.thrown>=30){endRound();return}data.game=g;save()}
 function bullSurvival(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Survival"||session().pausedAt)return;snapshot();g.used++;g.thrown++;if(hit){g.hits++;g.wins++;endRound();return}if(g.used>=g.allowed){endRound();return}data.game=g;save()}
 function bullStreak(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Streak"||session().pausedAt)return;snapshot();g.thrown++;if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(g.streak>=g.goal){endRound();return}}else{g.streak=0;g.misses=num(g.misses)+1;if(g.misses>=num(g.allowedMisses||7)){endRound();return}}data.game=g;save()}
-function gameResult(g,completion){const e={practiceBlock:g.practiceBlock?clone(g.practiceBlock):undefined,name:g.name,mode:g.name,at:Date.now(),day:dateKey(),date:new Date().toLocaleString(),extra:!!session()?.extra,sessionId:session()?.id||null,exerciseId:currentExercise()?.provenanceId||null,exerciseIndex:Number.isInteger(session()?.index)?session().index:null,quick:!!session()?.quick,quickMinutes:session()?.quick?Math.round(num(session().quickSeconds)/60):0,completion,benchmark:completion==="natural"||completion==="timed",version:"6.1-RC16",ruleVersion:g.ruleVersion||null,result:"Activity completed",oneEighties:num(g.oneEighties),recovery:!!g.recovery,challengeTuning:g.challengeTuning||null,challengeTuningVersion:g.challengeTuningVersion||null,
+function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.practiceBlock?clone(g.practiceBlock):undefined,name:g.name,mode:g.name,...(currentExercise()?.application===true?{application:true}:{}),at,day:dateKey(at),offsetMinutes:new Date(at).getTimezoneOffset(),date:new Date(at).toLocaleString(),extra:!!session()?.extra,sessionId:session()?.id||null,exerciseId:currentExercise()?.provenanceId||null,exerciseIndex:Number.isInteger(session()?.index)?session().index:null,quick:!!session()?.quick,quickMinutes:session()?.quick?Math.round(num(session().quickSeconds)/60):0,completion,benchmark:completion==="natural"||completion==="timed",version:"6.1-RC16",ruleVersion:g.ruleVersion||null,result:"Activity completed",oneEighties:num(g.oneEighties),recovery:!!g.recovery,challengeTuning:g.challengeTuning||null,challengeTuningVersion:g.challengeTuningVersion||null,
  prospectiveForecast:g.prospectiveForecast&&completion==='natural'&&
  !g.recovery&&!g.challengeTuning&&!session()?.quick?clone(g.prospectiveForecast):null};
  if(completion==="natural"&&!session()?.quick&&!g.recovery){
@@ -5450,7 +5591,7 @@ function gameResult(g,completion){const e={practiceBlock:g.practiceBlock?clone(g
 /* Round completion records the result and restarts the SAME game. The exercise clock never resets. */
 function endRound(){const s=session();if(!s||s.phase!=="playing"||s.pausedAt||!activeGame)return;const item=currentExercise(),previousGame=clone(undoSnapshot||activeGame),previousTotals={bestDouble:data.bestDouble,bestCheckout:data.bestCheckout,doublesHit:data.doublesHit,doublesThrown:data.doublesThrown},result=gameResult(activeGame,"natural");s.lastRoundUndo={previousGame,previousTotals,resultAt:result.at,name:result.name};data.games.push(result);s.roundsCompleted++;s.round++;flash=(result.win===true?"WIN":result.win===false?"LOSE":"Round ended")+" · Round "+s.roundsCompleted+" saved";activeGame=buildGame(item.name,activeGame);data.game=activeGame;undoSnapshot=null;save();announceRound(s.round,(result.win===true?"WIN":result.win===false?"LOSE":"ROUND COMPLETE")+" · Previous round"+(result.name==="Setup Shot"&&result.details?.setupOutcome?" · "+result.details.setupOutcome.replaceAll("-"," "):""))}
 function playExercise(){
- const s=session();if(!s||s.phase!=="rules")return;
+ const s=session();if(!s||s.phase!=="rules"||!idcPhysicalAllowed())return;
  if(s.pausedAt){s.pausedTotal+=Math.max(0,Date.now()-s.pausedAt);s.pausedAt=null}
  s.phase="playing";s.activityStarted=Date.now();save();if(activeGame&&!(["Warm-up","Big Singles","Review"].includes(activeGame.name)))announceRound(s.round);
 }
@@ -5479,7 +5620,7 @@ function completeExercise(completion="manual"){
   const activity=g.dc598Action===true||Object.entries(g).some(([key,value])=>["thrown","darts","visits","attempt","attempts","hits","fail","success","used","shots","entryMisses","dartsUsed","misses","strokes"].includes(key)&&((Array.isArray(value)&&value.length>0)||typeof value==="number"&&value>0));
   if(activity)data.games.push(gameResult(g,completion==="timed"?"partial":"manual"));
  }
- s.completed.push({name:item.name,exerciseId:item.provenanceId||null,exerciseIndex:s.index,at:Date.now(),seconds:Math.round(elapsed),...(item.name==="Big Singles"?{benchmarkElapsedExact:elapsed}:{}),rounds:s.roundsCompleted,...(firstClimbCheckout(activeGame)?{firstCheckoutScore:firstClimbCheckout(activeGame)}:{}),plannedSeconds:s.provenanceLocked?.exercises?.find(x=>x.id===item.provenanceId)?.plannedSeconds??null});
+ s.completed.push({name:item.name,...(item.application===true?{application:true}:{}),exerciseId:item.provenanceId||null,exerciseIndex:s.index,at:Date.now(),seconds:Math.round(elapsed),...(item.name==="Big Singles"?{benchmarkElapsedExact:elapsed}:{}),rounds:s.roundsCompleted,...(firstClimbCheckout(activeGame)?{firstCheckoutScore:firstClimbCheckout(activeGame)}:{}),plannedSeconds:s.provenanceLocked?.exercises?.find(x=>x.id===item.provenanceId)?.plannedSeconds??null});
  s.activityAccumulated=elapsed*1000;s.activityStarted=null;
  s.phase="complete";s.pausedAt=Date.now();undoSnapshot=null;hideRoundAnnouncement();
  save();
@@ -5532,7 +5673,7 @@ function dc30LogCompletedInterventions(s){
   const plan=(s.plan||[]).find(x=>x.name===activity.name);
   if(!plan||log.some(x=>x.sessionId===s.id&&x.at===activity.at))continue;
   const decision=plan.coachDecision||null;
-  const category=activity.name==='Target Mastery'?decision?.feedback?.category||null:dc28GameCategory(activity.name);
+  const category=activity.application===true?null:activity.name==='Target Mastery'?decision?.feedback?.category||null:dc28GameCategory(activity.name);
   const overlap=s.completed.filter(x=>x!==activity&&x.name!=='Warm-up'&&x.name!=='Review'&&x.name!=='Big Singles').map(x=>x.name);
   log.push({kind:decision?'mastery':'exercise',sessionId:s.id,at:activity.at,category,
    name:activity.name,ring:decision?.ring||null,target:decision?.target??null,
@@ -5551,7 +5692,7 @@ function dc66CaptureUnfinishedSessionExercise(s){
  const item=currentExercise(),g=activeGame||data.game;
  if(!item)return null;
  const elapsed=exerciseElapsed();
- const record={name:item.name,exerciseId:item.provenanceId||null,
+ const record={name:item.name,...(item.application===true?{application:true}:{}),exerciseId:item.provenanceId||null,
   exerciseIndex:s.index,seconds:Math.round(elapsed),interrupted:true,
   roundsCompleted:num(s.roundsCompleted)};
  if(!g||["Warm-up","Review","Big Singles"].includes(item.name))return record;
@@ -5571,11 +5712,13 @@ function dc66CaptureUnfinishedSessionExercise(s){
 }
 function finishSession(success){hideRoundAnnouncement();const s=session();if(!s)return;
  // V5.72: an abandoned checkout modal must not survive into another session.
- closeCheckoutDartPicker();const elapsed=Math.round(sessionElapsed()/6)/10;const interruptedExercise=success?null:dc66CaptureUnfinishedSessionExercise(s);const sessionRecord={id:s.id,start:s.start,date:dateKey(s.start),minutes:elapsed,extra:s.extra,quick:!!s.quick,quickGame:s.quickGame||null,completed:!!success,activities:s.completed,focus:s.plan.map(p=>p.name)};if(interruptedExercise)sessionRecord.interruptedExercise=interruptedExercise;if(s.provenanceInitial)sessionRecord.provenanceInitial=clone(s.provenanceInitial);if(s.provenanceLocked)sessionRecord.provenanceLocked=clone(s.provenanceLocked);if(Array.isArray(s.coachPlanAudit))sessionRecord.coachPlanAudit=clone(s.coachPlanAudit);if(s.categoryPlanAudit)sessionRecord.categoryPlanAudit=clone(s.categoryPlanAudit);if(s.wholeSessionAudit)sessionRecord.wholeSessionAudit=clone(s.wholeSessionAudit);if(s.researchPlan&&!s.extra&&!s.quick)sessionRecord.researchPlan=clone(s.researchPlan);if(s.coachDayIntent)sessionRecord.coachDayIntent=clone(s.coachDayIntent);
+ closeCheckoutDartPicker();const elapsed=Math.round(sessionElapsed()/6)/10;const interruptedExercise=success?null:dc66CaptureUnfinishedSessionExercise(s);const sessionRecord={id:s.id,start:s.start,startOffsetMinutes:s.startOffsetMinutes,date:sessionStartDay(s),minutes:elapsed,extra:s.extra,quick:!!s.quick,quickGame:s.quickGame||null,completed:!!success,activities:s.completed,focus:s.plan.map(p=>p.name)};if(interruptedExercise)sessionRecord.interruptedExercise=interruptedExercise;if(s.provenanceInitial)sessionRecord.provenanceInitial=clone(s.provenanceInitial);if(s.provenanceLocked)sessionRecord.provenanceLocked=clone(s.provenanceLocked);if(Array.isArray(s.coachPlanAudit))sessionRecord.coachPlanAudit=clone(s.coachPlanAudit);if(s.categoryPlanAudit)sessionRecord.categoryPlanAudit=clone(s.categoryPlanAudit);if(s.wholeSessionAudit)sessionRecord.wholeSessionAudit=clone(s.wholeSessionAudit);if(s.researchPlan&&!s.extra&&!s.quick)sessionRecord.researchPlan=clone(s.researchPlan);if(s.coachDayIntent)sessionRecord.coachDayIntent=clone(s.coachDayIntent);
  if(s.coachComplement)sessionRecord.coachComplement=clone(s.coachComplement);
- sessionRecord.coachReport=generateSessionReport(sessionRecord);dc30LogCompletedInterventions(s);dc30RefreshFollowUps();data.sessions.push(sessionRecord);displayCoachReport(sessionRecord.coachReport);data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;rapidInitialCalibration();performCoachReview();checkCompletedBlocks();data.coach.challengeAudit=dc7ChallengeAudit(data.games);data.coach.challengeForecast=dc8ChallengeForecast(data.games);save();checkpointData();$("finishedText").textContent=success?(s.quick?"Quick Play saved separately.":"Today's practice is saved."):"Your practice has been saved.";$("sessionFinished").classList.remove("hidden");show("train")}
+ sessionRecord.coachReport=generateSessionReport(sessionRecord);dc30LogCompletedInterventions(s);dc30RefreshFollowUps();data.sessions.push(sessionRecord);displayCoachReport(sessionRecord.coachReport);data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;rapidInitialCalibration();performCoachReview();checkCompletedBlocks();data.coach.challengeAudit=dc7ChallengeAudit(data.games);data.coach.challengeForecast=dc8ChallengeForecast(data.games);const saved=save();
+ if(saved)checkpointData();
+ $("finishedText").textContent=saved?(success?(s.quick?"Quick Play saved separately.":"Today's practice is saved."):"Your practice has been saved."):storageSaveError;$("sessionFinished").classList.remove("hidden");show("train")}
 function finishSessionEarly(){if(!session())return;if(!confirm("End this training session?"))return;finishSession(false)}
-function pauseSession(){const s=session();if(!s||s.phase==="rules"||s.phase==="complete")return;if(s.pausedAt){s.pausedTotal+=Date.now()-s.pausedAt;s.pausedAt=null;s.activityStarted=Date.now()}else{closeCheckoutDartPicker();s.pausedAt=Date.now();if(s.activityStarted)s.activityAccumulated+=s.pausedAt-s.activityStarted;s.activityStarted=null}save()}
+function pauseSession(){const s=session();if(!s||s.phase==="rules"||s.phase==="complete")return;if(s.pausedAt){if(!idcPhysicalAllowed())return;s.pausedTotal+=Date.now()-s.pausedAt;s.pausedAt=null;s.activityStarted=Date.now()}else{closeCheckoutDartPicker();s.pausedAt=Date.now();if(s.activityStarted)s.activityAccumulated+=s.pausedAt-s.activityStarted;s.activityStarted=null}save()}
 function finishView(){const wasQuick=data.sessions.length&&data.sessions[data.sessions.length-1].quick;$("sessionFinished").classList.add("hidden");show(wasQuick?"quick":"home")}
 /* TRAINING DISPLAY */
 const EXTRA_RULES={
@@ -5637,7 +5780,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   }
  }
  if(!s){const prompt=$("reassessmentPrompt");if(prompt)prompt.classList.toggle("hidden",!reassessmentDue());return}const e=currentExercise();let g=activeGame||data.game;if(!e)return;if(g?.name==='Dartboard Bingo'&&(!Array.isArray(g.targets)||g.targets.length!==20||!Number.isInteger(g.called))){g=buildGame('Dartboard Bingo');activeGame=g;data.game=g;save(false)}const elapsed=exerciseElapsed(),isBenchmark=e.name==="Big Singles",seconds=e.seconds||0;
- $("sessionType").textContent=(s.quick?"Quick Play":s.extra?"Extra Training":"Today's Training")+(!s.extra&&(isBenchmark||s.benchmarkSeconds)?" · +"+fmt(s.benchmarkSeconds+(isBenchmark?elapsed:0)):"");$("sessionStepLabel").textContent="Exercise "+(s.index+1)+"/"+s.plan.length;$("exerciseName").textContent=g?.name==="Target Mastery"?"Mastery · "+dc23MasteryDescriptor(g):g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
+ $("sessionType").textContent=(s.quick?"Quick Play":s.extra?"Extra Training":"Today's Training")+(!s.extra&&(isBenchmark||s.benchmarkSeconds)?" · +"+fmt(s.benchmarkSeconds+(isBenchmark?elapsed:0)):"");$("sessionStepLabel").textContent="Exercise "+(s.index+1)+"/"+s.plan.length;$("exerciseName").textContent=e.application?'Application · '+e.name:g?.name==="Target Mastery"?"Mastery · "+dc23MasteryDescriptor(g):g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
  let rule=EXTRA_RULES[e.name]||RULES[e.name]||"";if(g&&g.name==="Doubles Survival"&&g.variant==="singles")rule="Hit the displayed SINGLE (either single section) within nine darts. A completed round restarts.";if(g&&g.name==="Treble Hunt"&&g.variant==="single")rule="Beginner target: hit the SINGLE shown. A miss costs one life. Clear the hit goal before lives run out.";
  if(g?.name==='High-Low'&&g.visitLimit)rule='Enter each three-dart total. Follow HIGHER or LOWER by the displayed gap. Four correct comparisons win immediately. You have '+g.visitLimit+' visits and '+(g.lives+g.losses)+' lives.';
  if(g?.singleLineRound)rule='Mark a line of five by hitting the called doubles. Completing a line wins the round.';
@@ -5665,7 +5808,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  $("exerciseDone").classList.toggle("hidden",phase!=="complete");
  $("sessionFooter").classList.toggle("hidden",phase!=="playing");
  if(phase!=="complete")$("dc65FixBenchmark").classList.add("hidden");
- const displayTitle=g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
+ const displayTitle=e.application?'Application · '+e.name:g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
  if(phase==="rules"){
   $("introTitle").textContent=displayTitle;
   const aim=coach61SessionAim(e);
@@ -5834,7 +5977,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
    g.mode==='straight'?'Streak '+g.streak+' · Best '+g.best:
    'Hits '+g.hits+'/'+g.thrown)+' · '+(g.goal-(g.mode==='checkout'?g.attempts:g.thrown))+(g.mode==='checkout'?' attempts remaining':' darts remaining');
   html=g.mode==='bull'?button('25','dc23MasteryInput(\'25\')')+button('50','dc23MasteryInput(\'50\')')+button('Miss','dc23MasteryInput(\'miss\')'):
-   g.mode==='checkout'?button('Finished · 1 dart',"dc23MasteryInput('finish1')")+button('Finished · 2 darts',"dc23MasteryInput('finish2')")+button('Finished · 3 darts',"dc23MasteryInput('finish3')")+button('Not finished',"dc23MasteryInput('miss')"):
+   g.mode==='checkout'?[1,2,3].filter(n=>possibleCheckoutIn(g.checkoutExample,n)).map(n=>button('Finished · '+n+' dart'+(n===1?'':'s'),"dc23MasteryInput('finish"+n+"')")).join('')+button('Not finished',"dc23MasteryInput('miss')"):
    button('Hit','dc23MasteryInput(\'hit\')')+button('Miss','dc23MasteryInput(\'miss\')');break;
  case "High-Low":
   heading=highLowAimHigher(g)?"HIGHER":"LOWER";detail="Previous visit "+g.previous+" · Gap "+g.diff;
@@ -5989,7 +6132,7 @@ const COACH61_NAMES={scoring:'Scoring',doubles:'Doubles',checkout:'Checkouts',bu
 /* Daily coaching and completed-practice accounting. */
 function coach62Practice(now=Date.now(),since=weekStart(now)){
  const sessions=new Map(),categories=Object.fromEntries(SKILLS.map(k=>[k,{seconds:0,days:new Set()}]));
- const result={categories,games:new Map(),days:new Set(),warmup:0,benchmark:0,review:0,unclassified:0,quickSeconds:0,totalSeconds:0,sessions:0};
+ const result={categories,games:new Map(),days:new Set(),warmup:0,benchmark:0,review:0,application:0,unclassified:0,quickSeconds:0,totalSeconds:0,sessions:0};
  for(const s of data.sessions||[]){
   if(!s||!Number.isFinite(s.start)||s.start<since||s.start>now)continue;
   const id=s.id!==undefined&&s.id!==null?'id:'+String(s.id):'legacy:'+s.start+':'+!!s.extra+':'+!!s.quick;
@@ -6022,6 +6165,7 @@ function coach62Practice(now=Date.now(),since=weekStart(now)){
    if(activity.name==='Warm-up'){result.warmup+=seconds;continue}
    if(activity.name==='Big Singles'){result.benchmark+=seconds;continue}
    if(activity.name==='Review'){result.review+=seconds;continue}
+   if(activity.application===true){result.application+=seconds;continue}
    const category=activity.name==='Target Mastery'?dc29MasteryCategory(s,activity):dc28GameCategory(activity.name);
    if(category){
     categories[category].seconds+=seconds;categories[category].days.add(dateKey(s.start));
@@ -6063,7 +6207,7 @@ function coach62SessionNeed(intent,policy,now=Date.now()){
  if(total>=3600&&practice.categories[key].seconds/total>=.4)return null;
  return {key,days:intent.evidenceDays[key]||0};
 }
-function coach62Complement(chosen,extra,policy,priority,now=Date.now()){
+function coach62Complement(chosen,extra,policy,priority,now=Date.now(),reserved=null){
  if(chosen.exploration?.trial)return null;
  const week=coach62Practice(now),today=coach62Practice(now,new Date(new Date(now).getFullYear(),new Date(now).getMonth(),new Date(now).getDate()).getTime());
  if(extra?today.sessions<1:week.days.size<2)return null;
@@ -6082,7 +6226,7 @@ function coach62Complement(chosen,extra,policy,priority,now=Date.now()){
  if(donor<0)return null;
  const played=new Set(today.games.keys());
  const pool=QUICK_GAMES.filter(name=>dc28GameCategory(name)===category&&!DC10_MEASUREMENT_GAMES.has(name)&&name!=='Target Mastery'&&
-  !chosen.includes(name)&&!played.has(name));
+  name!==reserved&&!chosen.includes(name)&&!played.has(name));
  if(!pool.length)return null;
  const dayOffset=Math.floor(now/DAY_MS);
  const ranked=pool.map((name,i)=>({name,seconds:week.games.get(name)||0,tie:(i+dayOffset)%pool.length}));
@@ -6097,8 +6241,8 @@ function coach62PlanDialog(){
  $('coach62PlanFocus').textContent=intent?.focus?'Today’s focus · '+COACH61_NAMES[intent.focus]:'Balanced skills practice';
  $('coach62PlanItems').innerHTML=s.plan.map((item,index)=>{
   const duration=item.mode==='benchmark'?'60 darts · added to the hour':
-   s.allocated||index<=s.index||item.name==='Warm-up'||item.name==='Review'?fmt(item.seconds):'Time set after warm-up';
-  return '<div class="entry"><strong>'+esc(item.name)+'</strong><p>'+esc(duration)+'</p>'+
+   s.allocated||index<=s.index||item.application||item.name==='Warm-up'||item.name==='Review'?fmt(item.seconds):'Time set after warm-up';
+  return '<div class="entry"><strong>'+esc(item.application?'Application · '+item.name:item.name)+'</strong><p>'+esc(duration)+'</p>'+
    (item.coachPurpose?'<p>'+esc(item.coachPurpose)+'</p>':'')+'</div>';
  }).join('');
  dialog.showModal();$('coach62PlanTitle').focus();dialog.scrollTop=0;
@@ -6114,7 +6258,7 @@ function coach62Week(){
   html+='<div class="entry"><div class="statLine"><strong>'+COACH61_NAMES[key]+'</strong><span>'+
    minutes(c.seconds)+' · '+c.days.size+' day'+(c.days.size===1?'':'s')+'</span></div><div class="progress"><div style="width:'+share.toFixed(2)+'%"></div></div></div>';
  }
- const other=[['Warm-up',practice.warmup],['Daily singles',practice.benchmark],['Review',practice.review],['Mixed practice',practice.unclassified],['Quick Play',practice.quickSeconds]].filter(x=>x[1]>0);
+ const other=[['Warm-up',practice.warmup],['Daily singles',practice.benchmark],['Review',practice.review],['Practical application',practice.application],['Mixed practice',practice.unclassified],['Quick Play',practice.quickSeconds]].filter(x=>x[1]>0);
  if(other.length)html+='<p class="muted">'+other.map(([name,seconds])=>name+' · '+minutes(seconds)).join('<br>')+'</p>';
  if(!practice.sessions&&!practice.quickSeconds)html+='<p class="muted">Your recorded practice will appear here after a session.</p>';
  box.innerHTML=html;
@@ -6339,7 +6483,7 @@ function dc34PracticeSnapshot(player=data){
  const incomplete=all.filter(g=>g&&['partial','manual','timed'].includes(g.completion)&&typeof g.name==='string'&&g.name).length;
  const categories={scoring:{rounds:0,games:new Set()},doubles:{rounds:0,games:new Set()},checkout:{rounds:0,games:new Set()},bull:{rounds:0,games:new Set()}};
  const unclassified={rounds:0,games:new Set()};
- for(const g of valid){const category=dc28GameCategory(g.name),bucket=categories[category]||unclassified;bucket.rounds++;bucket.games.add(g.name)}
+ for(const g of valid){const category=g.application===true?null:dc28GameCategory(g.name),bucket=categories[category]||unclassified;bucket.rounds++;bucket.games.add(g.name)}
  return {total:valid.length,incomplete,categories:Object.fromEntries(Object.entries(categories).map(([key,val])=>[key,{rounds:val.rounds,games:val.games.size}])),unclassified:{rounds:unclassified.rounds,games:unclassified.games.size},recent:valid.slice(-5).reverse().map(g=>({name:g.name,result:typeof g.result==='string'?g.result:'Activity completed'}))};
 }
 function dc34RenderPracticeSnapshot(){
@@ -6382,7 +6526,7 @@ function dc44TrainingTrace(player=data,now=Date.now()){
    if(['Warm-up','Big Singles','Review'].includes(a.name))continue;
    const minutes=Math.max(0,Math.min(120,a.seconds/60));
    out.measuredMinutes+=minutes;
-   const skill=a.name==='Target Mastery'?null:dc28GameCategory(a.name);
+   const skill=a.application===true||a.name==='Target Mastery'?null:dc28GameCategory(a.name);
    if(skill&&Object.hasOwn(out.bySkill,skill))out.bySkill[skill]+=minutes;else out.unclassifiedMinutes+=minutes;
    if(a.seconds<300)out.partialExerciseRecords++;
   }
@@ -7466,6 +7610,7 @@ function assessmentLegCurrent(){
  return a[a.length-1];
 }
 function assessmentLegCommit(score,darts,checkout=false,bust=false){
+ if(!idcPhysicalAllowed())return;
  if(activeStage!=="legs"||stageComplete("legs"))return;
  const g=assessmentLegCurrent();if(!g||g.finished)return;
  if(!Number.isInteger(darts)||darts<1||darts>3)return;
@@ -7626,7 +7771,7 @@ function renderAssessmentMenu(){
  }).join('');
 }
 function openAssessment(stage){
- if(!STAGES.includes(stage)||stageComplete(stage))return;
+ if(!STAGES.includes(stage)||stageComplete(stage)||!idcPhysicalAllowed())return;
  const first=STAGES.find(x=>!stageComplete(x));if(stage!==first)return;
  activeStage=checkAssessmentWarmup()?stage:"warmup";
  $("assessmentScreen").classList.remove("hidden");document.body.classList.add("assessing");
@@ -7649,10 +7794,10 @@ function afterAssessmentEntry(){
   show("train");
  }else{renderAssessment();renderAll()}
 }
-function assessmentRecord(stage,record){if(stageComplete(stage))return;data.assessment[stage].push(record);afterAssessmentEntry()}
+function assessmentRecord(stage,record){if(stageComplete(stage)||!idcPhysicalAllowed())return;data.assessment[stage].push(record);afterAssessmentEntry()}
 function assessment20(value){/* Legacy function retained for backward compatibility; the new scoring test uses visit totals. */}
 function assessmentDouble(hit){
- if(activeStage!=="doubles"||stageComplete("doubles"))return;
+ if(activeStage!=="doubles"||stageComplete("doubles")||!idcPhysicalAllowed())return;
  const a=data.assessment.doubles;let record=a[a.length-1];
  if(!record||record.darts.length===3){record={target:doublesTarget(a.length).segment,darts:[]};a.push(record)}
  record.darts.push({segment:hit?record.target:"MISS",score:hit?2:0,multiplier:hit?2:0,at:Date.now()});
@@ -7721,7 +7866,7 @@ function completeAssessment(){
   match:{legs:legs.length,wins:wonLegs.length,meanWinningDarts:observedDarts,allLegs:legs.map(l=>({won:l.won,darts:l.dartsUsed,remaining:l.remaining,busts:l.busts})),average:legs.reduce((s,l)=>s+num(l.points),0)*3/Math.max(1,legs.reduce((s,l)=>s+num(l.dartsUsed),0))},
   provisional:true,createdAt:Date.now()
  };
- a.profile=profile;a.finished=true;a.completedAt=Date.now();
+ a.profile=profile;a.finished=true;a.completedAt=Date.now();a.offsetMinutes=new Date(a.completedAt).getTimezoneOffset();
  const isInitial=!data.baseline||data.baseline.quickStart===true;
  if(isInitial){data.baseline=clone(profile);for(const key of SKILLS)data.skills[key].level=profile[key].level}
  else for(const key of SKILLS){const old=num(data.skills[key].level)||7,target=profile[key].level;data.skills[key].level=clamp(old+Math.sign(target-old),1,7)}
@@ -7850,6 +7995,18 @@ function validateRestore(json){
  if(s!=null&&(!isRecord(s)||!Array.isArray(s.plan)||!s.plan.length||s.plan.some(x=>!isRecord(x)||typeof x.name!=='string')||!Number.isInteger(s.index)||s.index<0||s.index>=s.plan.length||!Array.isArray(s.completed)||!['rules','playing','complete'].includes(s.phase)||!Number.isFinite(s.start))){
   throw Error("Backup contains an invalid active session. Your existing data was not replaced.");
  }
+ // Historical game records remain untouched. Only an ACTIVE plan must be
+ // executable: never replace a good profile with a broken running exercise.
+ if(s!=null){
+  const known=new Set(['Warm-up','Review','Big Singles','Scoring Challenge',...QUICK_GAMES]);
+  if(s.plan.some(x=>!known.has(x.name)||!['timed','benchmark'].includes(x.mode)||
+      (x.mode==='benchmark'?x.name!=='Big Singles':!Number.isFinite(x.seconds)||x.seconds<=0||x.seconds>7200))||
+      s.completed.some(x=>!isRecord(x))||!isRecord(restored.game)||restored.game.name!==s.plan[s.index].name||
+      ['pausedTotal','activityAccumulated','benchmarkSeconds'].some(k=>s[k]!=null&&(!Number.isFinite(s[k])||s[k]<0))||
+      ['pausedAt','activityStarted','lastActiveSaveAt'].some(k=>s[k]!=null&&(!Number.isFinite(s[k])||s[k]<0))){
+   throw Error("Backup contains an invalid active exercise or clock. Your existing data was not replaced.");
+  }
+ }
  // Individual legacy game measurements are kept, but invalid entries are
  // excluded by dc17ValidCheckoutAttempt rather than treated as failed darts.
  return restored;
@@ -7888,6 +8045,9 @@ if(data.activeSession){
 // V5.74: never burn a timed exercise while Safari is backgrounded or closed.
 // Do not auto-resume: the player must choose Resume Session when ready to throw.
 function dc74PauseForBackground(){
+ // A rules modal pauses temporarily. Backgrounding must cancel its
+ // automatic resume permission even if the exercise was already paused.
+ dc88Resume=null;
  const s=session();
  if(s&&s.phase==="playing"&&!s.pausedAt&&!finishExpiredExercise())pauseSession();
 }
@@ -7896,11 +8056,11 @@ document.addEventListener('visibilitychange',()=>{
  else if(activeStage==='warmup')resumeAssessmentWarmup();
 });
 window.addEventListener('pagehide',()=>{dc74PauseForBackground();if(activeStage==='warmup')pauseAssessmentWarmup()});
-performCoachReview();checkCompletedBlocks();setInterval(trainingTimer,500);setInterval(assessmentTimer,250);show("home");save(false);if(recoveryNotice){const b=$("backupStatus");if(b)b.textContent=recoveryNotice;}
+performCoachReview();checkCompletedBlocks();setInterval(trainingTimer,500);setInterval(assessmentTimer,250);show("home");idcAcquireWriter();if(recoveryNotice){const b=$("backupStatus");if(b)b.textContent=recoveryNotice;}
 
 </script><div id="welcomeOverlay" class="welcomeOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeHeading">
  <div class="welcomePanel dc36InfoPanel">
-  <div class="dc36InfoKicker"><span class="dc36InfoGem">✦</span> BUILT FOR BETTER DARTS <span class="dc36InfoVersion">V1.9.0-dev</span></div>
+  <div class="dc36InfoKicker"><span class="dc36InfoGem">✦</span> BUILT FOR BETTER DARTS <span class="dc36InfoVersion">V2.0.0-dev</span></div>
   <h2 id="welcomeHeading">Your game.<br><span>Your next level.</span></h2>
   <p class="dc36InfoLead">Intelligent Darts Coach combines structured practice, measurable results and an adaptive training planner. It gives you a purposeful session, then learns cautiously from what you actually complete.</p>
   <div class="dc36InfoStats"><div><strong>41</strong><small>Training games</small></div><div><strong>7</strong><small>Hidden skill levels</small></div><div><strong>60</strong><small>Minute core session</small></div></div>
@@ -8054,6 +8214,7 @@ window.casualGames=(()=>{
   }catch(e){state=null;undo=[]}
  }
  function start(name,players=1){
+  if(!idcPhysicalAllowed())return;
   const bot=players==='bot';if(bot)players=2;
   if(session()){notice='Finish your training session before starting a casual game.';render();return}
   if(!catalogue.some(([n])=>n===name)||![1,2].includes(players))return;
@@ -8145,6 +8306,7 @@ window.casualGames=(()=>{
   }
  }
  function dart(number,ring){
+  if(!botPlaying&&!idcPhysicalAllowed())return;
   if(!state||state.finished||session()||(state.bot&&state.turn===1&&!botPlaying))return;
   if(!Number.isInteger(number)||!Number.isInteger(ring)||!((number===0&&ring===0)||(number>=1&&number<=20&&ring>=1&&ring<=3)||(number===25&&[1,2].includes(ring))))return;
   if(!botPlaying){undo.push(JSON.parse(JSON.stringify(state)));if(undo.length>60)undo.shift()}
@@ -8178,8 +8340,8 @@ window.casualGames=(()=>{
   if(!state.finished){state.dart++;if(visitOver||state.dart===3)endVisit()}
   if(!botPlaying){if(state.bot&&!state.finished&&state.turn===1)playBot();persist();render()}
  }
- function back(){if(!undo.length||session())return;state=undo.pop();persist();render()}
- function clear(){state=null;undo=[];try{localStorage.removeItem(key)}catch(e){}render()}
+ function back(){if(!undo.length||session()||idcWriter!=='held')return;state=undo.pop();persist();render()}
+ function clear(){if(idcWriter!=='held')return;state=null;undo=[];try{localStorage.removeItem(key)}catch(e){}render()}
  function menu(){if(state&&!state.finished){document.getElementById('casualLeave').showModal();return}clear()}
  function render(){
   if(!host())return;
@@ -8211,6 +8373,14 @@ window.casualGames=(()=>{
 })();
 casualGames.render();
 </script><script>
+function idcPhysicalAllowed(){
+ try{idcAssertWriter();if(window.IDCPolicy?.mayStart()===true)return true}
+ catch(e){alert(e.message);return false}
+ alert("The independent coach cannot approve throwing right now. Review readiness in Coach before continuing.");return false;
+}
 function idcBoundary(){if(currentTab!=="train")return null;const s=session();if(s&&s.phase==="complete"&&!s.quick){const a=s.completed.find(x=>x.exerciseIndex===s.index);if(a)return {kind:"exercise",sessionId:String(s.id),index:s.index,name:a.name,at:a.at,day:dateKey(s.start),quick:false}}if(!s&&!$("sessionFinished").classList.contains("hidden")){const x=data.sessions.at(-1);if(x&&!x.quick)return {kind:"session",sessionId:String(x.id),index:null,name:"Training session",at:Math.max(x.start,...(x.activities||[]).map(a=>Number(a.at)||0)),day:x.date,quick:false}}return null}
-window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>data.games.filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");if(session()&&!(reflectionBoundary&&session().phase==="complete"))throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error("Unable to save coaching memory")}return true},active:()=>!!session(),legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});
-</script><script type="importmap">{"imports":{"./engine/clinic.mjs":"./engine/clinic.mjs?v=1.9.0-dev","./engine/coach-api.mjs":"./engine/coach-api.mjs?v=1.9.0-dev","./engine/coach-dialogue.mjs":"./engine/coach-dialogue.mjs?v=1.9.0-dev","./engine/context.mjs":"./engine/context.mjs?v=1.9.0-dev","./engine/diagnosis.mjs":"./engine/diagnosis.mjs?v=1.9.0-dev","./engine/engine.mjs":"./engine/engine.mjs?v=1.9.0-dev","./engine/equipment-profile.mjs":"./engine/equipment-profile.mjs?v=1.9.0-dev","./engine/executive.mjs":"./engine/executive.mjs?v=1.9.0-dev","./engine/experiments.mjs":"./engine/experiments.mjs?v=1.9.0-dev","./engine/explanation.mjs":"./engine/explanation.mjs?v=1.9.0-dev","./engine/followup.mjs":"./engine/followup.mjs?v=1.9.0-dev","./engine/goals.mjs":"./engine/goals.mjs?v=1.9.0-dev","./engine/host-adapter.mjs":"./engine/host-adapter.mjs?v=1.9.0-dev","./engine/interventions.mjs":"./engine/interventions.mjs?v=1.9.0-dev","./engine/knowledge.mjs":"./engine/knowledge.mjs?v=1.9.0-dev","./engine/learning.mjs":"./engine/learning.mjs?v=1.9.0-dev","./engine/match.mjs":"./engine/match.mjs?v=1.9.0-dev","./engine/next-actions.mjs":"./engine/next-actions.mjs?v=1.9.0-dev","./engine/player-intelligence.mjs":"./engine/player-intelligence.mjs?v=1.9.0-dev","./engine/reasoning.mjs":"./engine/reasoning.mjs?v=1.9.0-dev","./engine/scenarios.mjs":"./engine/scenarios.mjs?v=1.9.0-dev","./engine/session-intelligence.mjs":"./engine/session-intelligence.mjs?v=1.9.0-dev","./engine/state.mjs":"./engine/state.mjs?v=1.9.0-dev","./engine/strategy.mjs":"./engine/strategy.mjs?v=1.9.0-dev","./engine/tactics.mjs":"./engine/tactics.mjs?v=1.9.0-dev","./engine/target-analysis.mjs":"./engine/target-analysis.mjs?v=1.9.0-dev","./engine/target-evidence.mjs":"./engine/target-evidence.mjs?v=1.9.0-dev","./engine/training.mjs":"./engine/training.mjs?v=1.9.0-dev","./engine/verification.mjs":"./engine/verification.mjs?v=1.9.0-dev","./idc.mjs":"./idc.mjs?v=1.9.0-dev","./bridge.mjs":"./bridge.mjs?v=1.9.0-dev","./v62-evidence.mjs":"./v62-evidence.mjs?v=1.9.0-dev","./coach-memory.mjs":"./coach-memory.mjs?v=1.9.0-dev","./coach-policy.mjs":"./coach-policy.mjs?v=1.9.0-dev","./host-exposure.mjs":"./host-exposure.mjs?v=1.9.0-dev","./host-targets.mjs":"./host-targets.mjs?v=1.9.0-dev","./game-profile.mjs":"./game-profile.mjs?v=1.9.0-dev","./integrated-dialogue.mjs":"./integrated-dialogue.mjs?v=1.9.0-dev","./target-checks.mjs":"./target-checks.mjs?v=1.9.0-dev","./reflections.mjs":"./reflections.mjs?v=1.9.0-dev","./context-profile.mjs":"./context-profile.mjs?v=1.9.0-dev","./longitudinal.mjs":"./longitudinal.mjs?v=1.9.0-dev","./intervention-audit.mjs":"./intervention-audit.mjs?v=1.9.0-dev","./contextual-questions.mjs":"./contextual-questions.mjs?v=1.9.0-dev","./actual-target-statistics.mjs":"./actual-target-statistics.mjs?v=1.9.0-dev","./context-statistics.mjs":"./context-statistics.mjs?v=1.9.0-dev","./evidence-coverage.mjs":"./evidence-coverage.mjs?v=1.9.0-dev","./finish-validation.mjs":"./finish-validation.mjs?v=1.9.0-dev","./manual-target-samples.mjs":"./manual-target-samples.mjs?v=1.9.0-dev","./match-statistics.mjs":"./match-statistics.mjs?v=1.9.0-dev","./practice-statistics.mjs":"./practice-statistics.mjs?v=1.9.0-dev","./skill-statistics.mjs":"./skill-statistics.mjs?v=1.9.0-dev","./statistics-dialogue.mjs":"./statistics-dialogue.mjs?v=1.9.0-dev","./statistics-view.mjs":"./statistics-view.mjs?v=1.9.0-dev","./statistics.mjs":"./statistics.mjs?v=1.9.0-dev","./target-statistics.mjs":"./target-statistics.mjs?v=1.9.0-dev","./visit-statistics.mjs":"./visit-statistics.mjs?v=1.9.0-dev","./weekly-statistics.mjs":"./weekly-statistics.mjs?v=1.9.0-dev","./progression-bands.mjs":"./progression-bands.mjs?v=1.9.0-dev","./progression-evidence.mjs":"./progression-evidence.mjs?v=1.9.0-dev","./progression-dialogue.mjs":"./progression-dialogue.mjs?v=1.9.0-dev","./precision-calibration.mjs":"./precision-calibration.mjs?v=1.9.0-dev","./precision-checks.mjs":"./precision-checks.mjs?v=1.9.0-dev","./precision-games.mjs":"./precision-games.mjs?v=1.9.0-dev","./precision-adapter.mjs":"./precision-adapter.mjs?v=1.9.0-dev","./precision-audit.mjs":"./precision-audit.mjs?v=1.9.0-dev","./challenge-setting.mjs":"./challenge-setting.mjs?v=1.9.0-dev","./challenge-exposure.mjs":"./challenge-exposure.mjs?v=1.9.0-dev","./challenge-episodes.mjs":"./challenge-episodes.mjs?v=1.9.0-dev","./challenge-learning.mjs":"./challenge-learning.mjs?v=1.9.0-dev","./training-ledger.mjs":"./training-ledger.mjs?v=1.9.0-dev","./training-outcomes.mjs":"./training-outcomes.mjs?v=1.9.0-dev","./match-stages.mjs":"./match-stages.mjs?v=1.9.0-dev","./development-review.mjs":"./development-review.mjs?v=1.9.0-dev","./coaching-intelligence.mjs":"./coaching-intelligence.mjs?v=1.9.0-dev","./tactical-learning.mjs":"./tactical-learning.mjs?v=1.9.0-dev","./session-learning.mjs":"./session-learning.mjs?v=1.9.0-dev","./trial-planning.mjs":"./trial-planning.mjs?v=1.9.0-dev"}}</script><script type="module" src="./idc.mjs?v=1.9.0-dev"></script><script>if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=1.9.0-dev',{scope:'./'}).catch(()=>{});</script></body></html>
+window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>data.games.filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
+ if(session()?.phase==="playing"&&!session().pausedAt)pauseSession();
+ if(activeStage==="warmup"||assessmentWarmup().startedAt)pauseAssessmentWarmup();
+ }checkpointData();return true},active:()=>!!session(),nativePlanPreview:()=>{const s=session();if(!s&&assessmentDue())return {status:'assessment-required',segments:[]};const plan=s?s.plan.slice(s.index):generateSession(false,false,true);return {status:s?s.allocated?'locked':'initial':'initial',segments:plan.map(e=>({name:e.name,mode:e.mode,minutes:e.mode==='timed'?Math.round(e.seconds/60):null}))}},legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});
+</script><script type="importmap">{"imports":{"./engine/clinic.mjs":"./engine/clinic.mjs?v=2.0.0-dev","./engine/coach-api.mjs":"./engine/coach-api.mjs?v=2.0.0-dev","./engine/coach-dialogue.mjs":"./engine/coach-dialogue.mjs?v=2.0.0-dev","./engine/context.mjs":"./engine/context.mjs?v=2.0.0-dev","./engine/diagnosis.mjs":"./engine/diagnosis.mjs?v=2.0.0-dev","./engine/engine.mjs":"./engine/engine.mjs?v=2.0.0-dev","./engine/equipment-profile.mjs":"./engine/equipment-profile.mjs?v=2.0.0-dev","./engine/executive.mjs":"./engine/executive.mjs?v=2.0.0-dev","./engine/experiments.mjs":"./engine/experiments.mjs?v=2.0.0-dev","./engine/explanation.mjs":"./engine/explanation.mjs?v=2.0.0-dev","./engine/followup.mjs":"./engine/followup.mjs?v=2.0.0-dev","./engine/goals.mjs":"./engine/goals.mjs?v=2.0.0-dev","./engine/host-adapter.mjs":"./engine/host-adapter.mjs?v=2.0.0-dev","./engine/interventions.mjs":"./engine/interventions.mjs?v=2.0.0-dev","./engine/knowledge.mjs":"./engine/knowledge.mjs?v=2.0.0-dev","./engine/learning.mjs":"./engine/learning.mjs?v=2.0.0-dev","./engine/match.mjs":"./engine/match.mjs?v=2.0.0-dev","./engine/next-actions.mjs":"./engine/next-actions.mjs?v=2.0.0-dev","./engine/player-intelligence.mjs":"./engine/player-intelligence.mjs?v=2.0.0-dev","./engine/reasoning.mjs":"./engine/reasoning.mjs?v=2.0.0-dev","./engine/scenarios.mjs":"./engine/scenarios.mjs?v=2.0.0-dev","./engine/session-intelligence.mjs":"./engine/session-intelligence.mjs?v=2.0.0-dev","./engine/state.mjs":"./engine/state.mjs?v=2.0.0-dev","./engine/strategy.mjs":"./engine/strategy.mjs?v=2.0.0-dev","./engine/tactics.mjs":"./engine/tactics.mjs?v=2.0.0-dev","./engine/target-analysis.mjs":"./engine/target-analysis.mjs?v=2.0.0-dev","./engine/target-evidence.mjs":"./engine/target-evidence.mjs?v=2.0.0-dev","./engine/training.mjs":"./engine/training.mjs?v=2.0.0-dev","./engine/verification.mjs":"./engine/verification.mjs?v=2.0.0-dev","./idc.mjs":"./idc.mjs?v=2.0.0-dev","./bridge.mjs":"./bridge.mjs?v=2.0.0-dev","./v62-evidence.mjs":"./v62-evidence.mjs?v=2.0.0-dev","./coach-memory.mjs":"./coach-memory.mjs?v=2.0.0-dev","./coach-policy.mjs":"./coach-policy.mjs?v=2.0.0-dev","./host-exposure.mjs":"./host-exposure.mjs?v=2.0.0-dev","./host-targets.mjs":"./host-targets.mjs?v=2.0.0-dev","./game-profile.mjs":"./game-profile.mjs?v=2.0.0-dev","./integrated-dialogue.mjs":"./integrated-dialogue.mjs?v=2.0.0-dev","./target-checks.mjs":"./target-checks.mjs?v=2.0.0-dev","./reflections.mjs":"./reflections.mjs?v=2.0.0-dev","./context-profile.mjs":"./context-profile.mjs?v=2.0.0-dev","./longitudinal.mjs":"./longitudinal.mjs?v=2.0.0-dev","./intervention-audit.mjs":"./intervention-audit.mjs?v=2.0.0-dev","./contextual-questions.mjs":"./contextual-questions.mjs?v=2.0.0-dev","./actual-target-statistics.mjs":"./actual-target-statistics.mjs?v=2.0.0-dev","./context-statistics.mjs":"./context-statistics.mjs?v=2.0.0-dev","./evidence-coverage.mjs":"./evidence-coverage.mjs?v=2.0.0-dev","./finish-validation.mjs":"./finish-validation.mjs?v=2.0.0-dev","./manual-target-samples.mjs":"./manual-target-samples.mjs?v=2.0.0-dev","./match-statistics.mjs":"./match-statistics.mjs?v=2.0.0-dev","./practice-statistics.mjs":"./practice-statistics.mjs?v=2.0.0-dev","./skill-statistics.mjs":"./skill-statistics.mjs?v=2.0.0-dev","./statistics-dialogue.mjs":"./statistics-dialogue.mjs?v=2.0.0-dev","./statistics-view.mjs":"./statistics-view.mjs?v=2.0.0-dev","./statistics.mjs":"./statistics.mjs?v=2.0.0-dev","./target-statistics.mjs":"./target-statistics.mjs?v=2.0.0-dev","./visit-statistics.mjs":"./visit-statistics.mjs?v=2.0.0-dev","./weekly-statistics.mjs":"./weekly-statistics.mjs?v=2.0.0-dev","./progression-bands.mjs":"./progression-bands.mjs?v=2.0.0-dev","./progression-evidence.mjs":"./progression-evidence.mjs?v=2.0.0-dev","./progression-dialogue.mjs":"./progression-dialogue.mjs?v=2.0.0-dev","./precision-calibration.mjs":"./precision-calibration.mjs?v=2.0.0-dev","./precision-checks.mjs":"./precision-checks.mjs?v=2.0.0-dev","./precision-games.mjs":"./precision-games.mjs?v=2.0.0-dev","./precision-adapter.mjs":"./precision-adapter.mjs?v=2.0.0-dev","./precision-audit.mjs":"./precision-audit.mjs?v=2.0.0-dev","./challenge-setting.mjs":"./challenge-setting.mjs?v=2.0.0-dev","./challenge-exposure.mjs":"./challenge-exposure.mjs?v=2.0.0-dev","./challenge-episodes.mjs":"./challenge-episodes.mjs?v=2.0.0-dev","./challenge-learning.mjs":"./challenge-learning.mjs?v=2.0.0-dev","./training-ledger.mjs":"./training-ledger.mjs?v=2.0.0-dev","./training-outcomes.mjs":"./training-outcomes.mjs?v=2.0.0-dev","./match-stages.mjs":"./match-stages.mjs?v=2.0.0-dev","./development-review.mjs":"./development-review.mjs?v=2.0.0-dev","./coaching-intelligence.mjs":"./coaching-intelligence.mjs?v=2.0.0-dev","./tactical-learning.mjs":"./tactical-learning.mjs?v=2.0.0-dev","./session-learning.mjs":"./session-learning.mjs?v=2.0.0-dev","./trial-planning.mjs":"./trial-planning.mjs?v=2.0.0-dev","./performance-forecast.mjs":"./performance-forecast.mjs?v=2.0.0-dev","./competition-calendar.mjs":"./competition-calendar.mjs?v=2.0.0-dev","./coaching-accountability.mjs":"./coaching-accountability.mjs?v=2.0.0-dev","./proactive-coach.mjs":"./proactive-coach.mjs?v=2.0.0-dev","./personal-programme.mjs":"./personal-programme.mjs?v=2.0.0-dev","./autonomy-dialogue.mjs":"./autonomy-dialogue.mjs?v=2.0.0-dev"}}</script><script type="module" src="./idc.mjs?v=2.0.0-dev"></script><script>if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js?v=2.0.0-dev',{scope:'./'}).catch(()=>{});</script></body></html>

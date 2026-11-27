@@ -3,12 +3,20 @@ from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
     browser=getattr(p,os.getenv('IDC_BROWSER','chromium')).launch()
     ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    from urllib.parse import urlsplit
+    external_requests=[]
+    def track_request(request):
+        u=urlsplit(request.url)
+        if u.scheme in ('http','https','ws','wss') and (u.scheme!='http' or u.hostname!='127.0.0.1' or u.port!=8765):
+            external_requests.append((request.method,request.url))
+    ctx.on('request',track_request)
     page=ctx.new_page()
     errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.add_init_script("""if(!localStorage.getItem('dartsCoachV4'))localStorage.setItem('dartsCoachV4','CONTROL-SENTINEL');if(!localStorage.getItem('DCI-independent:foundation:v1'))localStorage.setItem('DCI-independent:foundation:v1','INDEPENDENT-SENTINEL');""")
     page.goto('http://127.0.0.1:8765/index.html')
-    assert 'V1.9.0-dev' in page.title()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert 'V2.0.0-dev' in page.title()
     assert page.locator('#home').is_visible()
     assert not page.locator('#idcCoach').is_visible()
     assert page.locator('.homeWelcome').is_visible()
@@ -23,6 +31,28 @@ with sync_playwright() as p:
     page.locator('#idcReview').click()
     assert 'Decision: balanced' in page.locator('#idcReport').inner_text()
     assert 'Eligible measurements: 0' in page.locator('#idcReport').inner_text()
+    assert 'Maintain your balanced practice' in page.locator('#idcBrief').inner_text()
+    # Exercise sparse two-day feedback through both real Coach UI entry points.
+    sparse=page.evaluate("""async()=>{
+      const saved=data.idcCoachMemory;
+      try{
+       const {newMemory}=await import('./coach-memory.mjs?v=2.0.0-dev');
+       data.idcCoachMemory=clone(window.IDCTrainingBridge.memory()??newMemory());
+       const today=dateKey(),old=dateKey(Date.now()-26*DAY_MS);
+       data.idcCoachMemory.state.observations=[
+        {id:'sparse-older',day:old,skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:35},
+        {id:'sparse-recent',day:today,skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:20}
+       ];
+       window.IDCPrecision.invalidate();
+       document.getElementById('idcReview').click();
+       const review=document.getElementById('idcReport').innerText;
+       document.getElementById('idcQuestion').value='review my performance';
+       document.getElementById('idcAsk').click();
+       const answer=document.getElementById('idcAnswer').innerText;
+       return {review,answer};
+      }finally{if(saved===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=saved;window.IDCPrecision.invalidate()}
+    }""")
+    assert '35% to 20%' in sparse['review'] and 'Decision: balanced' in sparse['review'] and '-15 percentage points' in sparse['answer'], sparse
     page.locator('#idcExample').click()
     assert 'SIMULATION ONLY' in page.locator('#idcReport').inner_text()
     assert 'temporary-focus' in page.locator('#idcReport').inner_text()
@@ -54,6 +84,7 @@ with sync_playwright() as p:
     assert 'preferred double: D16' in page.locator('#idcMemoryHistory').inner_text()
     assert 'Saved: preferred double' in page.locator('#idcFactStatus').inner_text()
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     assert page.locator('#home').is_visible()
     page.locator('#navTechnique').click()
     page.locator('#idcMemoryPanel > summary').click()
@@ -85,8 +116,20 @@ with sync_playwright() as p:
     page.locator('#idcReview').click()
     assert 'Decision: stop' in page.locator('#idcReport').inner_text()
     assert page.evaluate('window.IDCPolicy.mayStart()') is False
+    # Sol H2: a stop decision must block actual physical entry points.
+    blocked=page.evaluate("""()=>{const notices=[],old=window.alert;window.alert=x=>notices.push(x);try{
+      const before=JSON.stringify(data.activeSession??null);
+      startQuickPlay();beginTraining(true,true);openAssessment(STAGES.find(x=>!stageComplete(x)));
+      return {unchanged:JSON.stringify(data.activeSession??null)===before,assessmentHidden:document.getElementById('assessmentScreen').classList.contains('hidden'),blocked:notices.length};
+    }finally{window.alert=old}}""")
+    assert blocked['unchanged'] and blocked['assessmentHidden'] and blocked['blocked']==3, blocked
+    # Re-enter Coach explicitly after probing native entry points; readiness is
+    # edited using the visible form rather than a synthetic memory mutation.
+    page.locator('#navTechnique').click()
     page.locator('#idcReady input[name=pain]').uncheck()
     page.locator('#idcReady button').click()
+    assert page.evaluate('window.IDCPolicy.mayStart()') is True
+    assert page.evaluate("""()=>{const old=data.idcCoachMemory;try{data.idcCoachMemory={format:'invalid'};return window.IDCPolicy.mayStart()===false}finally{data.idcCoachMemory=old}}""")
     assert page.evaluate('window.IDCPolicy.mayStart()') is True
     page.locator('#idcSetup input[name=name]').fill('Test setup')
     page.locator("#idcSetup input[name='setup:weight']").fill('24g')
@@ -127,7 +170,45 @@ with sync_playwright() as p:
     assert page.evaluate("window.IDCTrainingBridge.memory().reflections.length")==2
     page.evaluate("finishView()")
     page.locator('#navTechnique').click()
-    assert page.evaluate("""async()=>{const m=await import('./training-ledger.mjs?v=1.9.0-dev');const x=m.trainingLedger(window.IDCTrainingBridge.snapshot(),window.IDCTrainingBridge.day());return x.sessions.length>=1&&x.sessions.some(s=>!s.completed)}""")
+    assert page.evaluate("""async()=>{const m=await import('./training-ledger.mjs?v=2.0.0-dev');const x=m.trainingLedger(window.IDCTrainingBridge.snapshot(),window.IDCTrainingBridge.day());return x.sessions.length>=1&&x.sessions.some(s=>!s.completed)}""")
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is False
+    consent_dialogs=[]
+    def confirm_method(dialog):
+        consent_dialogs.append({'type':dialog.type,'message':dialog.message})
+        if dialog.type=='confirm' and 'Allow the coach to choose' in dialog.message:
+            dialog.accept()
+        else:
+            dialog.dismiss()
+    page.on('dialog',confirm_method)
+    try:
+        page.locator('#idcBrief button').filter(has_text='Enable personalised drill choice').click()
+        assert len(consent_dialogs)==1 and consent_dialogs[0]['type']=='confirm' and 'Allow the coach to choose' in consent_dialogs[0]['message'], consent_dialogs
+        assert page.evaluate("window.IDCPolicy.methodEnabled()") is True, {'dialogs':consent_dialogs,'status':page.locator('#idcMemoryStatus').inner_text(),'report':page.locator('#idcReport').inner_text(),'writer':page.evaluate('idcWriter'),'active':page.evaluate('!!session()'),'saveError':page.evaluate('storageSaveError')}
+    finally:
+        page.remove_listener('dialog',confirm_method)
+    page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    page.locator('#navTechnique').click()
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is True
+    page.locator('#idcBrief button').filter(has_text='Disable personalised drill choice').click()
+    assert page.evaluate("window.IDCPolicy.methodEnabled()") is False
+    page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=true')
+    assert page.locator('#idcAutonomyQuestions button').count()==10
+    page.locator('#idcEventForm input[name=name]').fill('Synthetic league')
+    event_day=page.evaluate("window.IDCTrainingBridge.day()")
+    page.locator('#idcEventForm input[name=day]').fill(event_day)
+    page.locator('#idcEventForm button').click()
+    assert 'Competition saved locally' in page.locator('#idcEventStatus').inner_text()
+    assert 'Synthetic league' in page.locator('#idcEvents').inner_text()
+    assert 'Synthetic league' in page.locator('#idcBrief').inner_text()
+    page.locator('#idcAutonomyQuestions button').filter(has_text='How should I prepare for competition?').click()
+    assert 'Synthetic league' in page.locator('#idcAnswer').inner_text()
+    event_plan=page.evaluate("""()=>{const before=JSON.stringify(data),plan=generateSession(false,false,true);return {phase:plan.unifiedAudit.competition?.phase,familiar:plan.unifiedAudit.competition?.familiar,trial:plan.unifiedAudit.exploration?.trial,mastery:plan.some(e=>e.name==='Target Mastery'),valid:plan.every(e=>e.mode==='benchmark'||e.seconds>=300),unchanged:before===JSON.stringify(data)}}""")
+    assert event_plan=={'phase':'competition-day','familiar':True,'trial':None,'mastery':False,'valid':True,'unchanged':True},event_plan
+    page.once('dialog',lambda d:d.accept())
+    page.locator('#idcEvents button').click()
+    assert 'No saved competitions' in page.locator('#idcEvents').inner_text()
+    page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=false')
     page.locator('#idcDeepPanel').evaluate('(e)=>e.open=true')
     assert page.locator('#idcDeepQuestions button').count()==13
     page.locator('#idcDeepQuestions button').filter(has_text='Recovery from 81 after S19').click()
@@ -189,16 +270,21 @@ with sync_playwright() as p:
         assert card['x']+card['width']<=width+1
     page.set_viewport_size({"width":390,"height":844})
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()
     assert page.evaluate('window.IDCTrainingBridge.memory().state.legs.length')==1
     assert page.evaluate('window.IDCTrainingBridge.memory().state.throws.length')==20
     page.evaluate("navigator.serviceWorker.ready")
     page.wait_for_function("navigator.serviceWorker.controller!==null")
     if os.getenv('IDC_BROWSER','chromium')=='chromium':
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');return !!(await c.match('./context-profile.mjs?v=1.9.0-dev'))&&!!(await c.match('./context-profile.mjs'))&&!!(await c.match('./longitudinal.mjs'))&&!!(await c.match('./engine/context.mjs'))&&!!(await c.match('./contextual-questions.mjs'))&&!!(await c.match('./statistics-view.mjs?v=1.9.0-dev'))&&!!(await c.match('./manual-target-samples.mjs?v=1.9.0-dev'))&&!!(await c.match('./progression-evidence.mjs?v=1.9.0-dev'))&&!!(await c.match('./precision-games.mjs?v=1.9.0-dev'))&&!!(await c.match('./challenge-learning.mjs?v=1.9.0-dev'))&&!!(await c.match('./challenge-exposure.mjs?v=1.9.0-dev'))}""")
-        assert page.evaluate("""async()=>{const c=await caches.open('IDC:assets:1.9.0-dev1');for(const n of ['training-ledger','training-outcomes','match-stages','development-review','coaching-intelligence','tactical-learning','session-learning','trial-planning'])if(!await c.match('./'+n+'.mjs?v=1.9.0-dev')||!await c.match('./'+n+'.mjs'))return false;return true}""")
+        # Read the generation declared by the deployed worker, not a stale test constant.
+        cache_audit=page.evaluate("""async()=>{const sw=await fetch('./sw.js',{cache:'no-store'}).then(r=>r.text());const name=sw.match(/const CACHE='([^']+)'/)[1];const keys=await caches.keys();if(!keys.includes(name))return {name,keys,missing:['active generation absent']};const c=await caches.open(name);const assets=JSON.parse(sw.match(/const ASSETS=(\\[[^;]+\\]);/)[1]);const expected=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))];const missing=[];for(const a of expected)if(!await c.match(a))missing.push(a);return {name,keys,expected:expected.length,missing}}""")
+        assert cache_audit['expected']>=160 and not cache_audit['missing'], cache_audit
+        assert [n for n in cache_audit['keys'] if n.startswith('IDC:assets:')]==[cache_audit['name']], cache_audit
+        print('Complete offline asset inventory:',cache_audit['expected'])
         ctx.set_offline(True)
         page.reload()
+        page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
         page.locator('#navTechnique').click()
         page.locator('#idcExample').click()
         assert 'temporary-focus' in page.locator('#idcReport').inner_text()
@@ -211,10 +297,46 @@ with sync_playwright() as p:
         assert 'doubles' in page.locator('#idcAnswer').inner_text()
         page.locator('#idcReview').click()
         assert 'Current development priorities' in page.locator('#idcReport').inner_text()
-        for question, expected in [('How much have I actually trained?', 'Unlogged practice is unknown'), ('Which drills help me improve?', 'eligible exercise exposures'), ('Does longer practice help me?', 'eligible exercise exposures'), ('Have my gains lasted?', 'delayed follow-ups'), ('Where do I lose performance in legs?', '101 straight-in'), ('How does practice transfer to competition?', 'actual practice and competition'), ('Model checkout 81 with 2 darts', 'Standard legal route'), ('Recovery from 81 after S19', 'Remaining score 62'), ('Do I lose consistency during practice?', 'six or more complete'), ('What should I test next?', 'Not enough comparable training contrasts')]:
+        for question, expected in [('How much have I actually trained?', 'Unlogged practice is unknown'), ('Which drills help me improve?', 'eligible exercise exposures'), ('Does longer practice help me?', 'eligible exercise exposures'), ('Have my gains lasted?', 'delayed follow-ups'), ('Where do I lose performance in legs?', '101 straight-in'), ('How does practice transfer to competition?', 'actual practice and competition'), ('Model checkout 81 with 2 darts', 'Standard legal route'), ('Recovery from 81 after S19', 'Remaining score 62'), ('Do I lose consistency during practice?', 'six or more complete'), ('What should I test next?', 'Not enough comparable training contrasts'), ('What performance range is realistic?', 'No comparable measured history'), ('How effective has my coaching been?', 'No accepted intervention history'), ('Plan my next four weeks', 'Week 4')]:
             page.locator('#idcQuestion').fill(question)
             page.locator('#idcAsk').click()
             assert expected.lower() in page.locator('#idcAnswer').inner_text().lower(), question
+    else:
+        # WebKit must actually launch and execute the cached coach offline, not
+        # just wait for service-worker registration. Restore online afterwards.
+        inventory=page.evaluate("""async()=>{
+          const sw=await fetch('./sw.js',{cache:'no-store'}).then(r=>r.text());
+          const name=sw.match(/const CACHE='([^']+)'/)[1], keys=await caches.keys();
+          if(!keys.includes(name))return {expected:0,missing:['active generation absent']};
+          const c=await caches.open(name),assets=JSON.parse(sw.match(/const ASSETS=(\\[[^;]+\\]);/)[1]);
+          const expected=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))],missing=[];
+          for(const a of expected)if(!await c.match(a))missing.push(a);
+          return {expected:expected.length,missing};
+        }""")
+        assert inventory['expected']>=160 and not inventory['missing'], inventory
+        # Record an emulation failure separately, without suppressing later
+        # real-origin outage, gameplay, migration or storage checks.
+        webkit_offline_error=None
+        try:
+            ctx.set_offline(True)
+            page.goto('http://127.0.0.1:8765/index.html?audit=webkit-offline')
+            page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
+            page.locator('#navTechnique').click()
+            page.locator('#idcExample').click()
+            assert 'temporary-focus' in page.locator('#idcReport').inner_text()
+            page.locator('#idcQuestion').fill('Checkout 81 with 2 darts')
+            page.locator('#idcAsk').click()
+            assert 'legal finish' in page.locator('#idcAnswer').inner_text()
+            print('WebKit offline emulation navigation and Coach passed:',inventory['expected'])
+        except Exception as exc:
+            webkit_offline_error=str(exc)
+            print('WebKit offline emulation failure:',webkit_offline_error)
+        finally:
+            ctx.set_offline(False)
+        if webkit_offline_error:
+            page.goto('http://127.0.0.1:8765/index.html')
+            page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+            page.locator('#navTechnique').click()
     page.locator('#idcStatsPanel').evaluate('(e)=>e.open=true')
     page.locator('#idcStatsType').select_option('Actual match statistics')
     page.locator('#idcStatsReview').click()
@@ -238,6 +360,7 @@ with sync_playwright() as p:
     assert '64.8' in page.locator('#idcMilestoneResult').inner_text()
     assert 'Awaiting evidence' in page.locator('#idcMilestoneResult').inner_text()
     page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()
     assert page.evaluate("window.IDCTrainingBridge.memory().state.observations.filter(o=>o.protocol==='IDC precision fixed scoring').length")==1
     page.locator('#idcPrecisionCheckPanel').evaluate('(e)=>e.open=true')
@@ -251,11 +374,99 @@ with sync_playwright() as p:
     assert 'Not enough comparable records' in page.locator('#idcAnswer').inner_text()
     page.evaluate("show('progress')")
     assert 'Keep recording' in page.locator('#idcProgressHighlights').inner_text()
+    # Native allocator boundary test: a stubbed independent decision checks the actual
+    # allocator and locked plan; real evidence gates are tested in Node.
+    allocation=page.evaluate("""()=>{
+      const previous=data.activeSession,policy=window.IDCPolicy,oldSessions=data.sessions;
+      try{
+       data.sessions=[];
+       const now=Date.now(),normal='Scoring Survival',alternative='Scoring Ladder';
+       const run=(mode)=>{
+        const s={id:now,start:now-1800000,pausedAt:now,pausedTotal:0,benchmarkSeconds:0,index:0,quick:false,extra:false,allocated:false,completed:[],phase:'rules',plan:[
+         {name:normal,mode:'timed',seconds:900,wholeCoach:{category:'scoring'}},
+         {name:'Doubles Survival',mode:'timed',seconds:600,wholeCoach:{category:'doubles'}},
+         {name:'Review',mode:'timed',seconds:300}
+        ],unifiedAudit:{idcMethodCandidates:[{normal,alternative,skill:'scoring',normalScore:1,alternativeScore:2}]},wholeSessionAudit:{policy:{categories:{}}}};
+        if(mode==='extra')s.extra=true;
+        if(mode==='focus')s.coachDayIntent={focus:'doubles'};
+        if(mode==='trial')s.unifiedAudit.exploration={trial:true};
+        if(mode==='wrong-category')s.unifiedAudit.idcMethodCandidates[0].alternative='Doubles Survival';
+        data.activeSession=s;dc45InitialSnapshot(s);
+        let calls=0;
+        window.IDCPolicy={...policy,transfer:()=>({status:'unchanged'}),methodChoice:options=>{calls++;return mode==='decline'?{status:'unchanged'}:{status:'selected',...options[0]}}};
+        allocateRemaining(s);
+        return {mode,calls,total:s.plan.reduce((n,e)=>n+e.seconds,0),names:s.plan.map(e=>e.name),locked:s.provenanceLocked.exercises.map(e=>e.name),method:s.wholeSessionAudit.idcMethod?.exerciseIndex??null};
+       };
+       return ['allow','decline','extra','focus','trial','wrong-category'].map(run);
+      }finally{data.activeSession=previous;data.sessions=oldSessions;window.IDCPolicy=policy}
+    }""")
+    assert allocation[0]['calls']==1 and allocation[0]['method']==0, allocation
+    assert allocation[0]['names'][0]=='Scoring Ladder' and allocation[0]['locked']==allocation[0]['names'], allocation
+    assert allocation[1]['calls']==1 and allocation[1]['names'][0]=='Scoring Survival', allocation
+    assert all(x['calls']==0 and x['names'][0]=='Scoring Survival' for x in allocation[2:]), allocation
+    assert all(x['total']==1800 for x in allocation), allocation
+    # Scheduled contract: actual generated and locked native plan, not advisory preview.
+    structure=page.evaluate("""()=>{
+      const original=clone(data),policy=window.IDCPolicy;
+      try{
+       data.sessions=[];data.bigSingles=[];data.activeSession=null;
+       const plan=generateSession(false,false,true),timed=plan.filter(e=>e.mode==='timed');
+       const initial={warmup:timed[0]?.seconds,application:timed.at(-1)?.seconds,role:timed.at(-1)?.application===true,name:timed.at(-1)?.name,total:timed.reduce((n,e)=>n+e.seconds,0),unique:new Set(timed.map(e=>e.name)).size===timed.length,benchmark:plan.some(e=>e.name==='Big Singles')};
+       const run=(elapsed)=>{
+        const now=Date.now(),s={id:now,start:now-elapsed*1000,pausedAt:now,pausedTotal:0,benchmarkSeconds:0,index:0,quick:false,extra:false,allocated:false,completed:[],phase:'rules',plan:clone(plan.filter(e=>e.name!=='Warm-up'&&e.name!=='Big Singles')),unifiedAudit:{},wholeSessionAudit:{policy:{categories:{}}}};
+        data.activeSession=s;
+        window.IDCPolicy={...policy,transfer:()=>({status:'unchanged'})};
+        allocateRemaining(s);
+        return {total:s.plan.reduce((n,e)=>n+e.seconds,0),last:s.plan.at(-1),min:Math.min(...s.plan.map(e=>e.seconds)),locked:s.provenanceLocked.exercises.at(-1)?.plannedSeconds};
+       };
+       return {initial,normal:run(600),short:run(3000),extraReview:generateSession(true,false,true).at(-1)?.name};
+      }finally{data=original;window.IDCPolicy=policy;window.IDCPrecision.invalidate()}
+    }""")
+    assert structure['initial']=={'warmup':600,'application':600,'role':True,'name':'301 Pressure','total':3600,'unique':True,'benchmark':True}, structure
+    assert structure['normal']['total']==3000 and structure['normal']['last']['application'] and structure['normal']['locked']==600 and structure['normal']['min']>=300, structure
+    assert structure['short']['total']==600 and structure['short']['last']['application'] and structure['short']['locked']==600, structure
+    assert structure['extraReview']=='Review', structure
+    # Application time is mixed practice, never ten extra minutes of isolated checkout work.
+    attribution=page.evaluate("""()=>{
+      const original=clone(data),now=Date.now();
+      try{
+       const start=now-1800000,day=dateKey(start);
+       data.sessions=[{id:start,start,date:day,extra:false,quick:false,completed:true,minutes:30,activities:[{name:'Checkout Climb',seconds:600,at:start+600000,exerciseIndex:0},{name:'301 Pressure',application:true,seconds:600,at:start+1200000,exerciseIndex:1},{name:'Warm-up',seconds:600,at:now,exerciseIndex:2}]}];
+       data.games=[];
+       const p=coach62Practice(now,start),l=dc28CategoryLedger(now).at(-1);
+       return {checkout:p.categories.checkout.seconds,application:p.application,total:p.totalSeconds,legacyCheckout:l.minutes.checkout,unknown:l.unknownMinutes};
+      }finally{data=original;window.IDCPrecision.invalidate()}
+    }""")
+    assert attribution=={'checkout':600,'application':600,'total':1800,'legacyCheckout':10,'unknown':20}, attribution
+    # H5: same native skill tier, calendar, exposure and settings; change only
+    # independent measured ability and inspect actual executable scheduler output.
+    adaptation=page.evaluate("""()=>{const original=clone(data);try{
+      data.sessions=[];data.games=[];data.bigSingles=[];data.activeSession=null;data.assessmentHistory=[];data.assessment.completedAt=Date.now()-90*DAY_MS;
+      data.idcCoachMemory.events=[];data.idcCoachMemory.state.readiness=[];data.idcCoachMemory.state.interventions=[];data.idcCoachMemory.baselines={};
+      for(const k of SKILLS)data.skills[k].level=4;
+      const day=n=>dateKey(Date.now()-n*DAY_MS),results=[];
+      for(const [avg,doubles,checkout,bull] of [[25,6,1,3],[55,18,4,10],[75,30,6,16],[95,42,9,22],[108,51,11,27]]){
+       data.idcCoachMemory.state.observations=[];
+       for(const n of [0,1,7,8,14,15,21,22])for(const [skill,attempts,hits] of [['scoring',30,avg*10],['doubles',60,doubles],['checkout',12,checkout],['bull',30,bull]])
+        data.idcCoachMemory.state.observations.push({id:'IDC:precision-check:'+skill+':'+day(n),day:day(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
+       window.IDCPrecision.invalidate();
+       const pref=window.IDCPolicy.preferredDrills();
+       if(Object.values(pref).some(n=>!QUICK_GAMES.includes(n)||DC10_MEASUREMENT_GAMES.has(n)))throw Error('Measured drill is not executable '+JSON.stringify(pref));
+       const plans=FOCUS.map(focus=>Array.from(chooseSessionGames(focus,4,null,false,null)));
+       if(plans.some(p=>p.length!==4||new Set(p).size!==4||p.some(n=>DC10_MEASUREMENT_GAMES.has(n))))throw Error('Invalid native plan');
+       const full=generateSession(false,false,true).map(e=>[e.name,e.seconds??null,e.mode]);
+       results.push({pref,plans,full});
+      }
+      return results;
+    }finally{data=original;window.IDCPrecision.invalidate()}}""")
+    assert len({json.dumps(x['pref'],sort_keys=True) for x in adaptation})>=3, adaptation
+    assert len({json.dumps(x['plans']) for x in adaptation})>=2, adaptation
+    print('Native measured profile scheduling audit:',adaptation)
     # Synthetic native construction audit: same rule-builder used by timed training.
     audit=page.evaluate("""async()=>{
       const original=clone(data),oldGame=activeGame,oldUndo=undoSnapshot,oldTab=currentTab;
       try{
-       const mod=await import('./precision-games.mjs?v=1.9.0-dev'),learn=await import('./challenge-setting.mjs?v=1.9.0-dev');
+       const mod=await import('./precision-games.mjs?v=2.0.0-dev'),learn=await import('./challenge-setting.mjs?v=2.0.0-dev');
        const day=n=>dateKey(Date.now()-n*DAY_MS),now=Date.now();
        data.assessment.completedAt=now-35*DAY_MS;
        data.idcCoachMemory.state.observations=[];
@@ -306,6 +517,112 @@ with sync_playwright() as p:
     assert audit['captured']>=20, audit
     assert audit['modified']>=70 and audit['names']>=20, audit
     print('Native precision construction audit:',audit)
+    # H2: actual mid-session changes, resume, assessment input and recreational
+    # input must obey a saved stop, not just the training start button.
+    safety=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    sp=safety.new_page()
+    sp.goto('http://127.0.0.1:8765/index.html')
+    sp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
+    gates=sp.evaluate("""async()=>{const {changeMemory}=await import('./coach-memory.mjs?v=2.0.0-dev'),bridge=window.IDCTrainingBridge,old=window.alert;
+      window.alert=()=>{};try{
+       const setPain=pain=>{const raw=bridge.memory(),day=bridge.day(),next=changeMemory(bridge.snapshot(),raw,day,'readiness',{day,context:'practice',fatigue:'normal',pressure:'normal',confidence:'normal',pain,note:''});bridge.writeMemory(next,JSON.stringify(raw))};
+       document.getElementById('quickStartAverage').value='q60';startQuickFromAverage();
+       quickChoice='Bull Accuracy';document.getElementById('quickDuration').value='300';startQuickPlay();playExercise();
+       if(session()?.phase!=='playing'||session().pausedAt)throw Error('Could not start control round');
+       bullDart(50);if(activeGame.thrown!==1||activeGame.inner!==1)throw Error('Control dart not recorded');
+       setPain(true);const paused=!!session().pausedAt;const before=JSON.stringify(activeGame);
+       bullDart(50);pauseSession();bullDart(25);
+       const blocked=paused&&!!session().pausedAt&&before===JSON.stringify(activeGame);
+       setPain(false);pauseSession();bullDart(25);const resumed=!session().pausedAt&&activeGame.thrown===2&&activeGame.outer===1;
+       finishSession(false);show('quick');casualGames.start('301',1);casualGames.dart(20,3);
+       const casual=JSON.stringify(casualGames.inspect());setPain(true);casualGames.dart(20,3);casualGames.start('501',1);
+       const casualBlocked=casual===JSON.stringify(casualGames.inspect());
+       casualGames.clear();setPain(false);
+       data.assessment=newAssessment();openAssessment(STAGES[0]);const warmStarted=!!assessmentWarmup().startedAt;
+       setPain(true);resumeAssessmentWarmup();const warmBlocked=warmStarted&&!assessmentWarmup().startedAt;
+       activeStage='doubles';const doubles=JSON.stringify(data.assessment.doubles);assessmentDouble(true);
+       const assessmentBlocked=doubles===JSON.stringify(data.assessment.doubles);
+       return {blocked,resumed,casualBlocked,warmBlocked,assessmentBlocked};
+      }finally{window.alert=old}}""")
+    assert all(gates.values()), gates
+    safety.close()
+    print('Physical readiness mid-session and resume audit:',gates)
+    # Sol H1: a second document must not overwrite a successfully saved profile.
+    before=page.evaluate("localStorage.getItem(KEY)")
+    other=ctx.new_page()
+    other.goto('http://127.0.0.1:8765/index.html')
+    other.wait_for_function("typeof idcWriter!=='undefined' && idcWriter!=='pending'")
+    assert other.evaluate("idcWriter")=='readonly'
+    other.evaluate("""()=>{data.idcCoachMemory=null;save(false)}""")
+    assert page.evaluate("localStorage.getItem(KEY)")==before
+    other.close()
+    # Sol M1: destructive storage recovery simulation in an isolated profile.
+    recovery=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    rp=recovery.new_page()
+    rp.goto('http://127.0.0.1:8765/index.html')
+    rp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    rp.evaluate("""()=>{data.__solRecoveryMarker='deleted';save(false);checkpointData();const old=localStorage.getItem(CHECKPOINT_KEY);
+       delete data.__solRecoveryMarker;save(false);localStorage.setItem(CHECKPOINT_KEY,old);localStorage.setItem(KEY,'broken-primary');}""")
+    rp.reload()
+    rp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert rp.evaluate("idcRecoveryBlocked && !data.__solRecoveryMarker")
+    assert rp.evaluate("localStorage.getItem(KEY)")=='broken-primary'
+    recovery.close()
+    # Positive recovery: an exact current checkpoint must survive unchanged
+    # writes, restore a corrupt primary, and be refreshed under the new fence.
+    valid_recovery=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    vp=valid_recovery.new_page()
+    vp.goto('http://127.0.0.1:8765/index.html')
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    unchanged=vp.evaluate("""()=>{data.__solRecoveryMarker='keep';if(!save(false)||!checkpointData())throw Error('setup failed');const fence=localStorage.getItem(RECOVERY_FENCE);if(!save(false))throw Error('no-op save failed');const same=localStorage.getItem(RECOVERY_FENCE)===fence;localStorage.setItem(KEY,'broken-current-primary');return same}""")
+    assert unchanged
+    vp.reload()
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert vp.evaluate("""()=>!idcRecoveryBlocked&&data.__solRecoveryMarker==='keep'&&localStorage.getItem(KEY)!=='broken-current-primary'&&JSON.parse(localStorage.getItem(CHECKPOINT_KEY)).fence===localStorage.getItem(RECOVERY_FENCE)""")
+    # A second corruption of primary must still recover the same current data.
+    vp.evaluate("localStorage.setItem(KEY,'second-corruption')")
+    vp.reload()
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert vp.evaluate("!idcRecoveryBlocked && data.__solRecoveryMarker==='keep'")
+    # Complete an interrupted native session while the primary write fails.
+    vp.wait_for_function("!!window.IDCPolicy")
+    quota=vp.evaluate("""()=>{document.getElementById('quickStartAverage').value='q60';
+      startQuickFromAverage();beginTraining(true,true);const previous=Storage.prototype.setItem;
+      try{Storage.prototype.setItem=function(k,v){if(k===KEY)throw new DOMException('Full','QuotaExceededError');return previous.call(this,k,v)};
+        finishSession(false);return {failed:dc17SaveFailed,message:$('finishedText').textContent,retained:data.sessions.length};
+      }finally{Storage.prototype.setItem=previous}}""")
+    assert quota['failed'] and quota['retained'] and 'backup' in quota['message'].lower(),quota
+    # Failed primary writes must preserve an already-current checkpoint.
+    assert vp.evaluate("""()=>{data.__probe='committed';save(false);checkpointData();
+      const fence=localStorage.getItem(RECOVERY_FENCE),previous=Storage.prototype.setItem;
+      data.__probe='pending';try{Storage.prototype.setItem=function(k,v){if(k===KEY)throw Error('quota');return previous.call(this,k,v)};
+      return !save(false)&&localStorage.getItem(RECOVERY_FENCE)===fence;
+      }finally{Storage.prototype.setItem=previous}}""")
+    vp.evaluate("localStorage.setItem(KEY,'damaged-after-failed-write')")
+    vp.reload()
+    vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert vp.evaluate("data.__probe==='committed' && !idcRecoveryBlocked")
+    valid_recovery.close()
+    print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
+    assert not external_requests,external_requests
+    print('Observed smoke-test requests: no external HTTP(S) or WebSocket destinations')
+    from browser_gameplay import run_gameplay_audit
+    from browser_upgrade import run_upgrade_audit
+    from browser_migration import run_migration_audit
+    import traceback
+    audit_errors=[]
+    # Automation-level offline switch is separately recorded. Mandatory
+    # worker audit must pass both HTTP outage and actual socket disconnection.
+    # Physical iOS airplane-mode validation remains a separate release gate.
+    if os.getenv('IDC_BROWSER','chromium')=='webkit' and webkit_offline_error:
+        print('UNRESOLVED WebKit network-emulation diagnostic:',webkit_offline_error)
+    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit):
+        try:
+            audit(browser)
+        except Exception as exc:
+            audit_errors.append((audit.__name__,str(exc)))
+            traceback.print_exc()
     browser.close()
+    assert not audit_errors,audit_errors
     print('IDC browser smoke and storage isolation passed')

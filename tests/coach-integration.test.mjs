@@ -19,12 +19,14 @@ test('legacy adjustment, trial, protected category, extra session, duplicate day
 test('seeded allocation fuzz preserves total, minimum and consent constraints',()=>{const x=allocation();let seed=0x19b3;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);for(let i=0;i<2000;i++){const queue=x.queue.map(e=>({...e,seconds:300+Math.floor(rand()*5)*300,wholeCoach:{...e.wholeCoach}}));const n=queue.reduce((a,e)=>a+e.seconds,0);const result=decideTransfer({...x,queue});applyTransfer(queue,result);assert.equal(queue.reduce((a,e)=>a+e.seconds,0),n);assert.ok(queue.every(e=>e.seconds>=300));if(result.status==='transferred')assert.equal(result.skill,'doubles')}});
 
 import {projectExposure} from '../site/host-exposure.mjs';
-test('actual practice exposure excludes Quick Play, mixed games and unverified double variants',()=>{const h=empty();h.sessions=[{id:1,date:day,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0},{name:'Doubles Survival',seconds:900,exerciseIndex:1,exerciseId:'e'},{name:'Warm-up',seconds:600,exerciseIndex:2},{name:'Shanghai Combo',seconds:300,exerciseIndex:3}]},{id:2,date:day,quick:true,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0}]}];let x=projectExposure(h,day);assert.deepEqual(x.exposure,[{day,skill:'bull',minutes:10}]);assert.equal(x.unclassifiedSeconds,1200);h.games=[{name:'Doubles Survival',sessionId:1,exerciseId:'e',quick:false,variant:'doubles'}];x=projectExposure(h,day);assert.equal(x.exposure.find(e=>e.skill==='doubles').minutes,15);assert.equal(x.complete,false);assert.equal(assemble(h,null,day,now).state.exposure.length,2);assert.equal(change(h,null,'fact',{key:'grip',value:'front',evidence:'reported'}).state.exposure.length,0)});
+test('actual practice exposure excludes Quick Play, mixed games and unverified double variants',()=>{const h=empty();h.sessions=[{id:1,date:day,start:now-2400000,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0,at:now-1800000},{name:'Doubles Survival',seconds:900,exerciseIndex:1,exerciseId:'e',at:now-900000},{name:'Warm-up',seconds:600,exerciseIndex:2,at:now-300000},{name:'Shanghai Combo',seconds:300,exerciseIndex:3,at:now}]},{id:2,date:day,quick:true,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0}]}];let x=projectExposure(h,day);assert.deepEqual(x.exposure,[{day,skill:'bull',minutes:10}]);assert.equal(x.unclassifiedSeconds,1200);h.games=[{name:'Doubles Survival',sessionId:1,exerciseId:'e',quick:false,variant:'doubles',day,at:now-960000}];x=projectExposure(h,day);assert.equal(x.exposure.find(e=>e.skill==='doubles').minutes,15);assert.equal(x.complete,false);assert.equal(assemble(h,null,day,now).state.exposure.length,2);assert.equal(change(h,null,'fact',{key:'grip',value:'front',evidence:'reported'}).state.exposure.length,0)});
 
 test('historical invalid intervention cannot drive a new allocation or rewrite stored history',()=>{
- const h=fixture(),obs=assemble(h,null,day,now).state.observations,scope=obs[0],base=Array.from({length:7},(_,n)=>({...scope,id:'historical-'+n,day:'2026-10-'+(10+n),hits:40}));
+ const h=fixture(),scope=assemble(h,null,day,now).state.observations[0];
+ for(let n=0;n<7;n++){const record=structuredClone(h.assessmentHistory[0]);record.completedAt=Date.parse('2026-10-'+(10+n)+'T12:00:00Z');h.assessmentHistory.push(record)}
+ const base=assemble(h,null,day,now).state.observations.filter(o=>o.day<'2026-10-17');
  const i={id:'past',skill:scope.skill,context:scope.context,protocol:scope.protocol,action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:'2026-10-17',responseDay:'2026-10-17',reviewAfterDays:14,maximumDays:21,reviewDay:'2026-10-31',baselineIds:base.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.25,noise:0}};
- const m=newMemory();m.state.observations=base;m.state.interventions=[i];m.baselines.past=base;
+ const m=newMemory();m.state.interventions=[i];m.baselines.past=base;
  const before=JSON.stringify(m),result=assess(h,m,day,now);
  assert.equal(result.questionableOutcomes[0].id,'past');
  assert.notEqual(result.report.decision,'temporary-focus');
@@ -41,6 +43,21 @@ test('retention preview and explicit save round-trip through real coach memory',
  const before=make(40,18),after=make(22,30),delayed=make(2,30);
  m.state.observations=[...before,...after,...delayed];
  m.state.interventions=[{...scope,id:'reviewed',action:'Temporary additional five minutes per balanced session',status:'completed',proposedDay:shift(36),responseDay:shift(36),reviewDay:shift(18),reviewAfterDays:14,maximumDays:21,baselineIds:before.map(o=>o.id),adherence:1,confounders:[],outcome:{status:'observed-improvement',delta:.2,noise:0}}];m.baselines.reviewed=before;
+ assert.equal(previewRetention(h,m,'reviewed',day,now).status,'delivery-unverified');
+ assert.throws(()=>changeMemory(h,m,day,'retention',{id:'reviewed'},now),/delivery-unverified/);
+ for(const daysAgo of [34,32,30]){
+  const date=shift(daysAgo),start=Date.parse(date+'T12:00:00Z'),id='session-'+daysAgo;
+  const exerciseId=id+':exercise:1',name='Doubles Survival';
+  const decision={status:'transferred',intervention:'reviewed',skill:'doubles',day:date,from:0,to:1,seconds:300};
+  const queue=[{name:'Scoring Challenge',seconds:900,mode:'timed',wholeCoach:{category:'scoring'}},{name,seconds:600,mode:'timed',wholeCoach:{category:'doubles'}}];
+  assert.ok(applyTransfer(queue,decision));
+  decision.delivery.receiverIndex=1;
+  const exercises=queue.map((e,index)=>({id:id+':exercise:'+index,index,name:e.name,mode:e.mode,plannedSeconds:e.seconds}));
+  h.sessions.push({id,start,date,quick:false,extra:false,completed:true,wholeSessionAudit:{idcTransfer:decision},
+   provenanceLocked:{kind:'post-allocation',at:start,exercises},
+   activities:[{exerciseId,exerciseIndex:1,name,plannedSeconds:900,seconds:900,at:start+900000}]});
+  h.games.push({name,sessionId:id,exerciseId,exerciseIndex:1,at:start+890000,day:date,quick:false,extra:false,completion:'natural',variant:'doubles',thrown:30});
+ }
  assert.equal(previewRetention(h,m,'reviewed',day,now).status,'observed-retention');
  const saved=changeMemory(h,m,day,'retention',{id:'reviewed'},now);
  assert.equal(saved.state.interventions[0].retentionHistory.length,1);
@@ -50,4 +67,69 @@ test('retention preview and explicit save round-trip through real coach memory',
  const edited=JSON.parse(JSON.stringify(saved));edited.state.observations=edited.state.observations.filter(o=>o.id!==before[0].id);
  assert.equal(previewRetention(h,edited,'reviewed',day,now).status,'review-needs-verification');
  assert.throws(()=>changeMemory(h,edited,day,'retention',{id:'reviewed'},now));
+});
+
+test('allocation cannot be made after review deadline, from future consent, or with ambiguous accepted history',()=>{
+ const x=allocation(),i=x.memory.state.interventions[0];
+ for(const patch of [{responseDay:'2026-11-16'},{responseDay:'2026-11-01',proposedDay:'2026-11-01'},{responseDay:'not a day'},{proposedDay:'2026-11-16'}]){
+  const memory={...x.memory,state:{...x.memory.state,interventions:[{...i,...patch}]}};
+  assert.equal(decideTransfer({...x,memory}).status,'unchanged');
+ }
+ assert.equal(decideTransfer({...x,memory:{...x.memory,state:{...x.memory.state,interventions:[i,{...i,id:'duplicate'}]}}}).status,'unchanged');
+ assert.equal(decideTransfer({...x,session:{...x.session,coachComplement:{to:'Bull Streak'}}}).status,'unchanged');
+});
+test('mutation boundary rejects same-skill, wrong receiver, invalid mode and replay atomically',()=>{
+ for(const change of [q=>q[0].wholeCoach.category='doubles',q=>q[1].wholeCoach.category='bull',q=>q[0].mode='benchmark',q=>q[1].name=q[0].name]){
+  const x=allocation(),d=decideTransfer(x);change(x.queue);const before=JSON.stringify(x.queue);assert.throws(()=>applyTransfer(x.queue,d),/Invalid allocation/);assert.equal(JSON.stringify(x.queue),before);
+ }
+ const x=allocation(),d=decideTransfer(x);assert.equal(applyTransfer(x.queue,d),true);const after=JSON.stringify(x.queue);assert.throws(()=>applyTransfer(x.queue,d),/Invalid allocation/);assert.equal(JSON.stringify(x.queue),after);
+});
+test('native allocator fails closed with malformed timed budget or another escalation',()=>{
+ const x=allocation();
+ for(const seconds of [NaN,299,7201,300.5]){const queue=x.queue.map(e=>({...e}));queue[0].seconds=seconds;assert.equal(decideTransfer({...x,queue}).status,'unchanged')}
+ assert.equal(decideTransfer({...x,queue:[x.queue[0],x.queue[0],...x.queue.slice(1)]}).status,'unchanged');
+ assert.equal(decideTransfer({...x,legacyPolicy:{categories:{...x.legacyPolicy.categories,doubles:{learning:{permissionToEscalate:true}}}}}).status,'unchanged');
+});
+
+test('malformed or ambiguous intervention backup cannot activate or overwrite valid consent',()=>{
+ const h=fixture(),m=accepted(h),i=m.state.interventions[0],before=JSON.stringify(m);
+ for(const patch of [{proposedDay:'2026-02-30'},{responseDay:'2026-13-01'},{baselineIds:[i.baselineIds[0],i.baselineIds[0]]},{protocol:' '},{status:'completed',reviewDay:'2026-11-14',adherence:1,outcome:{status:'observed-improvement'}},{status:'declined',cancelledDay:'2026-11-14'}]){
+  const bad={...m,state:{...m.state,interventions:[{...i,...patch}]}};
+  assert.throws(()=>validateMemory(bad));assert.throws(()=>assess(h,bad,day,now));
+ }
+ for(const other of [{...i},{...i,id:'second'}]){
+  const bad={...m,state:{...m.state,interventions:[i,other]},baselines:{...m.baselines,[other.id]:m.baselines[i.id]}};
+  assert.throws(()=>validateMemory(bad));
+ }
+ assert.equal(JSON.stringify(m),before);assert.deepEqual(validateMemory(JSON.parse(before)),m);
+});
+
+test('Integrated exposure excludes impossible or unverifiable historical activity clocks',()=>{
+ const h=empty(),valid={id:5,date:day,start:now-1200000,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0,exerciseId:'a',at:now-600000},{name:'Scoring Survival',seconds:600,exerciseIndex:1,exerciseId:'b',at:now}]};
+ h.sessions=[valid];assert.equal(projectExposure(h,day,now).exposure.length,2);
+ for(const bad of [
+ {...valid,start:now-300000},
+ {...valid,activities:valid.activities.map(a=>({...a,at:now-300000}))},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],exerciseIndex:0}]},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],exerciseId:'a'}]},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],at:now+1}]},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],at:undefined}]}
+ ]){
+  h.sessions=[bad];const before=JSON.stringify(h);
+  assert.equal(projectExposure(h,day,now).exposure.length,0);
+  assert.equal(assemble(h,null,day,now).state.exposure.length,0);
+  assert.equal(JSON.stringify(h),before);
+ }
+});
+test('Mixed application cannot be promoted to an isolated measured checkout exposure',()=>{
+ const h=empty();h.sessions=[{id:1,date:day,start:now-600000,quick:false,activities:[{name:'301 Pressure',application:true,seconds:600,exerciseIndex:0,at:now}]}];
+ const x=projectExposure(h,day,now);assert.equal(x.exposure.length,0);assert.equal(x.unclassifiedSeconds,600);
+});
+
+test('A duplicate identity blocks otherwise valid exposure on both affected dates',()=>{
+ const h=empty(),first=Date.parse('2026-11-14T10:00:00Z'),second=Date.parse(day+'T10:00:00Z');
+ const session=(id,date,start)=>({id,date,start,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0,at:start+600000}]});
+ h.sessions=[session(1,'2026-11-14',first),session('1',day,second),session(2,'2026-11-14',first+1200000),session(3,day,second+1200000)];
+ assert.deepEqual(projectExposure(h,day,now).exposure,[]);
+ h.sessions.splice(1,1);assert.equal(projectExposure(h,day,now).exposure.length,2);
 });

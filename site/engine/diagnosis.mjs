@@ -1,5 +1,5 @@
-import {SKILLS,summarise,mean,sd,plan} from './engine.mjs';
-import {dayValid,dayGap} from './context.mjs';
+import {SKILLS,summarise,mean,sd,plan,serialMargin} from './engine.mjs';
+import {dayValid,dayGap,robustTrend} from './context.mjs';
 import {targetSummaries} from './target-evidence.mjs';
 export const CHANGE_FIELDS=['equipment','technique','routine','practice schedule','environment','injury or discomfort'];
 export const QUESTIONS=[
@@ -73,7 +73,7 @@ export function confirmCurrentDecline(m,issue,day){
  const recent=summarise(rows.filter(o=>recentDays.includes(o.day))),baseline=summarise(rows.filter(o=>baselineDays.includes(o.day)));
  if(!recent||!baseline||recent.days<7||baseline.days<7||recent.attempts<60||baseline.attempts<60||dayGap(recentDays[0],day)>28||dayGap(recentDays.at(-1),day)>7)return {status:'insufficient',reason:'Require seven recent and seven preceding comparable measured days, with recent data current.'};
  const floor=['scoring','firstNine'].includes(issue.skill)?5:.08;
- const change=recent.dayMean-baseline.dayMean,noise=2.5*Math.sqrt(recent.daySD**2/recent.days+baseline.daySD**2/baseline.days);
+ const change=recent.dayMean-baseline.dayMean,noise=serialMargin(baseline,recent);
  const halves=[recent.daily.slice(0,3),recent.daily.slice(3)].map(x=>mean(x.map(o=>o.value))-baseline.dayMean);
  const consistent=halves.every(x=>x<=-floor*.75);
  const short=consistent&&change<=-Math.max(floor,noise);
@@ -81,12 +81,22 @@ export function confirmCurrentDecline(m,issue,day){
  const longBase=summarise(rows.filter(o=>older14.includes(o.day))),longRecent=summarise(rows.filter(o=>last14.includes(o.day)));
  let persistent=false,long=null;
  if(longBase&&longRecent&&longBase.days>=7&&longRecent.days===14&&longBase.attempts>=60&&dayGap(last14[0],day)<=35){
- const delta=longRecent.dayMean-longBase.dayMean,margin=2.5*Math.sqrt(longRecent.daySD**2/longRecent.days+longBase.daySD**2/longBase.days);
+ const delta=longRecent.dayMean-longBase.dayMean,margin=serialMargin(longBase,longRecent);
  const weeks=[longRecent.daily.slice(0,7),longRecent.daily.slice(7)].map(x=>mean(x.map(o=>o.value))-longBase.dayMean);
  persistent=weeks.every(x=>x<=-floor)&&delta<=-Math.max(floor,margin)&&halves.every((_,i)=>mean(recent.daily.slice(i===0?0:3,i===0?3:7).map(o=>o.value))-longBase.dayMean<=-floor*.75);
  long={change:delta,noise:margin,weeks,baselineDays:longBase.days,recentDays:longRecent.days};
  }
- return {status:short||persistent?'confirmed':'not-confirmed',mode:short?'recent':persistent?'persistent':'none',change,noise,halves,floor,baselineDays:baseline.days,recentDays:recent.days,long,reason:'Conservative engineering gate: current decline must be confirmed across recent subperiods or two consecutive seven-day blocks against an earlier baseline. Not a calibrated statistical test.'};
+ // Once an established decline has lasted a month, two adjacent short
+ // windows can both be low. Check that the independent long-window signal
+ // remains present in both halves of the latest seven measured days.
+ const broad=robustTrend(rows,{asOf:day});
+ const broadHalves=broad.earlier? [recent.daily.slice(0,3),recent.daily.slice(3)].map(x=>mean(x.map(o=>o.value))-broad.earlier.dayMean):[];
+ // A broad window can still contain a resolved slump. Two recent seven-day
+ // blocks rising materially above the immediately preceding fortnight
+ // veto a long-window-only prescription, even if the old peak is not restored.
+ const recovering=long!==null&&long.change>=floor&&long.weeks.every(x=>x>=floor*.75);
+ const sustained=!recovering&&broad.status==='declining'&&broad.change<=-floor&&broadHalves.length===2&&broadHalves.every(x=>x<=-floor);
+ return {status:short||persistent||sustained?'confirmed':'not-confirmed',mode:short?'recent':persistent?'persistent':sustained?'sustained-long-window':recovering?'recovering':'none',recovering,change,noise,halves,floor,baselineDays:baseline.days,recentDays:recent.days,long,broad:{status:broad.status,change:broad.change??null,halves:broadHalves},reason:'Conservative engineering gate: confirm recent or sustained decline against disjoint earlier measurements; require both latest subperiods to remain low. Not a calibrated statistical test.'};
 }
 
 export function deepenReport(m,report,day){
@@ -97,4 +107,27 @@ export function deepenReport(m,report,day){
  const candidate=selected??issues.filter(i=>i.action==='temporary-focus').sort((a,b)=>Math.abs(b.evidence.change)/(['scoring','firstNine'].includes(b.skill)?3:.05)-Math.abs(a.evidence.change)/(['scoring','firstNine'].includes(a.skill)?3:.05)||a.skill.localeCompare(b.skill))[0];
  const safe=['stop','reduce-load'].includes(report.decision)||comfort;
  return {...report,issues,decision:comfort?'stop':safe?report.decision:candidate?'temporary-focus':issues.length?'investigate':'balanced',focus:safe?null:candidate?.skill??null,focusProtocol:safe?null:candidate?.protocol??null,focusContext:safe?null:candidate?.context??null,plan:safe?[]:plan(candidate?.skill),review:comfort?{...report.review,wellbeing:{decision:'stop',action:'Stop throwing if uncomfortable or painful; seek qualified advice for persistent or significant pain.'}}:report.review};
+}
+
+// Descriptive two-day comparison only. Never used by intervention or allocation gates.
+// One date is one measured day regardless of how many individual darts were logged.
+export function sparseDeclines(m,day){
+ const groups=new Map();
+ for(const o of m.observations){
+  if(!dayValid(o.day)||dayGap(o.day,day)<0||dayGap(o.day,day)>=56)continue;
+  const k=JSON.stringify([o.skill,o.context,o.protocol]),rows=groups.get(k)??[];
+  rows.push(o);groups.set(k,rows);
+ }
+ const out=[];
+ for(const rows of groups.values()){
+  const dates=[...new Set(rows.map(o=>o.day))].sort();
+  if(dates.length!==2||dayGap(dates[1],day)>7)continue;
+  const a=summarise(rows.filter(o=>o.day===dates[0])),b=summarise(rows.filter(o=>o.day===dates[1]));
+  if(a.attempts<20||b.attempts<20)continue;
+  const {skill,context,protocol}=rows[0],scoring=['scoring','firstNine'].includes(skill);
+  const change=b.value-a.value,floor=scoring?5:.10;
+  if(change>-floor+1e-12)continue;
+  out.push({skill,context,protocol,earlierDay:dates[0],recentDay:dates[1],earlier:a.value,recent:b.value,attempts:[a.attempts,b.attempts],hits:[a.hits,b.hits],change});
+ }
+ return out.sort((a,b)=>Math.abs(b.change)/(['scoring','firstNine'].includes(b.skill)?5:.10)-Math.abs(a.change)/(['scoring','firstNine'].includes(a.skill)?5:.10)||a.skill.localeCompare(b.skill)||a.context.localeCompare(b.context)||a.protocol.localeCompare(b.protocol));
 }

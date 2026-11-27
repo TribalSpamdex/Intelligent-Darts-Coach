@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SEGMENTS,points,visit,routes,rankedRoutes,setup,emptyMemory,validMemory,addObservation,setFact,currentFacts,removeFact,assessments,investigate,plan,wilson} from '../site/engine/engine.mjs';
+import {SEGMENTS,points,visit,routes,rankedRoutes,setup,emptyMemory,validMemory,addObservation,setFact,currentFacts,removeFact,assessments,investigate,plan,wilson,ALLOCATION_PROOF} from '../site/engine/engine.mjs';
 import {technicalInvestigation,evaluation,executive} from '../site/engine/reasoning.mjs';
 import {knowledge} from '../site/engine/knowledge.mjs';
 function day(i){return new Date(Date.UTC(2024,0,1+i)).toISOString().slice(0,10)}
@@ -12,7 +12,7 @@ test('all displayed rankings remain legal',()=>{for(const s of [2,32,40,50,81,99
 test('setup avoids leaving 1 or bust',()=>{for(const s of [2,41,62,99,170,181,501])for(const x of setup(s)){assert.equal(s-points(x.target),x.remaining);assert.ok(x.remaining>=2)}});
 test('memory validation, correction, deletion, foreign backups',()=>{let m=setFact(emptyMemory(),'grip','front');m=setFact(m,'grip','middle','confirmed');assert.equal(currentFacts(m)[0].value,'middle');assert.equal(m.facts.length,2);assert.equal(removeFact(m,'grip').facts.length,0);assert.throws(()=>validMemory({...m,namespace:'DCAI'}));m=addObservation(m,obs(0));assert.throws(()=>addObservation(m,obs(0)));assert.throws(()=>addObservation(m,obs(1,'doubles',61)));assert.throws(()=>addObservation(m,{...obs(1),day:'2024-02-31'}));assert.deepEqual(validMemory(JSON.parse(JSON.stringify(m))),m)});
 test('independent skill/context/protocol assessments and no premature action',()=>{let m=series();assert.equal(investigate(m).focus,'doubles');m=addObservation(m,obs(0,'doubles',50,'competition'));assert.equal(assessments(m).length,2);assert.equal(investigate(emptyMemory()).decision,'balanced');assert.equal(investigate({...m,observations:m.observations.slice(0,3)}).decision,'balanced');assert.equal(investigate(series('scoring',1200,1400)).decision,'balanced')});
-test('contradictory evidence and prior unsuccessful intervention prevent repeated focus',()=>{let m=series();for(let i=0;i<14;i++)m=addObservation(m,obs(i,'doubles',i<7?10:30,'competition','match'));assert.equal(investigate(m).decision,'investigate');m=series();m.interventions.push({id:'i',skill:'doubles',action:'focus',status:'unsuccessful'});assert.equal(investigate(m).decision,'investigate')});
+test('contradictory evidence and prior unsuccessful intervention prevent repeated focus',()=>{let m=series();for(let i=0;i<14;i++)m=addObservation(m,obs(i,'doubles',i<7?10:30,'competition','match'));assert.equal(investigate(m).decision,'investigate');m=series();m.interventions.push({id:'i',skill:'doubles',context:'practice',protocol:'fixed',action:'focus',status:'unsuccessful'});assert.equal(investigate(m).decision,'temporary-focus');m.interventions[0][ALLOCATION_PROOF]=true;assert.equal(investigate(m).decision,'investigate')});
 test('same-day repetitions cannot masquerade as independent days',()=>{let m=emptyMemory();for(let i=0;i<100;i++)m=addObservation(m,{...obs(0),id:String(i)});assert.equal(assessments(m)[0].trend.status,'insufficient')});
 test('training budget and variety invariants',()=>{for(const skill of [null,'doubles','scoring','checkout','bull','singles','switching','setup','pressure']){const p=plan(skill);assert.equal(p.reduce((n,x)=>n+x.minutes,0),60);assert.equal(p[0].minutes,10);assert.ok(p.every(x=>x.minutes>=5));assert.equal(new Set(p.map(x=>x.skill)).size,p.length)}});
 test('technical safety and no fabricated causal diagnosis',()=>{const x=technicalInvestigation({skill:'doubles',symptom:'left misses'});assert.equal(x.decision,'collect-evidence');assert.ok(x.hypotheses.every(h=>h.status==='unresolved'));assert.equal(technicalInvestigation({skill:'doubles',pain:true}).decision,'stop')});
@@ -126,3 +126,13 @@ test('isolated integration demonstration connects host evidence to verified coac
 
 import {parseHostExport,previewHostExport} from '../site/engine/host-adapter.mjs';
 test('portable host export preview never mutates state and validates its envelope',()=>{const m=newPlayer(),day='2026-01-15',raw=JSON.stringify({format:'DCI-benchmark-events',version:1,source:'training-app',events:[{eventId:'12345678-1234-1234-1234-123456789012',day,skill:'doubles',context:'practice',protocol:'D1-D20 fixed',attempts:60,hits:20}]});const preview=previewHostExport(m,raw,day);assert.equal(preview.imported,1);assert.equal(m.observations.length,0);assert.equal(preview.scopes.length,1);assert.equal(parseHostExport(raw).source,'training-app');assert.throws(()=>parseHostExport('[]'));assert.throws(()=>parseHostExport(raw.replace('"version":1','"version":2')));assert.throws(()=>parseHostExport(raw.replace('"hits":20','"hits":70')));assert.throws(()=>parseHostExport(raw.replace('"source":"training-app"','"source":"training-app","unsafe":true')));});
+
+test('M3: exact recovered-slump history must not receive long-window-only additional practice',()=>{
+ const counts=[[29,40],[30,46],[42,56],[30,49],[20,30],[30,42],[35,56],[29,48],[25,46],[30,44],[32,45],[26,47],[28,41],[18,33],[28,60],[22,43],[13,53],[18,41],[19,36],[23,49],[24,45],[24,53],[23,50],[19,50],[18,37],[20,50],[25,55],[25,47],[33,53],[24,42],[29,39],[27,48],[14,36],[38,60],[17,42],[30,56],[15,31],[18,40],[24,44],[18,35],[27,47],[29,52]];
+ const m=emptyMemory();m.observations=counts.map(([hits,attempts],i)=>obs(i,'singles',hits,'practice','fixed',attempts));
+ const report=deep(m,day(42));
+ assert.equal(report.decision,'investigate');
+ assert.equal(report.issues[0].confirmation.recovering,true);
+ assert.equal(report.issues[0].confirmation.status,'not-confirmed');
+ assert.equal(report.issues[0].confirmation.mode,'recovering');
+});

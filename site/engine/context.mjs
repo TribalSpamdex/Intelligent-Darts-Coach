@@ -1,6 +1,33 @@
-import {SKILLS,mean,sd,summarise} from './engine.mjs';
+import {SKILLS,mean,sd,summarise,serialMargin,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine.mjs';
 export const dayValid=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d;
 export const dayGap=(a,b)=>(Date.parse(b)-Date.parse(a))/86400000;
+// End-of-local-day retrospective projection. The original stored records
+// are never rewritten. Later lifecycle transitions cannot activate or erase
+// an earlier consent. Legacy deletions without event history are not replayable.
+export function asOfState(m,day){
+ if(!dayValid(day))throw Error('Invalid retrospective date');
+ const x={...m};
+ for(const key of ['observations','throws','exposure','readiness','difficulty','answers','changes','sessions','clinic','setups','followups','legs']){
+  if(Array.isArray(m[key]))x[key]=m[key].filter(o=>dayValid(o.day)&&o.day<=day);
+ }
+ x.facts=(m.facts??[]).filter(f=>typeof f.at==='string'&&dayValid(f.at.slice(0,10))&&f.at.slice(0,10)<=day);
+ x.interventions=(m.interventions??[]).filter(i=>!i.proposedDay||i.proposedDay<=day).map(i=>{
+  const y={...i,retentionHistory:(i.retentionHistory??[]).filter(r=>dayValid(r.reviewDay)&&r.reviewDay<=day)};
+  const removeReview=()=>{for(const key of ['reviewDay','outcome','adherence','confounders','retentionHistory',ALLOCATION_PROOF,REVIEW_UNVERIFIED])delete y[key]};
+  if(i.responseDay&&i.responseDay>day){y.status='proposed';delete y.responseDay;delete y.cancelledDay;delete y.cancelledFrom;removeReview()}
+  else if(i.cancelledDay&&i.cancelledDay>day){y.status=i.cancelledFrom??(i.responseDay<i.cancelledDay?'accepted':'proposed');if(y.status==='proposed')delete y.responseDay;delete y.cancelledDay;delete y.cancelledFrom;removeReview()}
+  else if(i.reviewDay&&i.reviewDay>day){y.status='accepted';removeReview()}
+  return y;
+ });
+ if(Array.isArray(m.goals))x.goals=m.goals.filter(g=>g.start<=day).map(g=>g.closedDay&&g.closedDay>day?{...g,status:'active',closedDay:undefined}:g);
+ if(Array.isArray(m.trials))x.trials=m.trials.filter(t=>t.start<=day).map(t=>{
+  const pairs=t.pairs.filter(p=>p.day<=day),future=t.pairs.length!==pairs.length||t.finishDay&&t.finishDay>day;
+  const result={...t,pairs,status:future?'active':t.status};
+  if(future)delete result.finishDay;
+  return result;
+ });
+ return x;
+}
 const levels=['low','normal','high','unknown'];
 export function validateReadiness(o){
  if(!o||!dayValid(o.day)||!['practice','competition'].includes(o.context)||!levels.includes(o.fatigue)||!levels.includes(o.pressure)||!levels.includes(o.confidence)||typeof o.pain!=='boolean'||typeof o.note!=='string'||o.note.length>500)throw Error('Invalid readiness record');
@@ -21,16 +48,46 @@ export function matchedContext(obs,readiness,field,high='high',low='normal'){
 }
 export function robustTrend(obs,{asOf=null}={}){
  if(!obs.length)return {status:'insufficient'};
- if(new Set(obs.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
  const end=asOf??obs.map(o=>o.day).sort().at(-1);if(!dayValid(end))throw Error('Invalid analysis date');
- const current=obs.filter(o=>dayGap(o.day,end)>=0&&dayGap(o.day,end)<28),previous=obs.filter(o=>dayGap(o.day,end)>=28&&dayGap(o.day,end)<56);
- const a=summarise(previous),b=summarise(current),base={earlier:a,recent:b,asOf:end,method:'Nonoverlapping 28-day windows; weekly block means for exploratory noise. Serial dependence between weeks can remain.'};
+ // Scope validation must also be retrospective: a protocol introduced
+ // tomorrow cannot make yesterday's otherwise comparable history unusable.
+ const known=obs.filter(o=>dayValid(o.day)&&o.day<=end);
+ if(!known.length)return {status:'insufficient'};
+ if(new Set(known.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
+ const current=known.filter(o=>dayGap(o.day,end)<28),previous=known.filter(o=>dayGap(o.day,end)>=28&&dayGap(o.day,end)<56);
+ const a=summarise(previous),b=summarise(current),base={earlier:a,recent:b,asOf:end,method:'Nonoverlapping 28-day windows; weekly and fortnightly block dispersion plus conservative daily dependence allowance. Exploratory, not a calibrated confidence interval.'};
  if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {...base,status:'insufficient'};
- function blocks(s){const bins=new Map();for(const d of s.daily){const k=Math.floor(dayGap(d.day,end)/7);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(d.value)}return [...bins.values()].map(mean)}
+ function blocks(s,width=7){const bins=new Map();for(const d of s.daily){const k=Math.floor(dayGap(d.day,end)/width);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(d.value)}return [...bins.values()].map(mean)}
  const x=blocks(a),y=blocks(b);if(x.length<3||y.length<3)return {...base,status:'insufficient'};
- const change=mean(y)-mean(x),noise=2*Math.sqrt(sd(x)**2/x.length+sd(y)**2/y.length),floor=['scoring','firstNine'].includes(obs[0].skill)?3:.05;
+ const u=blocks(a,14),v=blocks(b,14);
+ if(u.length<2||v.length<2)return {...base,status:'insufficient'};
+ const change=mean(y)-mean(x),weekly=2.5*Math.sqrt(sd(x)**2/x.length+sd(y)**2/y.length),fortnightly=2.5*Math.sqrt(sd(u)**2/u.length+sd(v)**2/v.length),daily=serialMargin(a,b);
+ const noise=Math.max(weekly,fortnightly,daily),floor=['scoring','firstNine'].includes(known[0].skill)?3:.05;
  const signs=y.map(v=>v-mean(x));const consistent=signs.filter(v=>Math.sign(v)===Math.sign(change)).length>=3;
  return {...base,change,noise,consistent,blocks:[x.length,y.length],status:consistent&&Math.abs(change)>=Math.max(floor,noise)?change>0?'improving':'declining':'unclear'};
+}
+// Advisory screen, deliberately separate from the confirmed-decline gate.
+// Weekly summaries reduce the influence of clusters of adjacent darts.
+// A warning is a request to repeat a familiar measurement, never permission
+// to transfer time, raise difficulty, diagnose mechanics or change equipment.
+export function earlyWarning(obs,{asOf}={}){
+ if(!dayValid(asOf))throw Error('Invalid warning date');
+ const rows=obs.filter(o=>dayValid(o.day)&&dayGap(o.day,asOf)>=0&&dayGap(o.day,asOf)<56);
+ if(!rows.length)return {status:'insufficient'};
+ if(new Set(rows.map(o=>JSON.stringify([o.skill,o.context,o.protocol]))).size!==1)return {status:'not-comparable'};
+ const floor=['scoring','firstNine'].includes(rows[0].skill)?3:.05;
+ const blocks=Array.from({length:8},(_,i)=>summarise(rows.filter(o=>Math.floor(dayGap(o.day,asOf)/7)===i)));
+ const adequate=b=>b&&b.days>=3&&b.attempts>=24;
+ const earlier=blocks.slice(4).filter(adequate),recent=blocks.slice(0,4).filter(adequate);
+ const base={earlierWeeks:earlier.length,recentWeeks:recent.length,method:'Advisory weekly contrast with current-form and recovery guards; not a calibrated probability.'};
+ if(earlier.length<3||recent.length<3||!adequate(blocks[0])||!adequate(blocks[1])||dayGap(blocks[0].daily.at(-1).day,asOf)>3)return {...base,status:'insufficient'};
+ const a=earlier.map(b=>b.dayMean),b=recent.map(b=>b.dayMean),reference=mean(a),current=mean(b),change=current-reference;
+ const margin=2*Math.sqrt(sd(a)**2/a.length+sd(b)**2/b.length);
+ const supportingWeeks=b.filter(x=>x-reference<=-floor*.5).length;
+ const latestTwo=blocks.slice(0,2).map(w=>w.dayMean-reference);
+ const latestDays=blocks[0].daily.slice(-3).map(d=>d.value),latestChange=mean(latestDays)-reference;
+ const warning=change<=-Math.max(floor,margin)&&supportingWeeks>=3&&latestTwo.every(x=>x<=-floor*.75)&&latestChange<=-floor*.5;
+ return {...base,status:warning?'watch':'no-warning',change,reference,current,margin,supportingWeeks,latestTwo,latestChange,limitation:'Screening only. Repeat the same familiar benchmark within normal practice; no automatic intervention.'};
 }
 export function exposureSummary(memory,day,window=28){
  const rows=memory.exposure.filter(e=>dayGap(e.day,day)>=0&&dayGap(e.day,day)<window),total=rows.reduce((n,e)=>n+e.minutes,0),days=new Set(rows.map(e=>e.day)).size;

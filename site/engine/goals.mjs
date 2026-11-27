@@ -2,7 +2,8 @@ import {SKILLS,summarise,SEGMENTS,isDouble,currentFacts} from './engine.mjs';
 import {dayValid,dayGap} from './context.mjs';
 export function validateGoal(g){
  if(!g||typeof g.id!=='string'||!g.id.trim()||g.id.length>100||!SKILLS.includes(g.skill)||!['practice','competition'].includes(g.context)||typeof g.protocol!=='string'||!g.protocol.trim()||g.protocol.length>100||!dayValid(g.start)||!dayValid(g.review)||dayGap(g.start,g.review)<7||dayGap(g.start,g.review)>366||!Number.isFinite(g.target)||g.target<=0||g.target>(['scoring','firstNine'].includes(g.skill)?180:1)||!['active','closed'].includes(g.status))throw Error('Invalid measurable goal');
- return {id:g.id,skill:g.skill,context:g.context,protocol:g.protocol,start:g.start,review:g.review,target:g.target,status:g.status};
+ if(g.closedDay!=null&&(!dayValid(g.closedDay)||g.closedDay<g.start||g.status!=='closed'))throw Error('Invalid goal closure date');
+ return {id:g.id,skill:g.skill,context:g.context,protocol:g.protocol,start:g.start,review:g.review,target:g.target,status:g.status,...(g.closedDay?{closedDay:g.closedDay}:{})};
 }
 export function createGoal(m,g){g=validateGoal({...g,status:'active'});if((m.goals??[]).some(x=>x.id===g.id||x.status==='active'&&x.skill===g.skill&&x.context===g.context&&x.protocol===g.protocol))throw Error('Resolve the existing goal first');return {...m,goals:[...(m.goals??[]),g]}}
 export function goalProgress(m,g,day){
@@ -13,7 +14,7 @@ export function goalProgress(m,g,day){
  const status=!adequate?'insufficient':retained?'target-observed':recent.dayMean>=g.target?'promising-not-consistent':'in-progress';
  return {status,baseline:earlier&&earlier.days>=7&&earlier.attempts>=60?earlier.value:null,current:recent?.value??null,days:recent?.days??0,target:g.target,reviewDue:day>=g.review,limitation:'Goal achievement is observational; does not establish causation or permanent retention.'};
 }
-export function closeGoal(m,id){if(!(m.goals??[]).some(g=>g.id===id&&g.status==='active'))throw Error('Unknown active goal');return {...m,goals:m.goals.map(g=>g.id===id?{...g,status:'closed'}:g)}}
+export function closeGoal(m,id,day=null){const goal=(m.goals??[]).find(g=>g.id===id&&g.status==='active');if(!goal)throw Error('Unknown active goal');if(day!==null&&(!dayValid(day)||day<goal.start))throw Error('Invalid goal closure date');return {...m,goals:m.goals.map(g=>g.id===id?{...g,status:'closed',...(day?{closedDay:day}:{})}:g)}}
 export function preferredDoubles(m){
  const allowed=['D20','D16','D18','D10','D8'];
  const f=currentFacts(m).find(x=>x.key.toLowerCase().trim()==='preferred double');

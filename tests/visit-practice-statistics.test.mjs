@@ -9,6 +9,7 @@ const ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const empty=()=>({games:[],sessions:[],assessmentHistory:[],bigSingles:[]});
 const game=(n,patch={})=>({name:'Scoring Challenge',quick:false,completion:'natural',at:now-n*86400000,day:ago(n),benchmark:true,visits:10,scores:[0,26,40,60,80,100,120,140,160,180],points:906,...patch});
 const activity=(id,name,seconds)=>({exerciseIndex:id,name,seconds});
+const session=(id,n,quick,activities)=>{const start=now-n*86400000;let elapsed=0;return {id,date:ago(n),start,quick,activities:activities.map(a=>({...a,at:start+(elapsed+=a.seconds)*1000}))}};
 test('scoring visit distribution reconciles every recorded visit and the exact average',()=>{
  const h=empty();h.games=[game(1),game(8),game(30)];
  const r=scoringDetail(h,day,now),w=r.windows[2];
@@ -39,8 +40,8 @@ test('checkout detail preserves unknown success dart count and separates protoco
  assert.equal(adaptive.hits,1);assert.equal(adaptive.attempts,2);assert.equal(adaptive.unknownSuccessDarts,1);assert.equal(adaptive.meanDartsOnSuccess,null);
 });
 test('practice volume counts only eligible saved classified time and actual day coverage',()=>{
- const h=empty();h.sessions=[{id:1,date:ago(1),quick:false,activities:[activity(0,'Scoring Challenge',600),activity(1,'Bull Accuracy',300),activity(2,'Warm-up',600)]},{id:2,date:ago(8),quick:false,activities:[activity(0,'Big Singles',600)]},{id:3,date:ago(1),quick:true,activities:[activity(0,'Scoring Challenge',600)]}];
- const r=practiceProfile(h,day);
+ const h=empty();h.sessions=[session(1,1,false,[activity(0,'Scoring Challenge',600),activity(1,'Bull Accuracy',300),activity(2,'Warm-up',600)]),session(2,8,false,[activity(0,'Big Singles',600)]),session(3,1,true,[activity(0,'Scoring Challenge',600)])];
+ const r=practiceProfile(h,day,now);
  assert.equal(r.windows[0].sessions,1);assert.equal(r.windows[0].total,15);assert.equal(r.windows[0].minutesPerCalendarWeek,15);assert.equal(r.windows[1].total,25);assert.equal(r.windows[1].sessionDays,2);
  assert.equal(r.windows[0].skills.find(s=>s.skill==='scoring').share,2/3);
 });
@@ -54,10 +55,20 @@ test('statistics cards maintain exact counts and valid chart denominators',()=>{
 import {legalFinishCount} from '../site/finish-validation.mjs';
 import {projectEvidence} from '../site/v62-evidence.mjs';
 test('exact legal checkout dart counts reject impossible or bust routes',()=>{
- assert.equal(legalFinishCount(40,1),true);assert.equal(legalFinishCount(41,1),false);assert.equal(legalFinishCount(41,2),true);assert.equal(legalFinishCount(170,2),false);assert.equal(legalFinishCount(170,3),true);assert.equal(legalFinishCount(169,3),false);assert.equal(legalFinishCount(2,2),false);
+ assert.equal(legalFinishCount(40,1),true);assert.equal(legalFinishCount(41,1),false);assert.equal(legalFinishCount(41,2),true);assert.equal(legalFinishCount(170,2),false);assert.equal(legalFinishCount(170,3),true);assert.equal(legalFinishCount(169,3),false);assert.equal(legalFinishCount(2,2),true);assert.equal(legalFinishCount(2,3),true);assert.equal(legalFinishCount(3,3),true);assert.equal(legalFinishCount(3,1),false);
 });
 test('impossible assessment successful dart count is excluded consistently',()=>{
  const h=empty(),targets=[41,46,52,60,68,76,81,90,101,110,120,130];h.assessmentHistory=[{version:6,finished:true,completedAt:now-86400000,checkout:targets.map(target=>({target,hit:target===41,darts:target===41?1:3}))}];
  assert.equal(checkoutDetail(h,day,now).groups.length,0);assert.equal(projectEvidence(h,{today:day,now}).observations.filter(o=>o.skill==='checkout').length,0);
  h.assessmentHistory[0].checkout[0].darts=2;assert.equal(checkoutDetail(h,day,now).groups.length,12);assert.equal(projectEvidence(h,{today:day,now}).observations.filter(o=>o.skill==='checkout').length,1);
+});
+
+test('Practice statistics honor the analysis instant and distinguish recorded days from verified minutes',()=>{
+ const h=empty(),valid=session(1,0,false,[activity(0,'Scoring Challenge',600)]);
+ valid.start=now-600000;valid.activities[0].at=now;
+ h.sessions=[valid];assert.equal(practiceProfile(h,day,now).windows[0].total,10);
+ const earlier=practiceProfile(h,day,now-1).windows[0];
+ assert.equal(earlier.total,0);assert.equal(earlier.classifiedDays,0);
+ h.sessions=[{...valid,activities:[{...valid.activities[0],at:undefined}]}];
+ const legacy=practiceProfile(h,day,now).windows[0];assert.equal(legacy.sessions,1);assert.equal(legacy.total,0);
 });

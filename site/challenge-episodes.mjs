@@ -19,7 +19,19 @@ export function recordedConfounder(state,from,to){
  (state.clinic??[]).some(r=>within(r.day,from,to)&&r.pain)||
  (state.setups??[]).some(r=>within(r.day,from,to))||
  (state.changes??[]).some(r=>within(r.day,from,to))||
- (state.interventions??[]).some(r=>dayValid(r.responseDay)&&r.responseDay<=to&&(['accepted','active'].includes(r.status)||['completed','unsuccessful'].includes(r.status)&&dayValid(r.reviewDay)&&r.reviewDay>=from));
+ (state.interventions??[]).some(r=>{
+  if(!dayValid(r.responseDay)||r.responseDay>to)return false;
+  if(r.status==='declined'&&r.cancelledFrom!=='accepted')return false;
+  if(!['accepted','active','completed','unsuccessful','declined'].includes(r.status))return false;
+  const end=r.cancelledDay??r.reviewDay??to;
+  return dayValid(end)&&end>=from;
+ })||
+ (state.trials??[]).some(t=>{
+  // Older completed trials may lack an explicit finish date; the last
+  // recorded paired exposure is the latest known practice, not infinity.
+  const end=t.finishDay??(t.status==='active'?to:t.pairs?.at(-1)?.day??t.start);
+  return dayValid(t.start)&&t.start<=to&&dayValid(end)&&end>=from;
+ });
 }
 export function learningEpisodes(host,state,day,now=Date.now()){
  const exposure=extractLearningExposure(host,day,now),observations=canonicalRows(state.observations??[],day);

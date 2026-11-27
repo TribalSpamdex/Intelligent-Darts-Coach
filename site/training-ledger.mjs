@@ -16,6 +16,23 @@ const duration=x=>Number.isInteger(x)&&x>=0&&x<=3600;
 const text=x=>typeof x==='string'&&x.length>0&&x.length<=120;
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const positiveTime=(x,now)=>Number.isFinite(x)&&x>0&&x<=now;
+// Native activity seconds are individually rounded. A pause can lengthen
+// wall time, but recorded activity cannot consume more time than has passed.
+// Validate cumulative time too: individually plausible overlapping claims
+// must not become an observed training dose. Do not rewrite stored records.
+export function validActivityTimeline(start,activities,now){
+ if(!positiveTime(start,now)||!Array.isArray(activities))return false;
+ let used=0,count=0,last=start;
+ for(const a of [...activities].sort((a,b)=>a?.exerciseIndex-b?.exerciseIndex)){
+  const end=a?.interrupted?now:a?.at;
+  if(!a||!duration(a.seconds)||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||!positiveTime(end,now)||end<last)return false;
+  used+=a.seconds;count++;
+  // At most half a second of rounding per completed activity.
+  if(a.seconds>(end-last)/1000+.5||used>(end-start)/1000+count*.5)return false;
+  last=end;
+ }
+ return true;
+}
 const ringSkill=r=>({S:'singles',D:'doubles',T:'trebles'})[r]??null;
 function oneSkill(g){
  if(g.name==='Doubles Survival'||g.name==='Doubles Streak')return ({singles:'singles',doubles:'doubles'})[g.variant]??null;
@@ -75,7 +92,7 @@ export function trainingLedger(host,day,now=Date.now()){
    if(!a||!text(a.name)||!duration(a.seconds)||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||indexes.has(a.exerciseIndex)||id(a.exerciseId)&&ids.has(String(a.exerciseId))||!a.interrupted&&(!positiveTime(a.at,now)||a.at<s.start)||a.interrupted&&a.partialResultAt!=null&&(!positiveTime(a.partialResultAt,now)||a.partialResultAt<s.start)){invalid=true;break}
    indexes.add(a.exerciseIndex);if(id(a.exerciseId))ids.add(String(a.exerciseId));
   }
-  if(invalid||acts.reduce((n,a)=>n+a.seconds,0)>7200){rejected.activity++;blockedDays.add(s.date);continue}
+  if(invalid||acts.reduce((n,a)=>n+a.seconds,0)>7200||!validActivityTimeline(s.start,acts,now)){rejected.activity++;blockedDays.add(s.date);continue}
   if(!s.completed||s.interruptedExercise)blockedDays.add(s.date);
   sessionRows.push({sessionId:s.id,day:s.date,extra:s.extra,completed:s.completed,seconds:acts.reduce((n,a)=>n+a.seconds,0)});
   for(const a of acts){

@@ -1,4 +1,4 @@
-import {assessments,SKILLS,plan} from './engine.mjs';
+import {assessments,SKILLS,plan,ALLOCATION_PROOF,REVIEW_UNVERIFIED} from './engine.mjs';
 import {robustTrend,matchedContext,exposureSummary,dayGap,dayValid} from './context.mjs';
 import {library,variant,difficultyDecision} from './training.mjs';
 import {relevant} from './knowledge.mjs';
@@ -23,8 +23,9 @@ export function mentalSupport(readiness){
 }
 export function learningHistory(memory,skill,protocol){
  const rows=memory.interventions.filter(i=>i.skill===skill&&i.protocol===protocol);
- const successes=rows.filter(i=>i.outcome?.status==='observed-improvement'),failures=rows.filter(i=>i.outcome?.status==='observed-decline'||i.outcome?.status==='unclear');
- return {observedImprovements:successes.length,nonImprovements:failures.length,confounded:rows.filter(i=>i.outcome?.status==='confounded').length,declined:rows.filter(i=>i.status==='declined').length,policy:failures.length?'review-alternatives-before-repeat':'no-personal-causal-conclusion'};
+ const eligible=rows.filter(i=>i[ALLOCATION_PROOF]===true);
+ const successes=eligible.filter(i=>i.outcome?.status==='observed-improvement'),failures=eligible.filter(i=>i.outcome?.status==='observed-decline'||i.outcome?.status==='unclear');
+ return {observedImprovements:successes.length,nonImprovements:failures.length,unattributed:rows.filter(i=>i.outcome&&i[ALLOCATION_PROOF]!==true).length,confounded:rows.filter(i=>i.outcome?.status==='confounded').length,declined:rows.filter(i=>i.status==='declined').length,policy:failures.length?'review-alternatives-before-repeat':'no-personal-causal-conclusion'};
 }
 export function evidenceReview(memory,day){
  if(!dayValid(day))throw Error('Invalid report date');
@@ -54,13 +55,14 @@ export function evidenceReview(memory,day){
  return {day,profiles,issues,focus:focus?.skill??null,focusProtocol:focus?.protocol??null,wellbeing,exposure,decision:wellbeing.decision==='stop'?'stop':wellbeing.decision==='reduce-load'?'reduce-load':focus?'consider-focus':issues.length?'investigate':'balanced',limitations:['Priority is magnitude relative to provisional practical threshold, not a scientific probability.','Long-window assessment is intentionally conservative; it does not replace a fixed benchmark.','Reported conditions are associations, never diagnoses.']};
 }
 export function drillPlan(memory,day,focus=null){
- const records=memory.difficulty??[],chosen=plan(focus),extras=['switching','firstNine','trebles','pressure','grouping'];
+ const records=memory.difficulty??[],chosen=plan(focus),extras=['switching','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!chosen.some(x=>x.skill===skill));
  // Rotate optional skills without claiming equivalence of their measurements.
  const rotation=Math.floor(Date.parse(day)/86400000)%extras.length;
  const optional=extras[(rotation+extras.length)%extras.length];
  const slot=chosen.find(x=>x.skill==='switching'&&x.minutes===5&&focus!=='switching');
  if(slot)slot.skill=optional;
  return chosen.map(s=>{if(s.skill==='warmup')return {...s,instructions:'Comfortable throws; no difficulty assessment.'};
+ if(s.skill==='application')return {...s,instructions:'Play repeated 301 legs with legal double-out finishing; apply your existing skills.'};
  const rows=records.filter(o=>o.skill===s.skill&&o.protocol===s.skill+'-core'&&o.day<=day).sort((a,b)=>b.day.localeCompare(a.day));
  const current=rows[0]?.level??1;
  const decision=difficultyDecision(records,s.skill,s.skill+'-core',current,day);
@@ -71,8 +73,14 @@ export function selectCoaching(memory,base,day){
  const review=evidenceReview(memory,day);
  if(['stop','reduce-load'].includes(review.decision))return {...base,decision:review.decision,focus:null,plan:[],review};
  const existing=[...base.issues];
- for(const i of review.issues){if(i.action!=='candidate-focus'||existing.some(x=>x.skill===i.skill&&x.context===i.context&&x.protocol===i.protocol)||memory.interventions.some(x=>x.skill===i.skill&&['accepted','unsuccessful'].includes(x.status)))continue;
- existing.push({skill:i.skill,context:i.context,protocol:i.protocol,evidence:i.trend,hypotheses:i.hypotheses,knowledge:i.knowledge,action:'temporary-focus',review:'Repeat the same benchmark on later days and evaluate adherence.'})}
+ for(const i of review.issues){
+  if(existing.some(x=>x.skill===i.skill&&x.context===i.context&&x.protocol===i.protocol))continue;
+  const blocked=memory.interventions.some(x=>x.skill===i.skill&&x.protocol===i.protocol&&x.context===i.context&&(x.status==='accepted'||x.status==='unsuccessful'&&x[ALLOCATION_PROOF]===true||x[REVIEW_UNVERIFIED]===true));
+  // A robust long-window concern is still useful when a competing context,
+  // prior outcome, or active intervention prevents a new prescription.
+  // Preserve it as investigation instead of silently discarding the signal.
+  existing.push({skill:i.skill,context:i.context,protocol:i.protocol,evidence:i.trend,hypotheses:i.hypotheses,knowledge:i.knowledge,action:i.action==='candidate-focus'&&!blocked?'temporary-focus':'investigate',review:'Repeat the same benchmark on later days and evaluate adherence.'})
+ }
  const eligible=existing.filter(i=>i.action==='temporary-focus').map(i=>{
  const p=review.profiles.find(q=>q.skill===i.skill&&q.context===i.context&&q.protocol===i.protocol);
  const longIssue=review.issues.find(q=>q.skill===i.skill&&q.context===i.context&&q.protocol===i.protocol);

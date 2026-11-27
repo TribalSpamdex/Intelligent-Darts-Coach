@@ -35,7 +35,7 @@ export function snapshotView(host,state,type,filter,days,day,now=Date.now(),chec
  cards.push(card(r.score+' · '+r.protocol,[field('Finish rate',pct(w.rate)),field('Finishes / attempts',w.hits+' / '+w.attempts),field('Recorded days',w.daily.n),field('Darts on success',num(w.meanDartsOnSuccess))],['Successful attempts with 1 / 2 / 3 darts: '+w.oneDart+' / '+w.twoDart+' / '+w.threeDart+'; unknown '+w.unknownSuccessDarts+'.'],w.attempts?[{label:'Finishes',value:w.hits,total:w.attempts}]:[]));
  }
  }else if(type==='Practice volume'){
- const r=practiceProfile(host,day),w=window(r,days);
+ const r=practiceProfile(host,day,now),w=window(r,days);
  if(w.sessions)cards.push(card('Classified practice',[field('Saved sessions',w.sessions),field('Session days',w.sessionDays),field('Classified minutes',w.total),field('Minutes / calendar week',num(w.minutesPerCalendarWeek))],[r.limitation],w.skills.map(s=>({label:s.skill,value:s.minutes,total:w.total}))));
  }else if(type==='Actual match statistics'){
  for(const r of matchProfiles(state.legs??[],day)){

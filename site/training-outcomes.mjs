@@ -4,8 +4,8 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
 import {canonicalRows} from './longitudinal.mjs';
 import {summarise} from './engine/engine.mjs';
-import {learningEpisodes,recordedConfounder} from './challenge-episodes.mjs';
-import {settingKey} from './challenge-setting.mjs';
+import {learningEpisodes,recordedConfounder,FIXED_PROTOCOLS} from './challenge-episodes.mjs';
+import {settingKey,validSetting} from './challenge-setting.mjs';
 const floor=s=>s==='scoring'?3:5;
 const minimum={scoring:30,doubles:60,checkout:12,bull:30,singles:60,trebles:60};
 const ratio=(a,b,t=.25)=>Math.abs(a-b)<=Math.max(a,b)*t;
@@ -32,7 +32,7 @@ function summary(matches,day,skill){
  const leaveOneOut=n>=2?Math.min(...matches.map((_,i)=>direction*distribution(matches.filter((_,j)=>i!==j).map(m=>m.a.delta-m.b.delta)).median)):null;
  const adequate=n>=6&&weeks>=6&&aFirst>=2&&bFirst>=2&&latest&&dayGap(latest,day)<=28;
  const supported=adequate&&direction!==0&&agreement>=.75&&direction*d.median>=Math.max(threshold,noise)&&leaveOneOut>=threshold&&(direction>0?a.median:b.median)>=threshold;
- return {pairs:n,weeks,latest,aFirst,bFirst,a,b,difference:d,noise,agreement,leaveOneOut,status:!adequate?'insufficient':supported?(direction>0?'first-associated':'second-associated'):'unclear',matched:matches.map(m=>({a:[m.a.from,m.a.to],b:[m.b.from,m.b.to],aSeconds:m.a.seconds,bSeconds:m.b.seconds,aChange:m.a.delta,bChange:m.b.delta}))};
+ return {pairs:n,weeks,latest,aFirst,bFirst,a,b,difference:d,noise,agreement,leaveOneOut,status:!adequate?'insufficient':supported?(direction>0?'first-associated':'second-associated'):'unclear',matched:matches.map(m=>({a:[m.a.from,m.a.to],b:[m.b.from,m.b.to],aSeconds:m.a.seconds,bSeconds:m.b.seconds,aSessions:m.a.sessions,bSessions:m.b.sessions,aChange:m.a.delta,bChange:m.b.delta}))};
 }
 // One episode per side and per comparison. Greedy baseline/time matching
 // is deterministic and does not inspect outcome to choose a pair.
@@ -43,6 +43,14 @@ function match(candidates){
  return out;
 }
 const settingLabel=s=>s.name+' ('+s.field+' '+(Array.isArray(s.after)?s.after.join('/'):s.after)+')';
+// A single-exercise duration is not interchangeable with the same total
+// spread across multiple sessions. Keep 5/10/15/20-minute elapsed-time
+// comparisons separate; one-minute tolerance accommodates timer rounding.
+export function doseBand(seconds){
+ if(!Number.isFinite(seconds))return null;
+ const band=[300,600,900,1200].find(n=>Math.abs(n-seconds)<=60);
+ return band??null;
+}
 export function methodComparisons(episodes,day){
  if(!dayValid(day)||!Array.isArray(episodes))throw Error('Invalid training comparison');
  const scopes=new Map(),out=[];
@@ -52,16 +60,16 @@ export function methodComparisons(episodes,day){
   for(const e of list){const k=exact(e),g=groups.get(k)??[];g.push(e);groups.set(k,g)}
   const settings=[...groups.keys()].sort();
   for(let i=0;i<settings.length;i++){
-   const group=groups.get(settings[i]),first=group[0],dose=[];
+   const group=groups.get(settings[i]),first=group[0],doses=new Map();
    for(const a of group)for(const b of group){
-    if(a.seconds>=b.seconds||b.seconds-a.seconds<300||b.seconds/a.seconds<1.3||!compatible(a,b))continue;
-    // Different numbers of rounds are allowed for a dose comparison;
-    // duration is the recorded exposure, not throws or time at one exact setting.
-    dose.push({a,b});
+    const short=doseBand(a.seconds),long=doseBand(b.seconds);
+    if(short===null||long===null||short>=long||a.sessions!==1||b.sessions!==1||b.seconds-a.seconds<180||!compatible(a,b))continue;
+    const k=JSON.stringify([short,long]),pairs=doses.get(k)??[];
+    pairs.push({a,b});doses.set(k,pairs);
    }
-   if(dose.length){
-    const matches=match(dose),s=summary(matches,day,first.skill);
-    out.push({kind:'dose',skill:first.skill,protocol:first.protocol,first:settingLabel(first.setting)+' · shorter recorded exercise',second:settingLabel(first.setting)+' · longer recorded exercise',firstSetting:first.setting,secondSetting:first.setting,...s});
+   for(const [k,dose] of doses){
+    const [short,long]=JSON.parse(k),matches=match(dose),s=summary(matches,day,first.skill);
+    out.push({kind:'dose',skill:first.skill,protocol:first.protocol,shortSeconds:short,longSeconds:long,first:settingLabel(first.setting)+' · around '+short/60+' minutes',second:settingLabel(first.setting)+' · around '+long/60+' minutes',firstSetting:first.setting,secondSetting:first.setting,...s});
    }
    for(let j=i+1;j<settings.length;j++){
     const other=groups.get(settings[j]),second=other[0];
@@ -73,6 +81,32 @@ export function methodComparisons(episodes,day){
   }
  }
  return out.sort((a,b)=>b.pairs-a.pairs||a.skill.localeCompare(b.skill)||a.first.localeCompare(b.first)||a.second.localeCompare(b.second));
+}
+// A choice between measured durations, not an extrapolation or a dose
+// prescription. Conflicting adequate edges invalidate the common winner.
+// Never recommend a duration outside the recorded comparison graph.
+export function durationReview(comparisons,day){
+ if(!dayValid(day)||!Array.isArray(comparisons))throw Error('Invalid duration review');
+ const groups=new Map(),out=[];
+ for(const c of comparisons){
+  if(c?.kind!=='dose'||!dayValid(c.latest)||dayGap(c.latest,day)<0||dayGap(c.latest,day)>28||c.pairs<6||c.weeks<6||!['first-associated','second-associated','unclear'].includes(c.status)||!Number.isInteger(c.pairs)||!Number.isInteger(c.weeks)||!FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)||!validSetting(c.firstSetting)||!validSetting(c.secondSetting)||c.firstSetting.skill!==c.skill||c.secondSetting.skill!==c.skill||settingKey(c.firstSetting)!==settingKey(c.secondSetting)||![300,600,900,1200].includes(c.shortSeconds)||![300,600,900,1200].includes(c.longSeconds)||c.shortSeconds>=c.longSeconds)continue;
+  if(!Array.isArray(c.matched)||c.matched.length!==c.pairs||c.matched.some(m=>m?.aSessions!==1||m?.bSessions!==1||doseBand(m.aSeconds)!==c.shortSeconds||doseBand(m.bSeconds)!==c.longSeconds))continue;
+  const k=JSON.stringify([c.skill,c.protocol,settingKey(c.firstSetting)]),g=groups.get(k)??[];
+  g.push(c);groups.set(k,g);
+ }
+ for(const g of groups.values()){
+  const c=g[0],durations=[...new Set(g.flatMap(x=>[x.shortSeconds,x.longSeconds]))].sort((a,b)=>a-b);
+  const edges=g.map(x=>({short:x.shortSeconds,long:x.longSeconds,winner:x.status==='unclear'?null:x.status==='first-associated'?x.shortSeconds:x.longSeconds,pairs:x.pairs,weeks:x.weeks}));
+  // Require a direct supported comparison against every alternative.
+  // A transitive chain is not independent evidence at the missing pair.
+  const winners=durations.filter(n=>durations.filter(m=>m!==n).every(m=>{
+   const matches=edges.filter(e=>e.short===Math.min(n,m)&&e.long===Math.max(n,m));
+   return matches.length>0&&matches.every(e=>e.winner===n);
+  }));
+  const preferred=winners.length===1?winners[0]:null;
+  out.push({skill:c.skill,protocol:c.protocol,setting:c.firstSetting,durations,preferred,status:preferred===null?'unclear':'observed-preference',edges,latest:g.map(x=>x.latest).sort().at(-1),limitation:'Observed elapsed-duration association at this exact recorded configuration only. No automatic time transfer or extrapolation.'});
+ }
+ return out.sort((a,b)=>a.skill.localeCompare(b.skill)||a.setting.name.localeCompare(b.setting.name)||a.protocol.localeCompare(b.protocol));
 }
 export function delayedFollowups(episodes,state,host,day,blockedDays=[]){
  if(!dayValid(day)||!Array.isArray(episodes)||!Array.isArray(host?.sessions))throw Error('Invalid follow-up history');
@@ -103,7 +137,8 @@ export function delayedFollowups(episodes,state,host,day,blockedDays=[]){
 }
 export function trainingOutcomes(host,state,day,now=Date.now()){
  const history=learningEpisodes(host,state,day,now);
- return {...history,comparisons:methodComparisons(history.episodes,day),followups:delayedFollowups(history.episodes,state,host,day,history.blockedDays),limitation:'Matched observational comparisons, not causal effects. Unlogged practice, different conditions, selection bias and regression to the mean may remain. No automatic changes to exercise choice, time or difficulty.'};
+ const comparisons=methodComparisons(history.episodes,day);
+ return {...history,comparisons,durations:durationReview(comparisons,day),followups:delayedFollowups(history.episodes,state,host,day,history.blockedDays),limitation:'Matched observational comparisons, not causal effects. Unlogged practice, different conditions, selection bias and regression to the mean may remain. No automatic changes to exercise choice, time or difficulty.'};
 }
 export function outcomeReportLines(report,kind=null){
  const f=n=>n===null?'not measured':(n>0?'+':'')+n.toFixed(1);
@@ -114,6 +149,7 @@ export function outcomeReportLines(report,kind=null){
   lines.push(r.skill+' · '+r.protocol+' · '+r.first+' versus '+r.second+'. '+r.pairs+' matched pairs across '+r.weeks+' weekly blocks; '+r.aFirst+'/'+r.bFirst+' chronological orders.');
   lines.push('Median later change '+f(r.a.median)+' versus '+f(r.b.median)+units+'. '+(r.status==='insufficient'?'More independent comparisons needed.':r.status==='unclear'?'No clear observed advantage.':(r.status==='first-associated'?r.first:r.second)+' was associated with better later measurements; investigate before changing training.'));
  }
+ if(kind!=='method')for(const r of (report.durations??[]).slice(0,12))lines.push(r.skill+' · '+r.setting.name+' · '+r.protocol+': '+(r.preferred===null?'No clear common duration preference.':'Around '+r.preferred/60+' minutes associated with better later results among the compared durations.')+' Compared '+r.durations.map(n=>n/60+' min').join(', ')+'. '+r.limitation);
  return [...lines,report.limitation];
 }
 export function followupLines(report){

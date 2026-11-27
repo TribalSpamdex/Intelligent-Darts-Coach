@@ -2,6 +2,33 @@ import {SKILLS,currentFacts,plan} from './engine.mjs';
 import {dayValid,dayGap,exposureSummary} from './context.mjs';
 import {variant,difficultyDecision} from './training.mjs';
 import {approachHistory,trialOutcome} from './experiments.mjs';
+import {abilityProfiles} from '../progression-evidence.mjs';
+import {SKILL_THRESHOLDS} from '../progression-bands.mjs';
+// The direction of levels in the generic engine is the inverse of the native
+// game tier. These are provisional practice-selection bounds, not talent labels.
+export function measuredPracticeLevels(observations,day){
+ const out={};
+ for(const p of abilityProfiles(observations,day)){
+  if(p.confirmed===null)continue;
+  const thresholds=SKILL_THRESHOLDS[p.skill];
+  if(thresholds)out[p.skill]=1+thresholds.filter(v=>p.confirmed>=v).length;
+  else if(p.skill==='singles'||p.skill==='trebles'){
+   const gates=p.skill==='singles'?[50,65,80]:[10,20,30];out[p.skill]=1+2*gates.filter(v=>p.confirmed>=v).length;
+  }
+ }
+ return out;
+}
+const preference={
+ scoring:['Scoring Survival','Scoring Ladder','Scoring Ladder'],
+ doubles:['Doubles Survival','Doubles Streak','Double Double'],
+ checkout:['Checkout Climb','Focused Checkouts','Focused Checkouts'],
+ bull:['Bull Survival','Bull Bank','Bull Streak']
+};
+export function measuredGamePreferences(observations,day){
+ const levels=measuredPracticeLevels(observations,day),out={};
+ for(const [skill,games] of Object.entries(preference)){const n=levels[skill];if(n!==undefined)out[skill]=games[n<=2?0:n<=4?1:2]}
+ return out;
+}
 export const DRILLS=[
  ['singles','large-singles','Big singles around the board','Throw three darts at each large single, 1–20. Count only the large single.','fixed benchmark'],
  ['singles','single-switch','Large-single switching','Alternate large singles 20, 19, 18, 17, 16; record exact hits.','switching'],
@@ -37,7 +64,7 @@ export function drillOptions(skill,level){
 }
 export function validateSession(s){
  if(!s||typeof s.id!=='string'||!s.id.trim()||s.id.length>100||!dayValid(s.day)||!Number.isInteger(s.number)||s.number<1||s.number>3||!['completed','partial'].includes(s.status)||!Array.isArray(s.segments)||s.segments.length<1||s.segments.length>15)throw Error('Invalid training session');
- const seen=new Set();for(const g of s.segments){if(!g||!['warmup',...SKILLS].includes(g.skill)||typeof g.drill!=='string'||!g.drill.trim()||g.drill.length>100||!Number.isInteger(g.minutes)||g.minutes<1||g.minutes>60||seen.has(g.skill))throw Error('Invalid session segment');if(g.skill!=='warmup'&&!DRILLS.some(d=>d.id===g.drill&&d.skill===g.skill))throw Error('Unknown drill');seen.add(g.skill)}
+ const seen=new Set();for(const g of s.segments){if(!g||!['warmup','application',...SKILLS].includes(g.skill)||typeof g.drill!=='string'||!g.drill.trim()||g.drill.length>100||!Number.isInteger(g.minutes)||g.minutes<1||g.minutes>60||seen.has(g.skill))throw Error('Invalid session segment');if(g.skill==='application'){if(g.drill!=='301-application'||g.minutes>10)throw Error('Invalid application segment')}else if(g.skill!=='warmup'&&!DRILLS.some(d=>d.id===g.drill&&d.skill===g.skill))throw Error('Unknown drill');seen.add(g.skill)}
  const minutes=s.segments.reduce((a,b)=>a+b.minutes,0);if(minutes>60||s.status==='completed'&&minutes!==60||s.status==='partial'&&minutes===60)throw Error('Invalid completed session duration');return s;
 }
 export function logSession(m,s){s=validateSession(s);const rows=m.sessions??[];if(rows.some(x=>x.id===s.id||x.day===s.day&&x.number===s.number))throw Error('Duplicate training session');return {...m,sessions:[...rows,s]}}
@@ -53,13 +80,17 @@ export function trainingRecommendation(m,report,day,active,number=1){
  const rotating=['switching','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!base.some(x=>x.skill===skill));
  const slot=base.find(x=>x.skill==='switching'&&x.minutes===5&&focus!=='switching');
  if(slot)slot.skill=[...rotating].sort((a,b)=>history.skills[a]-history.skills[b]||rotating.indexOf(a)-rotating.indexOf(b))[0];
+ const measured=measuredPracticeLevels(m.observations??[],day);
  const segments=base.map(g=>{
  if(g.skill==='warmup')return {...g,drill:'warmup',name:'Comfortable warm-up',instructions:'Throw comfortably for 10 minutes.'};
+ if(g.skill==='application')return {...g,drill:'301-application',name:'Practical 301 application',instructions:'Play repeated 301 legs, applying scoring, setup and legal double-out finishing. Keep practice familiar; no added workload.'};
  const rows=(m.difficulty??[]).filter(x=>x.skill===g.skill&&x.protocol===g.skill+'-core'&&x.day<=day).sort((a,b)=>b.day.localeCompare(a.day));
- const level=difficultyDecision(m.difficulty??[],g.skill,g.skill+'-core',rows[0]?.level??1,day).next;
+ const taskLevel=difficultyDecision(m.difficulty??[],g.skill,g.skill+'-core',rows[0]?.level??1,day).next;
+ const level=Object.hasOwn(measured,g.skill)?rows.length?Math.min(measured[g.skill],taskLevel):measured[g.skill]:taskLevel;
  const choices=drillOptions(g.skill,level),fresh=choices.filter(d=>!used.has(d.id)),pool=fresh.length?fresh:choices;
  const last=new Map();for(const s of (m.sessions??[]).filter(s=>s.day<=day))for(const d of s.segments)last.set(d.drill,Math.max(last.get(d.drill)??0,Date.parse(s.day)));
- const drill=[...pool].sort((a,b)=>(last.get(a.id)??0)-(last.get(b.id)??0)||a.id.localeCompare(b.id))[0];
+ const fit=d=>!Object.hasOwn(measured,g.skill)?0:level>=5?Number(!['application','targeted','tactical'].includes(d.kind)):level>=3?Number(d.kind==='foundation'):0;
+ const drill=[...pool].sort((a,b)=>fit(a)-fit(b)||(last.get(a.id)??0)-(last.get(b.id)??0)||a.id.localeCompare(b.id))[0];
  return {...g,drill:drill.id,name:drill.name,instructions:drill.instructions,level,repeat:used.has(drill.id)};
  });
  return {mode:active.mode,segments,history,focus,limitations:['Recorded sessions guide variety, not complete practice exposure.','No forced increase in workload or skill level based on self-report.','Some beginner drills repeat because the easiest safe version is deliberately stable.']};

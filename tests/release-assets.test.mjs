@@ -9,11 +9,11 @@ const imports=JSON.parse(html.match(/<script type="importmap">(.*?)<\/script>/s)
 const assets=JSON.parse(sw.match(/const ASSETS=(\[.*?\]);/s)[1]);
 const clean=s=>s.split('?')[0];
 test('release import map and offline precache cover every local module',()=>{
- assert.ok(html.includes('Intelligent Darts Coach V1.9.0-dev'));
+ assert.ok(html.includes('Intelligent Darts Coach V2.0.0-dev'));
  const cached=new Set(assets);
  const modules=new Set(Object.keys(imports));
  for(const [source,target] of Object.entries(imports)){
-  assert.equal(target,source+'?v=1.9.0-dev');
+  assert.equal(target,source+'?v=2.0.0-dev');
   assert.ok(cached.has(target),target+' is not precached');
   const code=read(source);
   for(const m of code.matchAll(/(?:\bfrom\s*|\bimport\s*)['"](\.\.?\/[^'"]+)['"]/g)){
@@ -23,8 +23,8 @@ test('release import map and offline precache cover every local module',()=>{
  }
  for(const asset of assets)assert.ok(fs.existsSync(new URL(clean(asset),root)),asset);
  assert.ok(assets.includes('./index.html'));
- assert.ok(html.includes('src="./idc.mjs?v=1.9.0-dev"'));
- assert.ok(html.includes("register('./sw.js?v=1.9.0-dev'"));
+ assert.ok(html.includes('src="./idc.mjs?v=2.0.0-dev"'));
+ assert.ok(html.includes("register('./sw.js?v=2.0.0-dev'"));
 });
 
 test('all new statistics and manual evidence modules are included in the offline dependency map',()=>{
@@ -33,6 +33,76 @@ test('all new statistics and manual evidence modules are included in the offline
 
 test('all precision progression modules are versioned and cached',()=>{for(const name of ['progression-bands','progression-evidence','progression-dialogue','precision-calibration','precision-checks','precision-games','precision-adapter','precision-audit'])assert.ok(imports['./'+name+'.mjs'],name)});
 
-test('challenge learning dependency graph is versioned and offline',()=>{for(const n of ['challenge-setting','challenge-exposure','challenge-episodes','challenge-learning'])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=1.9.0-dev')});
+test('challenge learning dependency graph is versioned and offline',()=>{for(const n of ['challenge-setting','challenge-exposure','challenge-episodes','challenge-learning'])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=2.0.0-dev')});
 
-test('new independent intelligence modules are versioned and cached offline',()=>{for(const n of ["training-ledger","training-outcomes","match-stages","development-review","coaching-intelligence","tactical-learning","session-learning","trial-planning"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=1.9.0-dev')});
+test('new independent intelligence modules are versioned and cached offline',()=>{for(const n of ["training-ledger","training-outcomes","match-stages","development-review","coaching-intelligence","tactical-learning","session-learning","trial-planning"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=2.0.0-dev')});
+
+test('autonomous coaching modules are available offline',()=>{for(const n of ["performance-forecast","competition-calendar","coaching-accountability","proactive-coach","personal-programme","autonomy-dialogue"])assert.equal(imports['./'+n+'.mjs'],'./'+n+'.mjs?v=2.0.0-dev')});
+
+import vm from 'node:vm';
+test('activated offline generation retires old IDC caches without touching unrelated caches',async()=>{
+ const handlers={},deleted=[],events=[];
+ const active=sw.match(/const CACHE='([^']+)'/)[1];
+ const old=['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2','IDC:assets:2.0.0-dev3'].filter(n=>n!==active);
+ const names=[...old,active,'dartsCoachV4','IDC:player-backups','other-app:assets:1.0.0'];
+ const scope='https://example.test/site/';
+ const keys=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))].map(a=>({url:new URL(a,scope).href}));
+ vm.runInNewContext(sw,{self:{registration:{scope},addEventListener:(name,fn)=>{handlers[name]=fn},clients:{claim:async()=>events.push('claimed')}},caches:{keys:async()=>names,open:async()=>({keys:async()=>keys}),delete:async n=>{deleted.push(n);events.push(n);return true}},URL,Set,Promise});
+ let task;handlers.activate({waitUntil:p=>task=p});await task;
+ assert.deepEqual(deleted.sort(),old.sort());
+ assert.equal(events.at(-1),'claimed');
+});
+
+test('offline worker serves an internally consistent cached shell while a later network release is waiting',async()=>{
+ const handlers={},calls=[],scope='https://example.test/site/';
+ const cached={'./index.html':'old shell','./idc.mjs?v=2.0.0-dev':'old module'};
+ vm.runInNewContext(sw,{
+  self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn},
+  caches:{open:async name=>({match:async request=>cached['./'+new URL(typeof request==='string'?request:request.url,scope).pathname.split('/').at(-1)+new URL(typeof request==='string'?request:request.url,scope).search]})},
+  fetch:async req=>{calls.push(req.url);return 'new network release'},URL,Set,Promise,Response
+ });
+ const dispatch=async (url,mode='navigate',method='GET')=>{let response;handlers.fetch({request:{url,mode,method},respondWith:p=>response=p});return response};
+ assert.equal(await dispatch(scope+'index.html'),'old shell');
+ assert.equal(await dispatch(scope),'old shell');
+ assert.equal(await dispatch(scope+'index.html?source=home'),'old shell');
+ assert.equal(await dispatch(scope+'idc.mjs?v=2.0.0-dev','cors'),'old module');
+ assert.equal(await dispatch(scope+'other.html'),undefined);
+ assert.equal(await dispatch('https://other.test/site/index.html'),undefined);
+ assert.equal(await dispatch(scope+'index.html','navigate','POST'),undefined);
+ assert.deepEqual(calls,[]);
+});
+test('failed install cannot activate, claim clients or delete the previous complete generation',async()=>{
+ const handlers={},effects=[],scope='https://example.test/site/';
+ vm.runInNewContext(sw,{
+  self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn,clients:{claim:async()=>effects.push('claim')}},
+  caches:{open:async()=>({addAll:async requests=>{assert.ok(requests.length>=160);assert.ok(requests.every(r=>r.cache==='reload'));throw Error('simulated precache failure')}}),keys:async()=>['IDC:assets:1.9.0-dev'],delete:async n=>effects.push(n)},
+  URL,Request,Set,Promise
+ });
+ let install;handlers.install({waitUntil:p=>install=p});
+ await assert.rejects(install,/simulated precache failure/);
+ assert.deepEqual(effects,[]);
+});
+
+test('missing shell or required module fails closed instead of mixing installed and network generations',async()=>{
+ const handlers={},calls=[],scope='https://example.test/site/';
+ vm.runInNewContext(sw,{self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn},
+ caches:{open:async()=>({match:async()=>undefined})},fetch:async r=>{calls.push(r);return new Response('new generation')},URL,Response,Set,Promise});
+ for(const [url,mode] of [[scope,'navigate'],[scope+'index.html?fresh=1','navigate'],[scope+'idc.mjs?v=2.0.0-dev','cors'],[scope+'engine/engine.mjs','cors']]){
+  let result;handlers.fetch({request:{url,mode,method:'GET'},respondWith:p=>result=p});
+  const r=await result;assert.equal(r.status,503);assert.match(await r.text(),/IDC/);
+ }
+ assert.deepEqual(calls,[]);
+});
+
+test('incomplete new generation never deletes previous caches or claims clients',async()=>{
+ const handlers={},effects=[],scope='https://example.test/site/',active=sw.match(/const CACHE='([^']+)'/)[1];
+ const urls=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))].map(a=>new URL(a,scope).href);
+ const keys=urls.slice(1).map(url=>({url}));
+ vm.runInNewContext(sw,{self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn,clients:{claim:async()=>effects.push('claim')}},
+ caches:{keys:async()=>[active,'IDC:assets:1.9.0-dev'],open:async()=>({keys:async()=>keys,addAll:async()=>{}}),delete:async name=>effects.push(name)},URL,Request,Set,Promise});
+ let task;handlers.install({waitUntil:p=>task=p});await assert.rejects(task,/Incomplete IDC asset generation/);
+ handlers.activate({waitUntil:p=>task=p});await assert.rejects(task,/Incomplete IDC asset generation/);
+ assert.deepEqual(effects,[]);
+ let status;handlers.message({data:{type:'IDC_ASSET_STATUS'},ports:[{postMessage:x=>status=x}],waitUntil:p=>task=p});await task;
+ assert.equal(status.generation,active);assert.equal(status.expected,urls.length);assert.equal(status.stored,urls.length-1);assert.equal(status.missing.length,1);assert.equal(status.missing[0],urls[0]);
+});
