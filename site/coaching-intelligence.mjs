@@ -1,3 +1,5 @@
+import {quickDevelopment,quickDevelopmentLines} from './quick-development.mjs';
+import {transferSignals,transferSignalLines,individualMethodSignals,methodDecisionLines,performanceWatchLines} from './development-signals.mjs';
 import {exerciseSequences,sequenceLines} from './session-learning.mjs';
 import {nextComparison,comparisonPlanLines} from './trial-planning.mjs';
 // Local coaching intelligence router. Each expensive analysis runs only on
@@ -11,7 +13,7 @@ export const INTELLIGENCE_QUESTIONS=Object.freeze([
  'What should I work on next?','How much have I actually trained?','How does my training relate to progress?',
  'Which drills help me improve?','Does longer practice help me?','Have my gains lasted?',
  'Where do I lose performance in legs?','How does practice transfer to competition?','How far am I from my goals?',
- 'Do I lose consistency during practice?','What should I test next?','Is my real match performance improving?'
+ 'What is Quick Play telling you?','Which methods should I keep using?','Are my practice gains reaching matches?','Are any weaknesses emerging?','Do I lose consistency during practice?','What should I test next?','Is my real match performance improving?'
 ]);
 const answer=(type,lines)=>({kind:'answer',type,lines});
 export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[]){
@@ -21,12 +23,16 @@ export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[
  if(/^(which drills help me improve|training method learning|compare my drills)$/.test(q))return answer('training-method',outcomeReportLines(trainingOutcomes(host,state,day,now),'method'));
  if(/^(does longer practice help me|training dose|practice duration learning)$/.test(q))return answer('training-dose',outcomeReportLines(trainingOutcomes(host,state,day,now),'dose'));
  if(/^(have my gains lasted|delayed benchmark follow-up|training retention)$/.test(q))return answer('training-followup',followupLines(trainingOutcomes(host,state,day,now)));
+ if(/^(what is quick play telling you|quick play coaching|quick play development|early quick play warning)$/.test(q))return answer('quick-development',quickDevelopmentLines(quickDevelopment(host,state,day,now)));
+ if(/^(are any weaknesses emerging|performance watch|early performance warning)$/.test(q))return answer('performance-watch',[...performanceWatchLines(state,day),...quickDevelopmentLines(quickDevelopment(host,state,day,now))]);
+ if(/^(which methods should i keep using|method decisions|what works for me)$/.test(q))return answer('individual-methods',methodDecisionLines(individualMethodSignals(host,state,day,now)));
+ if(/^(are my practice gains reaching matches|is my practice carrying over|practice match progress)$/.test(q))return answer('match-direction',transferSignalLines(transferSignals(state,day)));
  const period=q.match(/^(?:match stages|where do i lose performance in legs)(?: (7|28|84|365) days)?$/);
  if(period)return answer('match-stages',stageLines(stageProfiles(state.legs??[],day),period[1]?Number(period[1]):28));
  if(/^(how does practice transfer to competition|actual match transfer|match stage comparison|how do my drills relate to competition)$/.test(q)){
   const report=stageProfiles(state.legs??[],day),transfer=stageTransfer(report,day);
   const episodes=report.profiles.some(p=>p.context==='competition')?learningEpisodes(host,state,day,now).episodes:[];
-  return answer('match-transfer',[...transferLines(transfer),...methodCompetitionLines(methodCompetitionReview(report,episodes,state,day))]);
+  return answer('match-transfer',[...transferSignalLines(transferSignals(state,day)),...transferLines(transfer),...methodCompetitionLines(methodCompetitionReview(report,episodes,state,day))]);
  }
  if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day)));
  if(/^(how far am i from my goals|goal runway|goal gaps)$/.test(q))return answer('goal-runway',goalRunwayLines(developmentAgenda(host,state,day,{now})));

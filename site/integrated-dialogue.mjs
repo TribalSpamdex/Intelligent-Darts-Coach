@@ -115,6 +115,8 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
    [/^(?:tell me |show me )?(?:which|what) (?:are )?my (?:worst|weakest) doubles$/,'what are my weakest doubles'],
    [/^(?:show me |tell me )?(?:my )?(?:competition|match) progress$/,'is my real match performance improving'],
    [/^(?:show me |tell me )?(?:my )?equipment (?:history|review|performance)$/,'has my equipment change helped'],
+   [/^(?:what|how) (?:is|are) my quick play (?:results|games) (?:telling you|affecting my coaching)$/,'what is quick play telling you'],
+   [/^(?:show me |tell me )?(?:my )?(?:early warnings|emerging weaknesses)$/,'are any weaknesses emerging'],
    [/^(?:show me |tell me )?(?:my )?mental performance$/,'how do nerves and confidence affect my performance'],
    [/^(?:how|what) (?:can|should|do) i (?:improve|work on) my (?:darts|game)$/,'what should i work on next'],
    [/^(?:show me |tell me )?(?:my )?(?:current |next )?(?:training|practice) (?:priority|priorities)$/,'what is my next coaching priority']
@@ -132,10 +134,14 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
    'mental-evidence':{question:'How do nerves and confidence affect my performance?',next:'Keep normal preparation and compare naturally occurring conditions with the same benchmark. Do not deliberately induce pressure or fatigue.'},
    'technique-evidence':{question:'Do my technique observations match my results?',next:'Observe a comfortable baseline. Record one specific technical observation, preferably with a consistent video angle, and compare the same fixed benchmark on separate days.'},
    'target-development':{question:'What target should I practise next?',next:'Repeat the same familiar exact-target check on separate days within your usual practice time; this signal does not diagnose your throw.'},
+   'performance-watch':{question:'Are any weaknesses emerging?',next:'Repeat a familiar comparable check; do not infer a mechanical cause or increase workload.'},
+   'quick-development':{question:'What is Quick Play telling you?',next:'Repeat the recommended familiar check on separate days; do not add workload or change your throw based on contextual results.'},
+   'individual-methods':{question:'Which methods should I keep using?',next:'Keep your normal plan and review one exact method at a time using independent fixed benchmarks.'},
+   'match-direction':{question:'Are my practice gains reaching matches?',next:'Record actual competition legs separately from practice and repeat the same fixed practice check.'},
    'method-cautions':{question:'Which methods should we reconsider?',next:'Continue the ordinary balanced plan and repeat independent checks before reinstating an optional drill preference.'}
   };
   const topic=previous?.day===day&&Object.hasOwn(topics,previous.topic)?previous.topic:null;
-  if(/^(?:why|why is that|what is the evidence|show me the evidence|what evidence do you have|what should i do about that|how do i test that|what do i do now)$/.test(q)){
+  if(/^(?:why|why is that|what is the evidence|show me the evidence|what evidence do you have|why do you think that|how do you know|what should i do about that|how do i test that|what do i do now)$/.test(q)){
    if(!topic)return {answer:reply('clarification',['Start with a specific coaching review so I know which evidence you mean.']),context:null};
    const t=topics[topic],a=integratedAsk(host,state,t.question,day,now,checks,reflections,baselines,events);
    const action=/what should i do|how do i test|what do i do now/.test(q);

@@ -73,10 +73,12 @@ def run_sol51_audit(browser):
     finally:ctx.close()
 
 def run_pinned51_upgrade_audit(browser):
+    import os, re
+    version=re.search(r"IDC:assets:2\.0\.0-(dev\d+)",(SITE/'sw.js').read_text()).group(1)
     state={'candidate':False}
     @lru_cache(maxsize=None)
     def baseline(path):
-        return subprocess.check_output(['git','show',BASELINE+':site/'+path],cwd=SITE.parent)
+        return (Path(os.environ['IDC_ARCHIVED_BASELINE'])/'site'/path).read_bytes() if os.environ.get('IDC_ARCHIVED_BASELINE') else subprocess.check_output(['git','show',BASELINE+':site/'+path],cwd=SITE.parent)
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
         def do_GET(self):
@@ -105,13 +107,13 @@ def run_pinned51_upgrade_audit(browser):
         state['candidate']=True
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         wait_async(page,"async()=>!!(await navigator.serviceWorker.getRegistration()).waiting",'actual dev51 waiting')
-        assert page.evaluate("async()=>{const c=await caches.keys();return c.includes('IDC:assets:2.0.0-dev50') && c.includes('IDC:assets:2.0.0-dev51')}")
+        assert page.evaluate("async v=>{const c=await caches.keys();return c.includes('IDC:assets:2.0.0-dev50') && c.includes('IDC:assets:2.0.0-'+v)}",version)
         observer=ctx.new_page();observer.goto(url.replace('/site/index.html','/observer.html'))
         assert observer.evaluate('navigator.serviceWorker.controller===null')
         page.close()
         wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');return !!r.active&&!r.waiting&&!(await caches.keys()).includes('IDC:assets:2.0.0-dev50')}",'actual dev51 activation')
         page=ctx.new_page();page.goto(url);observer.close();ready(page)
-        assert 'dev51' in page.title()
+        assert version in page.title()
         assert page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillTrace.length===1 && activeGame.skillTraceVersion===undefined && localStorage.getItem('dartsCoachV4')==='SOL51-LEGACY'")
         page.evaluate("show('train')")
         # Reopen pause is native behavior; resume, then finish using controls.
@@ -120,6 +122,6 @@ def run_pinned51_upgrade_audit(browser):
         page.locator('#gameControls').get_by_role('button',name='Hit',exact=True).click()
         assert page.evaluate("data.games.length===1 && activeGame.skillTraceVersion===1 && activeGame.skillStartLives>0")
         assert page.evaluate("async()=>{const m=await import('./v62-evidence.mjs?v=2.0.0-dev');return m.extraQuickRounds(window.IDCTrainingBridge.snapshot(),dateKey()).length===1}")
-        print('SOL51 actual pinned dev50-to-dev51 worker upgrade: exact production assets, waiting activation, existing player state, legacy sentinel, old active trace completion and new-round metadata passed; baseline='+BASELINE)
+        print('SOL51 actual pinned dev50-to-current worker upgrade: exact production assets, waiting activation, existing player state, legacy sentinel, old active trace completion and new-round metadata passed; baseline='+BASELINE)
     finally:
         ctx.close();server.shutdown();server.server_close();thread.join(timeout=5)

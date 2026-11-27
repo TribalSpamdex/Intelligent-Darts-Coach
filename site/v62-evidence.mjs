@@ -49,7 +49,7 @@ export function skillPlayEligible(g,index){
 }
 // Deduplicate authoritative identities BEFORE eligibility/count validation. A corrupt
 // mirror must veto its valid twin, rather than disappear before conflict detection.
-const measurementFields=['name','ruleVersion','precision','learningSetting','quick','day','offsetMinutes','completion','benchmark','recovery','challengeTuning','variant','tierAtStart','tier','visits','points','scores','thrown','hits','success','fail','outer','inner','misses','attempts','masteryMode','target','targetLog','attemptLog','rangeStart','rangeEnd','pressure','counts','darts','dartsUsed','targets','locked','ring','details'];
+const measurementFields=['name','ruleVersion','precision','learningSetting','quick','day','offsetMinutes','completion','benchmark','recovery','challengeTuning','variant','tierAtStart','tier','visits','points','scores','thrown','hits','success','fail','outer','inner','misses','attempts','masteryMode','target','targetLog','attemptLog','rangeStart','rangeEnd','pressure','counts','darts','dartsUsed','targets','locked','ring','details','skillProtocol'];
 // Use the same provenance at every projection boundary. Numeric/string native
 // session aliases are equivalent; different sessions are different rounds.
 export const roundIdentity=g=>JSON.stringify([g.name,g.at,g.sessionId==null?null:String(g.sessionId)]);
@@ -61,6 +61,12 @@ export function fixedGameSources(games){
  return new Map(games.filter(Boolean).map(g=>{const base='game:'+g.at+':'+g.name;return [roundIdentity(g),base+(groups.get(base)?.size>1?':s'+JSON.stringify(g.sessionId==null?null:String(g.sessionId)):'')]}));
 }
 const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
+// Opaque comparison identity only; missing settings stay unknown.
+export function quickProtocolConfig(g){
+ const cfg=g?.skillProtocol;
+ if(!cfg||cfg.version!==1||cfg.name!==g.name||!cfg.rules||typeof cfg.rules!=='object'||Array.isArray(cfg.rules)||!Object.keys(cfg.rules).length||Object.keys(cfg.rules).length>48)return null;
+ const encoded=JSON.stringify(stable(cfg.rules));return encoded.length<=4096?encoded:null;
+}
 export function canonicalSkillGames(games=[],conflicts=null,window=null){
  const seen=new Map(),bad=new Set(),legacy=[];
  for(const g of games){
@@ -304,9 +310,14 @@ export function extraQuickRounds(host,day,now=Date.now()){
  return out;
 }
 // Descriptive adaptive protocols. Never converted into fixed calibration or dose.
-export function quickAdaptiveMeasurements(host,day,now=Date.now()){
+export function quickAdaptiveMeasurements(host,day,now=Date.now(),{daily=false}={}){
  const parents=trainingParentIndex(host.sessions??[]),groups=new Map();
- const add=(g,label,hits,attempts,scoring=false,perDart=false,unit=null,setting=null)=>{const key=g.name+' · '+label+' · '+(setting??(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting')),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart,unit:unit??(scoring&&!perDart?'visits':'darts')};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
+ const add=(g,label,hits,attempts,scoring=false,perDart=false,unit=null,setting=null)=>{const key=g.name+' · '+label+' · '+(setting??(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting')),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart,unit:unit??(scoring&&!perDart?'visits':'darts')};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);if(daily){
+  const config=quickProtocolConfig(g);
+  // Each source record retains actual start configuration; missing legacy
+  // fields stay unknown. Existing descriptive group keys remain compatible.
+  (x.records??=[]).push({day:g.day,hits,attempts,config});
+ }groups.set(key,x)};
  for(const g of canonicalSkillGames(host.games??[],null,{since:now-84*86400000,until:now})){
   if(!g||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
   if(['Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference'].includes(g.name)&&count(g.visits,1000)&&g.visits>=1&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every(n=>possible.has(n))&&(['Risk or Reward','High-Low','Split the Difference'].includes(g.name)||g.scores.reduce((a,b)=>a+b,0)===g.points)&&(g.name!=='First Nine Siege'||g.visits===3))add(g,g.name==='First Nine Siege'?'first nine, three fixed visits':'contextual three-dart visits',g.scores.reduce((a,b)=>a+b,0),g.visits,true);

@@ -50,7 +50,7 @@ function cricketNative(code){
 }
 test('SOL51 native bull marks fail before snapshot and traces; baseline reproduction is independent',()=>{
  const current=cricketNative(fs.readFileSync(new URL('../site/index.html',import.meta.url),'utf8'));
- const baseline=cricketNative(cp.execFileSync('git',['show','3695ed4fbe2b516c4d66fc6397374daf283bed4b:site/index.html'],{encoding:'utf8',maxBuffer:2e6}));
+ const baseline=cricketNative(process.env.IDC_ARCHIVED_BASELINE?fs.readFileSync(process.env.IDC_ARCHIVED_BASELINE+'/site/index.html','utf8'):cp.execFileSync('git',['show','3695ed4fbe2b516c4d66fc6397374daf283bed4b:site/index.html'],{encoding:'utf8',maxBuffer:2e6}));
  baseline.run(3);assert.equal(baseline.g.thrown,1);assert.equal(baseline.snapshots(),1);
  current.run(3);assert.equal(current.g.thrown,0);assert.equal(current.snapshots(),0);assert.deepEqual(current.g.skillTrace,[]);
  current.run(2);assert.equal(current.g.thrown,1);assert.deepEqual(current.g.skillTrace,[{action:2}]);
