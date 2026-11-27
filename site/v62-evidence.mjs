@@ -83,8 +83,18 @@ export function quickAbilityLines(host,day,now=Date.now()){
  const rows=masteryRows(host,now).filter(r=>r.quick&&r.day<=day),groups=new Map();
  for(const r of rows){const x=groups.get(r.key)??{key:r.key,hits:0,attempts:0,days:new Set()};x.hits+=r.hit;x.attempts++;x.days.add(r.day);groups.set(r.key,x)}
  const benchmarks=projectEvidence(host,{today:day,now}).observations.filter(o=>o.protocol.startsWith('IDC V6.2 Quick Play '));
+ const parents=trainingParentIndex(host.sessions??[]),adaptive=new Map(),seen=new Map(),bad=new Set();
+ for(const g of host.games??[]){
+  if(!g||!['Scoring Survival','Scoring Ladder'].includes(g.name)||g.quick!==true||!Number.isFinite(g.at)||g.at>now||g.at<now-84*86400000)continue;
+  const k=JSON.stringify([g.name,g.at,String(g.sessionId??'')]),value=JSON.stringify(g);
+  if(seen.has(k)){if(seen.get(k).value!==value)bad.add(k)}else seen.set(k,{g,value});
+ }
+ for(const [k,{g}] of seen){
+  if(bad.has(k)||!skillPlayEligible(g,parents)||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning||!Array.isArray(g.scores)||g.scores.length!==g.visits||!Number.isInteger(g.visits)||g.visits<3||g.visits>1000||!g.scores.every(n=>possible.has(n))||g.scores.reduce((a,b)=>a+b,0)!==g.points)continue;
+  const name=g.name+' · adaptive rounds',x=adaptive.get(name)??{name,points:0,visits:0,days:new Set()};x.points+=g.points;x.visits+=g.visits;x.days.add(g.day);adaptive.set(name,x);
+ }
  const fixed=new Map();for(const o of benchmarks){const x=fixed.get(o.protocol)??{protocol:o.protocol,skill:o.skill,hits:0,attempts:0,days:new Set()};x.hits+=o.hits;x.attempts+=o.attempts;x.days.add(o.day);fixed.set(o.protocol,x)}
- return [...(groups.size||fixed.size?[]:['No eligible completed Quick Play Mastery or fixed benchmark rounds recorded yet.']),...[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.key.localeCompare(b.key)).slice(0,35).map(x=>x.key+': '+x.hits+'/'+x.attempts+' ('+(100*x.hits/x.attempts).toFixed(1)+'%) across '+x.days.size+' measured days.'),...[...fixed.values()].map(x=>x.protocol+': '+(x.skill==='scoring'?3*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.skill==='scoring'?' average':'%')+' across '+x.days.size+' measured days and '+x.attempts+' darts.'),'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'];
+ return [...(groups.size||fixed.size||adaptive.size?[]:['No eligible completed Quick Play Mastery or fixed benchmark rounds recorded yet.']),...[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.key.localeCompare(b.key)).slice(0,35).map(x=>x.key+': '+x.hits+'/'+x.attempts+' ('+(100*x.hits/x.attempts).toFixed(1)+'%) across '+x.days.size+' measured days.'),...[...fixed.values()].map(x=>x.protocol+': '+(x.skill==='scoring'?3*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.skill==='scoring'?' average':'%')+' across '+x.days.size+' measured days and '+x.attempts+' darts.'),...[...adaptive.values()].map(x=>x.name+': '+(x.points/x.visits).toFixed(1)+' measured visit average across '+x.visits+' visits and '+x.days.size+' days; adaptive stopping rules mean this is not a fixed scoring benchmark.'),'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'];
 }
 
 

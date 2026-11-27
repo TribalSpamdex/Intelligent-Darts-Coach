@@ -60,6 +60,11 @@ export function combinedDoubleComparison(rows,first,second){
  const standard=compareTargets(rows,first,second),paired=compareTargets(rows,first,second,checkProtocol(first,second));
  const decisive=c=>['first-higher','second-higher'].includes(c.status);
  if(decisive(standard)&&decisive(paired)&&standard.status!==paired.status)return {...standard,status:'unclear',limitation:'Fixed assessment and paired practice evidence disagree; no preference change.',sources:[standard,paired]};
+ if(standard.status==='insufficient'&&paired.status==='insufficient'){
+  const extra=['Quick Play · Target Mastery segment','Quick Play · Target Mastery straight'].map(p=>compareTargets(rows,first,second,p));
+  const supported=extra.filter(decisive);
+  if(supported.length&&extra.every(x=>x.status==='insufficient'||x.status===supported[0].status))return {...supported.sort((a,b)=>b.days-a.days)[0],sources:[standard,paired,...extra],limitation:'Separate, same-day Quick Play exact-target comparisons; primary fixed checks remain preferred. No full-route or match-win probability is established.'};
+ }
  return {...(decisive(standard)?standard:decisive(paired)?paired:standard.status==='insufficient'?paired:standard),sources:[standard,paired]};
 }
 export function personalisedCheckout(memory,rows,score,darts){
