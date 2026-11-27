@@ -19,7 +19,7 @@ test('legacy adjustment, trial, protected category, extra session, duplicate day
 test('seeded allocation fuzz preserves total, minimum and consent constraints',()=>{const x=allocation();let seed=0x19b3;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);for(let i=0;i<2000;i++){const queue=x.queue.map(e=>({...e,seconds:300+Math.floor(rand()*5)*300,wholeCoach:{...e.wholeCoach}}));const n=queue.reduce((a,e)=>a+e.seconds,0);const result=decideTransfer({...x,queue});applyTransfer(queue,result);assert.equal(queue.reduce((a,e)=>a+e.seconds,0),n);assert.ok(queue.every(e=>e.seconds>=300));if(result.status==='transferred')assert.equal(result.skill,'doubles')}});
 
 import {projectExposure} from '../site/host-exposure.mjs';
-test('actual practice exposure excludes Quick Play, mixed games and unverified double variants',()=>{const h=empty();h.sessions=[{id:1,date:day,start:now-1800000,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0},{name:'Doubles Survival',seconds:900,exerciseIndex:1,exerciseId:'e',at:now-60000},{name:'Warm-up',seconds:600,exerciseIndex:2},{name:'Shanghai Combo',seconds:300,exerciseIndex:3}]},{id:2,date:day,quick:true,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0}]}];let x=projectExposure(h,day);assert.deepEqual(x.exposure,[{day,skill:'bull',minutes:10}]);assert.equal(x.unclassifiedSeconds,1200);h.games=[{name:'Doubles Survival',sessionId:1,exerciseId:'e',quick:false,variant:'doubles',day,at:now-120000}];x=projectExposure(h,day);assert.equal(x.exposure.find(e=>e.skill==='doubles').minutes,15);assert.equal(x.complete,false);assert.equal(assemble(h,null,day,now).state.exposure.length,2);assert.equal(change(h,null,'fact',{key:'grip',value:'front',evidence:'reported'}).state.exposure.length,0)});
+test('actual practice exposure excludes Quick Play, mixed games and unverified double variants',()=>{const h=empty();h.sessions=[{id:1,date:day,start:now-2400000,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0,at:now-1800000},{name:'Doubles Survival',seconds:900,exerciseIndex:1,exerciseId:'e',at:now-900000},{name:'Warm-up',seconds:600,exerciseIndex:2,at:now-300000},{name:'Shanghai Combo',seconds:300,exerciseIndex:3,at:now}]},{id:2,date:day,quick:true,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0}]}];let x=projectExposure(h,day);assert.deepEqual(x.exposure,[{day,skill:'bull',minutes:10}]);assert.equal(x.unclassifiedSeconds,1200);h.games=[{name:'Doubles Survival',sessionId:1,exerciseId:'e',quick:false,variant:'doubles',day,at:now-960000}];x=projectExposure(h,day);assert.equal(x.exposure.find(e=>e.skill==='doubles').minutes,15);assert.equal(x.complete,false);assert.equal(assemble(h,null,day,now).state.exposure.length,2);assert.equal(change(h,null,'fact',{key:'grip',value:'front',evidence:'reported'}).state.exposure.length,0)});
 
 test('historical invalid intervention cannot drive a new allocation or rewrite stored history',()=>{
  const h=fixture(),scope=assemble(h,null,day,now).state.observations[0];
@@ -102,4 +102,26 @@ test('malformed or ambiguous intervention backup cannot activate or overwrite va
   assert.throws(()=>validateMemory(bad));
  }
  assert.equal(JSON.stringify(m),before);assert.deepEqual(validateMemory(JSON.parse(before)),m);
+});
+
+test('Integrated exposure excludes impossible or unverifiable historical activity clocks',()=>{
+ const h=empty(),valid={id:5,date:day,start:now-1200000,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0,exerciseId:'a',at:now-600000},{name:'Scoring Survival',seconds:600,exerciseIndex:1,exerciseId:'b',at:now}]};
+ h.sessions=[valid];assert.equal(projectExposure(h,day,now).exposure.length,2);
+ for(const bad of [
+ {...valid,start:now-300000},
+ {...valid,activities:valid.activities.map(a=>({...a,at:now-300000}))},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],exerciseIndex:0}]},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],exerciseId:'a'}]},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],at:now+1}]},
+ {...valid,activities:[valid.activities[0],{...valid.activities[1],at:undefined}]}
+ ]){
+  h.sessions=[bad];const before=JSON.stringify(h);
+  assert.equal(projectExposure(h,day,now).exposure.length,0);
+  assert.equal(assemble(h,null,day,now).state.exposure.length,0);
+  assert.equal(JSON.stringify(h),before);
+ }
+});
+test('Mixed application cannot be promoted to an isolated measured checkout exposure',()=>{
+ const h=empty();h.sessions=[{id:1,date:day,start:now-600000,quick:false,activities:[{name:'301 Pressure',application:true,seconds:600,exerciseIndex:0,at:now}]}];
+ const x=projectExposure(h,day,now);assert.equal(x.exposure.length,0);assert.equal(x.unclassifiedSeconds,600);
 });

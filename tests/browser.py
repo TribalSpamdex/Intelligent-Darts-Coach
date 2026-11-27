@@ -409,6 +409,18 @@ with sync_playwright() as p:
     assert structure['normal']['total']==3000 and structure['normal']['last']['application'] and structure['normal']['locked']==600 and structure['normal']['min']>=300, structure
     assert structure['short']['total']==600 and structure['short']['last']['application'] and structure['short']['locked']==600, structure
     assert structure['extraReview']=='Review', structure
+    # Application time is mixed practice, never ten extra minutes of isolated checkout work.
+    attribution=page.evaluate("""()=>{
+      const original=clone(data),now=Date.now();
+      try{
+       const start=now-1800000,day=dateKey(start);
+       data.sessions=[{id:start,start,date:day,extra:false,quick:false,completed:true,minutes:30,activities:[{name:'Checkout Climb',seconds:600,at:start+600000,exerciseIndex:0},{name:'301 Pressure',application:true,seconds:600,at:start+1200000,exerciseIndex:1},{name:'Warm-up',seconds:600,at:now,exerciseIndex:2}]}];
+       data.games=[];
+       const p=coach62Practice(now,start),l=dc28CategoryLedger(now).at(-1);
+       return {checkout:p.categories.checkout.seconds,application:p.application,total:p.totalSeconds,legacyCheckout:l.minutes.checkout,unknown:l.unknownMinutes};
+      }finally{data=original;window.IDCPrecision.invalidate()}
+    }""")
+    assert attribution=={'checkout':600,'application':600,'total':1800,'legacyCheckout':10,'unknown':20}, attribution
     # H5: same native skill tier, calendar, exposure and settings; change only
     # independent measured ability and inspect actual executable scheduler output.
     adaptation=page.evaluate("""()=>{const original=clone(data);try{

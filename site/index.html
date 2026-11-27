@@ -2852,7 +2852,7 @@ function dc28CategoryLedger(now=Date.now()){
   item.sessions++;item.at=Math.min(item.at,s.start);
   for(const activity of s.activities){
    if(!activity||!Number.isFinite(Number(activity.seconds))||Number(activity.seconds)<300)continue;
-   const c=activity.name==='Target Mastery'?dc29MasteryCategory(s,activity):dc28GameCategory(activity.name);
+   const c=activity.application===true?null:activity.name==='Target Mastery'?dc29MasteryCategory(s,activity):dc28GameCategory(activity.name);
    const minutes=Math.min(60,Number(activity.seconds)/60);
    if(!c){item.unknownMinutes+=minutes;continue;}
    item.counts[c]++;item.minutes[c]+=minutes;
@@ -4156,13 +4156,13 @@ function dc45ExerciseId(s,index){return String(s.id)+':exercise:'+index}
 function dc45InitialSnapshot(s){
  if(!s||s.provenanceInitial)return;
  s.provenanceInitial={version:'5.45.0',at:Date.now(),kind:'initial-selection',
-  exercises:s.plan.map((x,i)=>({index:i,name:x.name,mode:x.mode||null,
+  exercises:s.plan.map((x,i)=>({index:i,name:x.name,...(x.application===true?{application:true}:{}),mode:x.mode||null,
    proposedSeconds:Number.isFinite(x.seconds)?x.seconds:null,dc47TrialId:x.dc47TrialId||null}))};
 }
 function dc45LockAllocation(s){
  if(!s||s.provenanceLocked)return;
  s.provenanceLocked={version:'5.45.0',at:Date.now(),kind:'post-allocation',
-  exercises:s.plan.map((x,i)=>({id:dc45ExerciseId(s,i),index:i,name:x.name,
+  exercises:s.plan.map((x,i)=>({id:dc45ExerciseId(s,i),index:i,name:x.name,...(x.application===true?{application:true}:{}),
    mode:x.mode||null,plannedSeconds:Number.isFinite(x.seconds)?x.seconds:null,dc47TrialId:x.dc47TrialId||null}))};
 }
 function dc45EnsureProvenance(s){
@@ -5425,7 +5425,7 @@ function checkoutHit(){if(session()?.phase!=="playing")return;const g=activeGame
 function bullDart(value){if(![0,25,50].includes(value)||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Accuracy"||session().pausedAt)return;snapshot();g.thrown++;if(value===50)g.inner++;else if(value===25)g.outer++;else g.misses++;if(g.thrown>=30){endRound();return}data.game=g;save()}
 function bullSurvival(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Survival"||session().pausedAt)return;snapshot();g.used++;g.thrown++;if(hit){g.hits++;g.wins++;endRound();return}if(g.used>=g.allowed){endRound();return}data.game=g;save()}
 function bullStreak(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Streak"||session().pausedAt)return;snapshot();g.thrown++;if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(g.streak>=g.goal){endRound();return}}else{g.streak=0;g.misses=num(g.misses)+1;if(g.misses>=num(g.allowedMisses||7)){endRound();return}}data.game=g;save()}
-function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.practiceBlock?clone(g.practiceBlock):undefined,name:g.name,mode:g.name,at,day:dateKey(at),offsetMinutes:new Date(at).getTimezoneOffset(),date:new Date(at).toLocaleString(),extra:!!session()?.extra,sessionId:session()?.id||null,exerciseId:currentExercise()?.provenanceId||null,exerciseIndex:Number.isInteger(session()?.index)?session().index:null,quick:!!session()?.quick,quickMinutes:session()?.quick?Math.round(num(session().quickSeconds)/60):0,completion,benchmark:completion==="natural"||completion==="timed",version:"6.1-RC16",ruleVersion:g.ruleVersion||null,result:"Activity completed",oneEighties:num(g.oneEighties),recovery:!!g.recovery,challengeTuning:g.challengeTuning||null,challengeTuningVersion:g.challengeTuningVersion||null,
+function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.practiceBlock?clone(g.practiceBlock):undefined,name:g.name,mode:g.name,...(currentExercise()?.application===true?{application:true}:{}),at,day:dateKey(at),offsetMinutes:new Date(at).getTimezoneOffset(),date:new Date(at).toLocaleString(),extra:!!session()?.extra,sessionId:session()?.id||null,exerciseId:currentExercise()?.provenanceId||null,exerciseIndex:Number.isInteger(session()?.index)?session().index:null,quick:!!session()?.quick,quickMinutes:session()?.quick?Math.round(num(session().quickSeconds)/60):0,completion,benchmark:completion==="natural"||completion==="timed",version:"6.1-RC16",ruleVersion:g.ruleVersion||null,result:"Activity completed",oneEighties:num(g.oneEighties),recovery:!!g.recovery,challengeTuning:g.challengeTuning||null,challengeTuningVersion:g.challengeTuningVersion||null,
  prospectiveForecast:g.prospectiveForecast&&completion==='natural'&&
  !g.recovery&&!g.challengeTuning&&!session()?.quick?clone(g.prospectiveForecast):null};
  if(completion==="natural"&&!session()?.quick&&!g.recovery){
@@ -5590,7 +5590,7 @@ function completeExercise(completion="manual"){
   const activity=g.dc598Action===true||Object.entries(g).some(([key,value])=>["thrown","darts","visits","attempt","attempts","hits","fail","success","used","shots","entryMisses","dartsUsed","misses","strokes"].includes(key)&&((Array.isArray(value)&&value.length>0)||typeof value==="number"&&value>0));
   if(activity)data.games.push(gameResult(g,completion==="timed"?"partial":"manual"));
  }
- s.completed.push({name:item.name,exerciseId:item.provenanceId||null,exerciseIndex:s.index,at:Date.now(),seconds:Math.round(elapsed),...(item.name==="Big Singles"?{benchmarkElapsedExact:elapsed}:{}),rounds:s.roundsCompleted,...(firstClimbCheckout(activeGame)?{firstCheckoutScore:firstClimbCheckout(activeGame)}:{}),plannedSeconds:s.provenanceLocked?.exercises?.find(x=>x.id===item.provenanceId)?.plannedSeconds??null});
+ s.completed.push({name:item.name,...(item.application===true?{application:true}:{}),exerciseId:item.provenanceId||null,exerciseIndex:s.index,at:Date.now(),seconds:Math.round(elapsed),...(item.name==="Big Singles"?{benchmarkElapsedExact:elapsed}:{}),rounds:s.roundsCompleted,...(firstClimbCheckout(activeGame)?{firstCheckoutScore:firstClimbCheckout(activeGame)}:{}),plannedSeconds:s.provenanceLocked?.exercises?.find(x=>x.id===item.provenanceId)?.plannedSeconds??null});
  s.activityAccumulated=elapsed*1000;s.activityStarted=null;
  s.phase="complete";s.pausedAt=Date.now();undoSnapshot=null;hideRoundAnnouncement();
  save();
@@ -5643,7 +5643,7 @@ function dc30LogCompletedInterventions(s){
   const plan=(s.plan||[]).find(x=>x.name===activity.name);
   if(!plan||log.some(x=>x.sessionId===s.id&&x.at===activity.at))continue;
   const decision=plan.coachDecision||null;
-  const category=activity.name==='Target Mastery'?decision?.feedback?.category||null:dc28GameCategory(activity.name);
+  const category=activity.application===true?null:activity.name==='Target Mastery'?decision?.feedback?.category||null:dc28GameCategory(activity.name);
   const overlap=s.completed.filter(x=>x!==activity&&x.name!=='Warm-up'&&x.name!=='Review'&&x.name!=='Big Singles').map(x=>x.name);
   log.push({kind:decision?'mastery':'exercise',sessionId:s.id,at:activity.at,category,
    name:activity.name,ring:decision?.ring||null,target:decision?.target??null,
@@ -5662,7 +5662,7 @@ function dc66CaptureUnfinishedSessionExercise(s){
  const item=currentExercise(),g=activeGame||data.game;
  if(!item)return null;
  const elapsed=exerciseElapsed();
- const record={name:item.name,exerciseId:item.provenanceId||null,
+ const record={name:item.name,...(item.application===true?{application:true}:{}),exerciseId:item.provenanceId||null,
   exerciseIndex:s.index,seconds:Math.round(elapsed),interrupted:true,
   roundsCompleted:num(s.roundsCompleted)};
  if(!g||["Warm-up","Review","Big Singles"].includes(item.name))return record;
@@ -5778,7 +5778,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  $("exerciseDone").classList.toggle("hidden",phase!=="complete");
  $("sessionFooter").classList.toggle("hidden",phase!=="playing");
  if(phase!=="complete")$("dc65FixBenchmark").classList.add("hidden");
- const displayTitle=g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
+ const displayTitle=e.application?'Application · '+e.name:g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
  if(phase==="rules"){
   $("introTitle").textContent=displayTitle;
   const aim=coach61SessionAim(e);
@@ -6102,7 +6102,7 @@ const COACH61_NAMES={scoring:'Scoring',doubles:'Doubles',checkout:'Checkouts',bu
 /* Daily coaching and completed-practice accounting. */
 function coach62Practice(now=Date.now(),since=weekStart(now)){
  const sessions=new Map(),categories=Object.fromEntries(SKILLS.map(k=>[k,{seconds:0,days:new Set()}]));
- const result={categories,games:new Map(),days:new Set(),warmup:0,benchmark:0,review:0,unclassified:0,quickSeconds:0,totalSeconds:0,sessions:0};
+ const result={categories,games:new Map(),days:new Set(),warmup:0,benchmark:0,review:0,application:0,unclassified:0,quickSeconds:0,totalSeconds:0,sessions:0};
  for(const s of data.sessions||[]){
   if(!s||!Number.isFinite(s.start)||s.start<since||s.start>now)continue;
   const id=s.id!==undefined&&s.id!==null?'id:'+String(s.id):'legacy:'+s.start+':'+!!s.extra+':'+!!s.quick;
@@ -6135,6 +6135,7 @@ function coach62Practice(now=Date.now(),since=weekStart(now)){
    if(activity.name==='Warm-up'){result.warmup+=seconds;continue}
    if(activity.name==='Big Singles'){result.benchmark+=seconds;continue}
    if(activity.name==='Review'){result.review+=seconds;continue}
+   if(activity.application===true){result.application+=seconds;continue}
    const category=activity.name==='Target Mastery'?dc29MasteryCategory(s,activity):dc28GameCategory(activity.name);
    if(category){
     categories[category].seconds+=seconds;categories[category].days.add(dateKey(s.start));
@@ -6227,7 +6228,7 @@ function coach62Week(){
   html+='<div class="entry"><div class="statLine"><strong>'+COACH61_NAMES[key]+'</strong><span>'+
    minutes(c.seconds)+' · '+c.days.size+' day'+(c.days.size===1?'':'s')+'</span></div><div class="progress"><div style="width:'+share.toFixed(2)+'%"></div></div></div>';
  }
- const other=[['Warm-up',practice.warmup],['Daily singles',practice.benchmark],['Review',practice.review],['Mixed practice',practice.unclassified],['Quick Play',practice.quickSeconds]].filter(x=>x[1]>0);
+ const other=[['Warm-up',practice.warmup],['Daily singles',practice.benchmark],['Review',practice.review],['Practical application',practice.application],['Mixed practice',practice.unclassified],['Quick Play',practice.quickSeconds]].filter(x=>x[1]>0);
  if(other.length)html+='<p class="muted">'+other.map(([name,seconds])=>name+' · '+minutes(seconds)).join('<br>')+'</p>';
  if(!practice.sessions&&!practice.quickSeconds)html+='<p class="muted">Your recorded practice will appear here after a session.</p>';
  box.innerHTML=html;
@@ -6452,7 +6453,7 @@ function dc34PracticeSnapshot(player=data){
  const incomplete=all.filter(g=>g&&['partial','manual','timed'].includes(g.completion)&&typeof g.name==='string'&&g.name).length;
  const categories={scoring:{rounds:0,games:new Set()},doubles:{rounds:0,games:new Set()},checkout:{rounds:0,games:new Set()},bull:{rounds:0,games:new Set()}};
  const unclassified={rounds:0,games:new Set()};
- for(const g of valid){const category=dc28GameCategory(g.name),bucket=categories[category]||unclassified;bucket.rounds++;bucket.games.add(g.name)}
+ for(const g of valid){const category=g.application===true?null:dc28GameCategory(g.name),bucket=categories[category]||unclassified;bucket.rounds++;bucket.games.add(g.name)}
  return {total:valid.length,incomplete,categories:Object.fromEntries(Object.entries(categories).map(([key,val])=>[key,{rounds:val.rounds,games:val.games.size}])),unclassified:{rounds:unclassified.rounds,games:unclassified.games.size},recent:valid.slice(-5).reverse().map(g=>({name:g.name,result:typeof g.result==='string'?g.result:'Activity completed'}))};
 }
 function dc34RenderPracticeSnapshot(){
@@ -6495,7 +6496,7 @@ function dc44TrainingTrace(player=data,now=Date.now()){
    if(['Warm-up','Big Singles','Review'].includes(a.name))continue;
    const minutes=Math.max(0,Math.min(120,a.seconds/60));
    out.measuredMinutes+=minutes;
-   const skill=a.name==='Target Mastery'?null:dc28GameCategory(a.name);
+   const skill=a.application===true||a.name==='Target Mastery'?null:dc28GameCategory(a.name);
    if(skill&&Object.hasOwn(out.bySkill,skill))out.bySkill[skill]+=minutes;else out.unclassifiedMinutes+=minutes;
    if(a.seconds<300)out.partialExerciseRecords++;
   }

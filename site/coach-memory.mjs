@@ -34,7 +34,7 @@ export function validateMemory(raw){
 }
 export function assemble(host,raw,day,now=Date.now()){
  const memory=validateMemory(raw),evidence=projectEvidence(host,{today:day,now});
- const practice=projectExposure(host,day);
+ const practice=projectExposure(host,day,now);
  const state=validateState({...memory.state,exposure:practice.exposure,observations:[...memory.state.observations,...evidence.observations]});
  const known=asOfState(state,day),byId=new Map(known.observations.map(o=>[o.id,JSON.stringify(o)]));
  const edited=known.interventions.filter(i=>['proposed','accepted'].includes(i.status)&&memory.baselines[i.id].some(o=>byId.get(o.id)!==JSON.stringify(o))).map(i=>i.id);
