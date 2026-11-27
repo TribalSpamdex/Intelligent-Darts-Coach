@@ -75,7 +75,7 @@ test('individual evidence affects actual enabled native near-tie but does not ch
 const turn=(text,previous=null,date=day)=>conversationTurn(host,newMemory().state,text,date,now,[],[],{},[],previous);
 test('checkout follow-up remembers score and remaining darts and handles actual misses',()=>{
  const a=turn('Please checkout 81 with two darts');assert.equal(a.answer.type,'checkout');assert.deepEqual(a.context,{day,score:81,darts:2});
- const b=turn('What if I hit S19?',a.context);assert.equal(b.answer.type,'checkout-recovery');assert.deepEqual(b.context,{day,score:62,darts:1});assert.match(b.answer.lines.join(' '),/Remaining score 62/);
+ const b=turn('What if I hit S19?',a.context);assert.equal(b.answer.type,'checkout-recovery');assert.deepEqual(b.context,{day,score:62,darts:1,visitStart:81,visitDarts:2,actual:['S19']});assert.match(b.answer.lines.join(' '),/Remaining score 62/);
  const c=turn('I hit T20',b.context);assert.equal(c.context,null);
 });
 test('checkout context does not survive a new question, date, bust or finish',()=>{
@@ -98,4 +98,19 @@ test('all additional coach questions are read-only and bounded aliases resolve',
 test('forecast warning withholds a historically inferior model instead of promising accuracy',()=>{
  const r={skill:'scoring',context:'practice',protocol:'fixed',status:'historical-range',point:60,range:[55,65],method:'recent-median',reliability:'higher-historical-error',validationCount:12,calibrationBlocks:8,calibrationMAE:4};
  assert.match(forecastLines([r])[0],/Forecast withheld/);assert.doesNotMatch(forecastLines([r])[0],/Next comparable/);
+});
+
+test('a second-dart bust restores the entire original visit and cannot continue',()=>{
+ const a=turn('Checkout 61 with 3 darts'),b=turn('I hit S20',a.context),c=turn('I hit T20',b.context);
+ assert.equal(b.context.score,41);assert.equal(c.context,null);
+ assert.match(c.answer.lines.join(' '),/Remaining score 61; 0 usable darts/);
+});
+test('three-dart visit remembers all preceding actual darts until finished',()=>{
+ const a=turn('Checkout 81 with 3 darts'),b=turn('I hit T19',a.context),c=turn('I hit S4',b.context),d=turn('I hit D10',c.context);
+ assert.equal(c.context.score,20);assert.equal(c.context.darts,1);assert.deepEqual(c.context.actual,['T19','S4']);assert.equal(d.context,null);assert.match(d.answer.lines.join(' '),/Legal double-out finish/);
+});
+test('a revised hypothetical dart count explicitly starts a new scenario',()=>{
+ const a=turn('Checkout 81 with 3 darts'),b=turn('I hit S19',a.context),c=turn('With 1 dart',b.context);
+ assert.deepEqual(c.context,{day,score:62,darts:1});
+ assert.match(turn('I hit T20',c.context).answer.lines.join(' '),/Remaining score 2; 0 usable darts/);
 });

@@ -21,11 +21,12 @@ export function personalLearning(host,state,day,now=Date.now()){
   bySkill.set(c.skill,g);
  }
  for(const x of r.followups){const g=bySkill.get(x.skill)??{skill:x.skill,comparisons:0,supported:[],uncertain:0};g.followups=(g.followups??[]).concat({name:x.setting.name,protocol:x.protocol,status:x.status,followup:x.followup,delay:x.delay,recordedPractice:x.interveningDays.length});bySkill.set(x.skill,g)}
+ for(const c of delayedMethodCautions(r.followups,day)){const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};g.cautions=(g.cautions??[]).concat(c);bySkill.set(c.skill,g)}
  return [...bySkill.values()].sort((a,b)=>a.skill.localeCompare(b.skill));
 }
 export function learningLines(rows){
  if(!rows.length)return ['No supported individual learning contrasts or delayed follow-ups yet.'];
- return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
+ return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...(r.cautions??[]).map(c=>c.setting.name+': '+c.reason),...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
 }
 export function planPreview(host,state,report,events,day,now=Date.now(),existingAgenda=null){
  if(!dayValid(day))throw Error('Invalid planning date');
@@ -48,10 +49,10 @@ export function planPreview(host,state,report,events,day,now=Date.now(),existing
   const learning=personalLearning(host,state,day,now),reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
   for(const row of rows){
    if(awaiting.some(r=>r.skill===row.skill))continue;
-   const evidence=learning.find(x=>x.skill===row.skill)?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
+   const profile=learning.find(x=>x.skill===row.skill),evidence=profile?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
    const distinct=[...new Set(evidence.map(x=>x.favoured.name))];
    // Different methods or protocol disagreements are reasons not to select.
-   if(distinct.length===1&&!deferred.some(r=>r.skill===row.skill&&r.alternative===distinct[0])&&evidence.every(x=>x.other.name!==distinct[0])&&evidence.every(x=>x.protocol===evidence[0].protocol)){
+   if(distinct.length===1&&!profile?.cautions?.some(c=>evidence.some(e=>c.protocol===e.protocol&&settingKey(c.setting)===settingKey(e.favoured)))&&!deferred.some(r=>r.skill===row.skill&&r.alternative===distinct[0])&&evidence.every(x=>x.other.name!==distinct[0])&&evidence.every(x=>x.protocol===evidence[0].protocol)){
     row.drill=distinct[0];row.reason='Candidate drill from repeated matched observations; confirm suitability and normal game settings before using it. Not an automatic replacement.';
    }
   }

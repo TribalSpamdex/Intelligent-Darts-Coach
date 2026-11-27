@@ -129,8 +129,13 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
    }
    const actual=hit[1].toUpperCase();
    if(!REGIONS.includes(actual))return {answer:reply('clarification',['Enter the actual segment, such as S19, T20, D16, 25, 50 or MISS.']),context};
-   const r=recoveryAdvice(asOfState(state,day),context.score,[actual],context.darts);
-   return {answer:reply('checkout-recovery',recoveryLines(r)),context:r.dartsLeft>0&&r.remaining>=2&&r.status!=='bust'&&r.status!=='finished'?{day,score:r.remaining,darts:r.dartsLeft}:null};
+   // Retain the actual visit start across a chain of reported hits.
+   // Bust rolls back all darts in the visit, not just the latest dart.
+   const start=context.visitStart??context.score,visitDarts=context.visitDarts??context.darts;
+   const played=Array.isArray(context.actual)?context.actual:[];
+   if(!Number.isInteger(start)||start<2||start>1001||!Number.isInteger(visitDarts)||visitDarts<1||visitDarts>3||played.length!==visitDarts-context.darts||!played.every(x=>REGIONS.includes(x)))return {answer:reply('clarification',['The checkout context is no longer valid. Enter a new score and dart count.']),context:null};
+   const history=[...played,actual],r=recoveryAdvice(asOfState(state,day),start,history,visitDarts);
+   return {answer:reply('checkout-recovery',recoveryLines(r)),context:r.dartsLeft>0&&r.remaining>=2&&r.status!=='bust'&&r.status!=='finished'?{day,score:r.remaining,darts:r.dartsLeft,visitStart:start,visitDarts,actual:history}:null};
   }
   const intent=interpret(q,day);
   const answer=integratedAsk(host,state,text,day,now,checks,reflections,baselines,events);
