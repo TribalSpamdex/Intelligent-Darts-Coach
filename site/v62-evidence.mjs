@@ -95,10 +95,182 @@ export function masteryRows(host,now=Date.now(),windowDays=112){
  }
  return out;
 }
+// Native input traces for the remaining Quick Play games. Reconstruct the
+// actual task, not a global skill estimate or a win/loss proxy. The trace
+// is captured inside the same native round/Undo snapshot as the game.
+export const EXTRA_QUICK_GAMES=Object.freeze(["Shanghai Combo","Number Lock","Halve It","101 Sprint","Golf Five","Cricket Countdown","Double-In 201","Switchback","Last Dart Rescue","Last Dart Standing","Pressure Cricket","Neighbour Trap","Double Jackpot","Checkout Poker","Double Bull Bridge"]);
+const exact=t=>typeof t==='string'&&/^[SDT](?:[1-9]|1[0-9]|20)$/.test(t);
+const number=n=>Number.isInteger(n)&&n>=1&&n<=20;
+const ring=r=>['S','D','T'].includes(r);
+const bool=b=>typeof b==='boolean';
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const list=(a,n,check)=>Array.isArray(a)&&a.length===n&&a.every(check);
+const sum=a=>a.reduce((s,n)=>s+n,0);
+const neighbours=n=>{const b=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5],i=b.indexOf(n);return [b[(i+19)%20],b[(i+1)%20]]};
+function extraRound(g){
+ const d=g.details,log=d?.skillTrace,metrics=[],targets=[],finishes=[];
+ const setting=Number.isInteger(g.tierAtStart)&&g.tierAtStart>=1&&g.tierAtStart<=7?'tier '+g.tierAtStart:'legacy setting';
+ const m=(label,hits,attempts,unit='darts',scoring=false)=>{if(attempts>0)metrics.push({label,hits,attempts,unit,scoring,perDart:scoring})};
+ const t=(target,hits,attempts=1)=>targets.push({target,hits,attempts});
+ const f=(score,success,used)=>finishes.push({score,success,used,allowance:3});
+ const done=()=>({g,setting,metrics,targets,finishes});
+ // The legacy Number Lock record already carries a reliable set-level
+ // denominator; there is deliberately no per-target allocation of misses.
+ if(g.name==='Number Lock'&&log==null){
+  if(!ring(g.ring)||!list(g.targets,3,number)||new Set(g.targets).size!==3||!Array.isArray(g.locked)||new Set(g.locked).size!==g.locked.length||!g.locked.every(n=>g.targets.includes(n))||g.hits!==g.locked.length||!count(g.misses,1000)||g.thrown!==g.hits+g.misses||!g.thrown)return null;
+  m('open '+g.ring+' target set '+[...g.targets].sort((a,b)=>a-b).join('/')+' (legacy)',g.hits,g.thrown);return done();
+ }
+ // A legacy sprint result has an explicit total allowance and finish
+ // result. It is not a three-dart checkout-attempt denominator.
+ if(g.name==='101 Sprint'&&log==null&&d){
+  if(!count(d.allowed,1000)||!d.allowed||!count(d.used,d.allowed)||!d.used||![0,1].includes(d.success)||d.hits!==d.success||(!d.success&&d.used!==d.allowed)||d.success&&d.used<2)return null;
+  m('101 completed within '+d.allowed+' darts (legacy)',d.success,1,'rounds');return done();
+ }
+ if(!d||d.name!==g.name||!Array.isArray(log)||!log.length||log.length>5000||!log.every(x=>x&&typeof x==='object'&&!Array.isArray(x)))return null;
+ let i=0,h=0,n=0,misses=0,terminal=false;
+ switch(g.name){
+ case 'Shanghai Combo':{
+  if(!number(d.target))return null;
+  for(const x of log){if(i>=3||!bool(x.hit))return null;t((d.variant==='singles'?'S':['S','D','T'][i])+d.target,Number(x.hit));n++;if(x.hit){i++;h++}else misses++}
+  if(d.stage!==i||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||d.combinations!==Number(i===3)||!(i===3||d.lives===0))return null;break;
+ }
+ case 'Number Lock':{
+  if(!ring(d.ring)||!list(d.targets,3,number)||new Set(d.targets).size!==3||!count(d.allowedMisses,1000)||!d.allowedMisses)return null;
+  const closed=[];for(const x of log){if(closed.length===3||misses>=d.allowedMisses||!(x.value===0||d.targets.includes(x.value)&&!closed.includes(x.value)))return null;n++;if(x.value){closed.push(x.value);h++}else misses++}
+  if(!same(closed,d.locked)||h!==d.hits||h!==g.hits||misses!==d.misses||n!==d.thrown||n!==g.thrown||!(h===3||misses===d.allowedMisses))return null;
+  m('open '+d.ring+' target set '+[...d.targets].sort((a,b)=>a-b).join('/'),h,n);break;
+ }
+ case 'Halve It':{
+  if(!list(d.targets,6,z=>exact(z)||z==='BULL')||log.length!==6)return null;
+  let points=0,halves=0;
+  for(const x of log){const aim=d.targets[i++];if(!count(x.action,3))return null;
+   if(aim==='BULL')m('bull target hits',x.action,3);else t(aim,x.action,3);
+   if(x.action===0){points=Math.floor(points/2);halves++}else points+=(aim==='BULL'?25:Number(aim.slice(1))*(aim[0]==='T'?3:aim[0]==='D'?2:1))*x.action;n+=3}
+  if(d.index!==i||d.visits!==i||g.visits!==i||d.thrown!==n||g.thrown!==n||d.points!==points||g.points!==points||d.halves!==halves)return null;break;
+ }
+ case '101 Sprint':{
+  if(!count(d.allowed,1000)||!d.allowed)return null;
+  for(const x of log){if(terminal||n>=d.allowed)return null;
+   if(x.action==='miss'){n++;terminal=n===d.allowed}else if([2,3].includes(x.finish)&&x.finish<=d.allowed-n&&legalFinishCount(101,x.finish)){n+=x.finish;h=1;terminal=true}else return null}
+  if(!terminal||d.used!==n||d.success!==h||d.hits!==h||g.success!==h)return null;
+  m('101 completed within '+d.allowed+' darts',h,1,'rounds');break;
+ }
+ case 'Golf Five':{
+  if(!ring(d.ring)||!list(d.holes,5,number))return null;
+  let shots=0,strokes=0;
+  for(const x of log){if(i>=5||!['hit','miss'].includes(x.action))return null;
+   const hit=x.action==='hit';t(d.ring+d.holes[i],Number(hit));n++;shots++;
+   if(hit){h++;strokes+=shots;shots=0;i++}else if(shots===3){strokes+=4;shots=0;i++}}
+  if(i!==5||d.index!==i||d.shots!==shots||d.strokes!==strokes||g.score!==strokes||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n)return null;break;
+ }
+ case 'Cricket Countdown':case 'Pressure Cricket':{
+  const pressure=g.name==='Pressure Cricket',ns=d.targets;
+  if(!Array.isArray(ns)||!ns.length||ns.length>7||new Set(ns).size!==ns.length||!ns.every(v=>number(v)||!pressure&&v===25)||pressure&&ns.length!==3||!count(d.allowed,1000)||!d.allowed)return null;
+  const marks=ns.map(()=>0),bins=new Map();
+  for(const x of log){if(i>=ns.length||n>=d.allowed)return null;const aim=ns[i],a=pressure?x.value:x.action;if(!count(a,aim===25?2:3))return null;
+   const v=bins.get(aim)??[0,0];v[0]+=Number(a>0);v[1]++;bins.set(aim,v);
+   // Explicit bull/number marks, never equate sector hits with intended trebles.
+   marks[i]=Math.min(3,marks[i]+a);n++;h+=Number(a>0);if(marks[i]===3)i++}
+  if(d.index!==i||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||!same(d.marks,marks)||!(i===ns.length||n===d.allowed))return null;
+  for(const [aim,v] of bins)m(aim===25?'either bull (cricket)':'number lane '+aim+' (any ring)',v[0],v[1]);break;
+ }
+ case 'Double-In 201':{
+  if(!count(d.entryLimit,1000)||!d.entryLimit||!count(d.maxVisits,1000)||!d.maxVisits)return null;
+  let entered=false,openingDarts=0,entryDouble=null,points=0,remaining=201,visits=0,busts=0,finish=0,scores=[],entryMisses=0,entryDarts=0;
+  for(const x of log){
+   if(terminal||![1,2,3].includes(x.darts))return null;
+   const room=3-n%3;
+   if(!entered){
+    if(x.darts>room)return null;
+    if(x.kind==='entryMiss'){if(x.darts>d.entryLimit-entryMisses)return null;n+=x.darts;openingDarts+=x.darts;entryMisses+=x.darts;terminal=entryMisses===d.entryLimit;continue}
+    if(x.kind!=='entry'||!(number(x.double)||x.double===25)||!Number.isInteger(x.entry)||x.entry<1||x.entry>x.darts||x.entry>d.entryLimit-entryMisses)return null;
+    const tail=x.darts-x.entry;if(!Number.isInteger(x.score)||x.score<2*x.double||!(tail?possibleForDarts[tail].has(x.score-2*x.double):x.score===2*x.double))return null;
+    entryDouble=x.double;entered=true;entryMisses+=x.entry-1;entryDarts=n+x.entry;openingDarts+=x.entry;
+    n+=x.darts;points+=x.score;remaining-=x.score;
+    // Modern opening visit is credited to scores; legacy keypad entry
+    // only records the opening double, leaving the tail as a later visit.
+    if(x.darts===room)scores.push(x.score);continue;
+   }
+   if(!['visit','bust','finish'].includes(x.kind)||x.darts>room||!possibleForDarts[x.darts].has(x.score)||x.kind!=='finish'&&x.darts!==room)return null;
+   if(x.kind==='bust'){if(x.score!==0)return null;busts++}
+   else if(x.kind==='finish'){if(x.score!==remaining||!legalFinishCount(x.score,x.darts))return null;finish=x.score;terminal=true}
+   else if(x.score>=remaining||remaining-x.score===1)return null;
+   n+=x.darts;visits++;points+=x.score;remaining-=x.score;scores.push(x.score);if(visits===d.maxVisits)terminal=true;
+  }
+  if(!terminal||d.entered!==entered||d.entryMisses!==entryMisses||d.entryDouble!==entryDouble||entered&&d.entryDarts!==entryDarts||d.points!==points||g.points!==points||d.remaining!==remaining||d.visits!==visits||d.busts!==busts||d.thrown!==n||d.dartsUsed!==n||g.dartsUsed!==n||d.wins!==Number(finish>0)||!same(d.scores,scores))return null;
+  m('opening double (any double)',Number(entered),openingDarts);
+  if(entered)m('credited double-in leg scoring',points,n,'darts',true);
+  break;
+ }
+ case 'Switchback':{
+  if(!ring(d.ring)||!Array.isArray(d.sequence)||!d.sequence.length||!d.sequence.every(number)||!count(d.allowed,1000)||!d.allowed)return null;
+  for(const x of log){if(i>=d.sequence.length||n>=d.allowed||!['hit','miss'].includes(x.action))return null;
+   const hit=x.action==='hit';t(d.ring+d.sequence[i],Number(hit));n++;if(hit){h++;i++}else{misses++;i=Math.max(0,i-(d.beginner||d.holdPosition?0:2))}}
+  if(d.index!==i||d.misses!==misses||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||!(i===d.sequence.length||n===d.allowed))return null;break;
+ }
+ case 'Last Dart Rescue':{
+  if(!Array.isArray(d.targets)||!d.targets.length||!d.targets.every(x=>x===50||Number.isInteger(x)&&x>=2&&x<=40&&x%2===0))return null;
+  let aim=null,decisions=0,correct=0;
+  for(const x of log){if(i>=d.targets.length)return null;const target=d.targets[i]===50?'BULL':'D'+d.targets[i]/2;
+   if(Object.hasOwn(x,'choice')){if(aim||!(exact(x.choice)&&x.choice[0]==='D'||x.choice==='BULL'))return null;decisions++;if(x.choice===target){aim=target;correct++}else misses++}
+   else{if(!aim||!bool(x.hit))return null;t(aim==='BULL'?'50':aim,Number(x.hit));n++;if(x.hit){h++;i++}else misses++;aim=null}}
+  if(aim||d.aim!==null||d.index!==i||d.thrown!==n||g.thrown!==n||d.hits!==h||g.hits!==h||!(i===d.targets.length||d.lives===0))return null;
+  m('one-dart finish selection',correct,decisions,'decisions');break;
+ }
+ case 'Last Dart Standing':{
+  if(!Array.isArray(d.scores)||!d.scores.length||!d.scores.every(x=>Number.isInteger(x)&&x>=2&&x<=50&&(x%2||x<=40||x===50)))return null;
+  let decisions=0,correct=0,executed=0;
+  for(const x of log){if(i>=d.scores.length||!['FINISH','SETUP'].includes(x.choice)||!['hit','miss'].includes(x.value))return null;
+   const right=x.choice===(d.scores[i]%2===0?'FINISH':'SETUP');decisions++;if(right){correct++;if(x.value==='hit'){executed++;h++;i++}}n++}
+  if(d.index!==i||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||d.choice!==null||!(i===d.scores.length||d.lives===0))return null;
+  m('finish or setup decision',correct,decisions,'decisions');m('reported execution after correct decision',executed,correct);break;
+ }
+ case 'Neighbour Trap':{
+  const aim=d.target||20;if(!number(aim)||!count(d.allowed,1000)||!d.allowed||!count(d.goal,1000)||!d.goal)return null;
+  let progress=0,near=0;
+  for(const x of log){if(progress>=d.goal||n>=d.allowed||![String(aim),...neighbours(aim).map(String),'miss'].includes(x.value))return null;
+   const hit=x.value===String(aim);t('S'+aim,Number(hit));n++;if(hit){h++;progress++}else if(x.value!=='miss'){near++;progress=Math.max(0,progress-1)}}
+  if(d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||d.progress!==progress||d.neighbours!==near||!(progress>=d.goal||n===d.allowed))return null;break;
+ }
+ case 'Double Jackpot':{
+  if(!['S','D'].includes(d.ring)||!count(d.allowed,1000)||!d.allowed||!count(d.goal,1000)||!d.goal)return null;
+  let points=0;const used=[];
+  for(const x of log){if(points>=d.goal||n>=d.allowed||![20,16,10,5].includes(x.choice)||used.includes(x.choice)||!['hit','miss'].includes(x.value))return null;
+   const hit=x.value==='hit';t(d.ring+x.choice,Number(hit));n++;if(hit){h++;used.push(x.choice);points+=x.choice*(d.ring==='D'?2:1)}}
+  if(d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||d.points!==points||g.points!==points||!same(d.usedTargets,used)||!(points>=d.goal||n===d.allowed))return null;break;
+ }
+ case 'Checkout Poker':{
+  if(!Array.isArray(d.cards)||!d.cards.length||new Set(d.cards).size!==d.cards.length||!d.cards.every(c=>legalFinishCount(c,3))||!count(d.allowed,1000)||!d.allowed)return null;
+  const used=[];let successDarts=0;
+  for(const x of log){if(h>=2||i>=d.allowed||!d.cards.includes(x.score)||used.includes(x.score)||!['hit','miss'].includes(x.value))return null;
+   const hit=x.value==='hit';if(hit?![1,2,3].includes(x.darts)||!legalFinishCount(x.score,x.darts):x.darts!==3)return null;
+   f(x.score,hit,x.darts);i++;n+=x.darts;if(hit){h++;successDarts+=x.darts;used.push(x.score)}else misses++}
+  if(d.attempts!==i||d.wins!==h||d.failures!==misses||d.thrown!==n||g.thrown!==n||!same(d.cardsUsed??[],used)||(d.dartsUsed??0)!==successDarts||!(h===2||i===d.allowed))return null;break;
+ }
+ case 'Double Bull Bridge':{
+  if(!list(d.stages,3,(a)=>a==='BULL'||exact(a)&&a[0]==='D')||d.stages[1]!=='BULL'||d.stages[0]==='BULL'||d.stages[2]==='BULL'||!count(d.allowed,1000)||!d.allowed)return null;
+  let bullHits=0,bullDarts=0;
+  for(const x of log){if(i>=3||n>=d.allowed||!['hit','miss'].includes(x.value))return null;
+   const hit=x.value==='hit';if(d.stages[i]==='BULL'){bullDarts++;bullHits+=Number(hit)}else t(d.stages[i],Number(hit));n++;if(hit){h++;i++}}
+  if(d.index!==i||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||!(i===3||n===d.allowed))return null;
+  m('bull stage (reported target)',bullHits,bullDarts);break;
+ }
+ default:return null;
+ }
+ return done();
+}
+export function extraQuickRounds(host,day,now=Date.now()){
+ const parents=trainingParentIndex(host.sessions??[]),out=[];
+ for(const g of canonicalSkillGames(host.games??[])){
+  if(!g||!EXTRA_QUICK_GAMES.includes(g.name)||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
+  const r=extraRound(g);if(r&&(r.metrics.length||r.targets.length||r.finishes.length))out.push(r);
+ }
+ return out;
+}
 // Descriptive adaptive protocols. Never converted into fixed calibration or dose.
 export function quickAdaptiveMeasurements(host,day,now=Date.now()){
  const parents=trainingParentIndex(host.sessions??[]),groups=new Map();
- const add=(g,label,hits,attempts,scoring=false,perDart=false)=>{const key=g.name+' · '+label+' · '+(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting'),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
+ const add=(g,label,hits,attempts,scoring=false,perDart=false,unit=null)=>{const key=g.name+' · '+label+' · '+(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting'),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart,unit:unit??(scoring&&!perDart?'visits':'darts')};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
  for(const g of canonicalSkillGames(host.games??[])){
   if(!g||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
   if(['Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference'].includes(g.name)&&count(g.visits,1000)&&g.visits>=1&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every(n=>possible.has(n))&&(['Risk or Reward','High-Low','Split the Difference'].includes(g.name)||g.scores.reduce((a,b)=>a+b,0)===g.points)&&(g.name!=='First Nine Siege'||g.visits===3))add(g,g.name==='First Nine Siege'?'first nine, three fixed visits':'contextual three-dart visits',g.scores.reduce((a,b)=>a+b,0),g.visits,true);
@@ -110,6 +282,7 @@ export function quickAdaptiveMeasurements(host,day,now=Date.now()){
   if(['Bull Survival','Bull Streak'].includes(g.name)&&['50','25/50','CENTRE'].includes(g.target)&&count(g.thrown,1000)&&g.thrown>0&&Array.isArray(g.targetLog)&&g.targetLog.length===g.thrown&&g.targetLog.every(x=>x?.target===g.target&&typeof x.hit==='boolean')&&g.targetLog.filter(x=>x.hit).length===g.hits)add(g,g.target==='50'?'bullseye only':g.target==='25/50'?'either bull':'centre practice area',g.hits,g.thrown);
   if(g.name==='Staying Straight'&&Array.isArray(g.targets)&&JSON.stringify(g.targets)===JSON.stringify([20,19,18,17,16])&&[g.hits,g.misses,g.counts].every(x=>Array.isArray(x)&&x.length===5&&x.every(n=>count(n,1000)))&&g.misses.every(n=>n===1)&&g.hits.reduce((a,b)=>a+b,0)+5===g.darts&&g.counts.every((n,i)=>n>=g.hits[i]&&n<=3*g.hits[i])&&g.counts.reduce((a,b)=>a+b,0)===g.points)for(let i=0;i<5;i++)add(g,'number lane '+g.targets[i]+' (any ring)',g.hits[i],g.hits[i]+1);
  }
+ for(const r of extraQuickRounds(host,day,now))for(const x of r.metrics)add(r.g,x.label,x.hits,x.attempts,x.scoring,x.perDart,x.unit);
  return [...groups.values()].map(x=>({...x,days:x.days.size}));
 }
 export function quickAbilityLines(host,day,now=Date.now()){
@@ -121,7 +294,7 @@ export function quickAbilityLines(host,day,now=Date.now()){
  return [...(groups.size||fixed.size||adaptive.length?[]:['No eligible completed Quick Play Mastery or measured game rounds recorded yet.']),
  ...[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.key.localeCompare(b.key)).map(x=>x.key+': '+x.hits+'/'+x.attempts+' ('+(100*x.hits/x.attempts).toFixed(1)+'%) across '+x.days.size+' measured days.'),
  ...[...fixed.values()].map(x=>x.protocol+': '+(x.skill==='scoring'?3*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.skill==='scoring'?' average':'%')+' across '+x.days.size+' measured days and '+x.attempts+' darts.'),
- ...adaptive.map(x=>x.key+': '+(x.scoring?(x.perDart?3:1)*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.scoring?' measured visit average':'%')+' across '+x.attempts+(x.scoring&&!x.perDart?' visits':' darts')+' and '+x.days+' days; adaptive stopping rules and task selection mean this is not a fixed benchmark.'),
+ ...adaptive.map(x=>x.key+': '+(x.scoring?(x.perDart?3:1)*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.scoring?' measured visit average':'%')+' across '+x.attempts+' '+x.unit+' and '+x.days+' days; adaptive stopping rules and task selection mean this is not a fixed benchmark.'),
  'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'];
 }
 

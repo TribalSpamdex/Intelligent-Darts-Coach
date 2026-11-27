@@ -1,4 +1,4 @@
-import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames} from './v62-evidence.mjs';
+import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames,extraQuickRounds} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
@@ -39,6 +39,11 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  const bins=new Map();
  for(const x of log){const t=ring+x.target,v=bins.get(t)??row(g.day,(g.quick?'Quick Play · ':'')+g.name+' · tier '+(g.tierAtStart??'unspecified')+(g.name==='Doubles Streak'?' · '+(g.ruleVersion==='same-target-streak-v1'?'per-target streak':'legacy advancing targets'):''),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
  record('game:'+g.at+':'+g.name,[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
+ }
+ for(const r of extraQuickRounds(host,day,now)){
+  const bins=new Map(),g=r.g,protocol='Quick Play · '+g.name+' · '+r.setting+' · recorded targets';
+  for(const x of r.targets){const v=bins.get(x.target)??row(g.day,protocol,x.target,0,0);v.attempts+=x.attempts;v.hits+=x.hits;bins.set(x.target,v)}
+  if(bins.size)record('extra:'+JSON.stringify([g.name,g.at,String(g.sessionId)]),[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
  const mastery=new Map();
  for(const r of masteryRows(host,now,84)){

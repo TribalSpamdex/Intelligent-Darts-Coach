@@ -1,4 +1,4 @@
-import {trainingParentIndex,skillPlayEligible,recordedDay,masteryRows,canonicalSkillGames} from './v62-evidence.mjs';
+import {trainingParentIndex,skillPlayEligible,recordedDay,masteryRows,canonicalSkillGames,extraQuickRounds} from './v62-evidence.mjs';
 import {legalFinishCount} from './finish-validation.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {routes,mean,sd} from './engine/engine.mjs';
@@ -29,6 +29,7 @@ export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  }
  if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+g.at,{day:g.day,protocol:(g.quick?'Quick Play · ':'')+'Scoring Challenge fixed 30',scores:[...g.scores]});
  }
+ for(const r of extraQuickRounds(host,day,now))if(r.finishes.length)put('extra:'+JSON.stringify([r.g.name,r.g.at,String(r.g.sessionId)]),{day:r.g.day,protocol:'Quick Play · '+r.g.name+' · '+r.setting+' · three-dart attempts',rows:r.finishes});
  const byFinish=new Map(),scoring=[];
  const mastery=new Map();for(const r of masteryRows(host,now,84)){if(r.kind!=='checkout'||!within(r.day))continue;const protocol=(r.quick?'Quick Play · ':'Training · ')+'Target Mastery checkout',k=JSON.stringify([r.day,protocol]),x=mastery.get(k)??{day:r.day,protocol,rows:[]};x.rows.push({score:r.score,success:!!r.hit,allowance:3,used:r.darts});mastery.set(k,x)}
  for(const [k,r] of mastery)put('mastery:'+k,r);
