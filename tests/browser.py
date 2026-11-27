@@ -20,9 +20,38 @@ with sync_playwright() as p:
     assert page.locator('#home').is_visible()
     assert not page.locator('#idcCoach').is_visible()
     assert page.locator('.homeWelcome').is_visible()
+    # Real fresh install: walkthrough starts automatically, then stays replayable.
+    guide=page.locator('#idcWalkthrough')
+    assert guide.is_visible()
+    assert page.locator('#idcWalkthroughCount').inner_text()=='STEP 1 OF 8'
+    assert page.locator('#idcWalkthroughBack').is_disabled()
+    before=page.evaluate('JSON.stringify(data)')
+    for n in range(2,9):
+        page.locator('#idcWalkthroughNext').click()
+        assert page.locator('#idcWalkthroughCount').inner_text()==f'STEP {n} OF 8'
+    page.locator('#idcWalkthroughBack').click()
+    assert page.locator('#idcWalkthroughCount').inner_text()=='STEP 7 OF 8'
+    page.locator('#idcWalkthroughNext').click()
+    assert page.locator('#idcWalkthroughNext').inner_text()=='Finish'
+    page.locator('#idcWalkthroughNext').click()
+    assert not guide.is_visible()
+    assert page.evaluate('JSON.stringify(data)')==before
+    page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    assert not guide.is_visible()
+    page.locator('#headerSettings').click()
+    page.locator('#idcWalkthroughSettings').click()
+    assert guide.is_visible() and page.locator('#idcWalkthroughCount').inner_text()=='STEP 1 OF 8'
+    page.locator('#idcWalkthroughSkip').click()
+    page.locator('#navHome').click()
     page.locator('#headerInfo').click()
     assert page.locator('#welcomeOverlay').is_visible()
-    page.locator('#welcomeOverlay button').click()
+    page.locator('#idcWalkthroughAbout').click()
+    assert guide.is_visible()
+    page.locator('#idcWalkthroughSkip').click()
+    assert not page.locator('#welcomeOverlay').is_visible()
+    page.locator('#headerInfo').click()
+    page.locator('#welcomeOverlay .dc36InfoClose').click()
     assert not page.locator('#welcomeOverlay').is_visible()
     assert 'Coach' in page.locator('#navTechnique').inner_text()
     page.locator('#navTechnique').click()
@@ -320,6 +349,8 @@ with sync_playwright() as p:
         try:
             ctx.set_offline(True)
             page.goto('http://127.0.0.1:8765/index.html?audit=webkit-offline')
+            if page.locator('#idcWalkthrough').is_visible():
+                page.locator('#idcWalkthroughSkip').click()
             page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
             page.locator('#navTechnique').click()
             page.locator('#idcExample').click()
@@ -335,6 +366,8 @@ with sync_playwright() as p:
             ctx.set_offline(False)
         if webkit_offline_error:
             page.goto('http://127.0.0.1:8765/index.html')
+            if page.locator('#idcWalkthrough').is_visible():
+                page.locator('#idcWalkthroughSkip').click()
             page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
             page.locator('#navTechnique').click()
     page.locator('#idcStatsPanel').evaluate('(e)=>e.open=true')
@@ -522,6 +555,8 @@ with sync_playwright() as p:
     safety=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
     sp=safety.new_page()
     sp.goto('http://127.0.0.1:8765/index.html')
+    if sp.locator('#idcWalkthrough').is_visible():
+        sp.locator('#idcWalkthroughSkip').click()
     sp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
     gates=sp.evaluate("""async()=>{const {changeMemory}=await import('./coach-memory.mjs?v=2.0.0-dev'),bridge=window.IDCTrainingBridge,old=window.alert;
       window.alert=()=>{};try{
@@ -551,6 +586,8 @@ with sync_playwright() as p:
     progress_ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
     pp=progress_ctx.new_page()
     pp.goto('http://127.0.0.1:8765/index.html')
+    if pp.locator('#idcWalkthrough').is_visible():
+        pp.locator('#idcWalkthroughSkip').click()
     pp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
     progress=pp.evaluate("""()=>{
       document.getElementById('quickStartAverage').value='q60';startQuickFromAverage();
@@ -581,6 +618,8 @@ with sync_playwright() as p:
     before=page.evaluate("localStorage.getItem(KEY)")
     other=ctx.new_page()
     other.goto('http://127.0.0.1:8765/index.html')
+    if other.locator('#idcWalkthrough').is_visible():
+        other.locator('#idcWalkthroughSkip').click()
     other.wait_for_function("typeof idcWriter!=='undefined' && idcWriter!=='pending'")
     assert other.evaluate("idcWriter")=='readonly'
     other.evaluate("""()=>{data.idcCoachMemory=null;save(false)}""")
@@ -590,6 +629,8 @@ with sync_playwright() as p:
     recovery=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
     rp=recovery.new_page()
     rp.goto('http://127.0.0.1:8765/index.html')
+    if rp.locator('#idcWalkthrough').is_visible():
+        rp.locator('#idcWalkthroughSkip').click()
     rp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     rp.evaluate("""()=>{data.__solRecoveryMarker='deleted';save(false);checkpointData();const old=localStorage.getItem(CHECKPOINT_KEY);
        delete data.__solRecoveryMarker;save(false);localStorage.setItem(CHECKPOINT_KEY,old);localStorage.setItem(KEY,'broken-primary');}""")
@@ -603,6 +644,8 @@ with sync_playwright() as p:
     valid_recovery=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
     vp=valid_recovery.new_page()
     vp.goto('http://127.0.0.1:8765/index.html')
+    if vp.locator('#idcWalkthrough').is_visible():
+        vp.locator('#idcWalkthroughSkip').click()
     vp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     unchanged=vp.evaluate("""()=>{data.__solRecoveryMarker='keep';if(!save(false)||!checkpointData())throw Error('setup failed');const fence=localStorage.getItem(RECOVERY_FENCE);if(!save(false))throw Error('no-op save failed');const same=localStorage.getItem(RECOVERY_FENCE)===fence;localStorage.setItem(KEY,'broken-current-primary');return same}""")
     assert unchanged

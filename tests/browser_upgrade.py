@@ -104,6 +104,8 @@ def run_upgrade_audit(browser):
         ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
         page=ctx.new_page()
         page.goto(url)
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         def cache_probe(p,gen):
             result=p.evaluate("""async gen=>{
@@ -137,6 +139,8 @@ def run_upgrade_audit(browser):
         # during the failed update, then close it before starting generation 903.
         failed_tab=ctx.new_page()
         failed_tab.goto(url+'?audit=failed-install')
+        if failed_tab.locator('#idcWalkthrough').is_visible():
+            failed_tab.locator('#idcWalkthroughSkip').click()
         failed_tab.wait_for_function('navigator.serviceWorker.controller!==null')
         probe(failed_tab,901)
         failed_tab.close()
@@ -159,6 +163,8 @@ def run_upgrade_audit(browser):
         cache_probe(page,903)
         other=ctx.new_page()
         other.goto(url+'?audit=old-client')
+        if other.locator('#idcWalkthrough').is_visible():
+            other.locator('#idcWalkthroughSkip').click()
         other.wait_for_function("navigator.serviceWorker.controller!==null")
         probe(other,901)
         probe(page,901)
@@ -174,6 +180,8 @@ def run_upgrade_audit(browser):
         cache_probe(observer,903)
         page=ctx.new_page()
         page.goto(url+'?audit=activated-generation')
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         observer.close()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         probe(page,903)
@@ -186,6 +194,8 @@ def run_upgrade_audit(browser):
             state.update(fail=True)
         assert page.evaluate("async()=>{try{return (await fetch('./unavailable-audit-probe',{cache:'no-store'})).status===503}catch(e){return true}}")
         page.goto(url+'?audit=origin-unavailable')
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         probe(page,903)
         page.locator('#navTechnique').click()
@@ -201,6 +211,8 @@ def run_upgrade_audit(browser):
         with lock:
             assert state['dropped']>0, state
         page.goto(url+'?audit=transport-disconnected')
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         probe(page,903)
         page.locator('#navTechnique').click()
