@@ -135,3 +135,12 @@ test('SOL49-19 contextual raw scoring is separated from bonus points and never e
   assert.equal(quickFixedSamples(h,now).length,0);assert.equal(projectEvidence(h,{today:day,now}).observations.length,0);
  }
 });
+test('SOL49-20 pressure scoring uses actual darts, preserves bust rules and rejects impossible final visit',()=>{
+ for(const name of ['301 Pressure','501 Pressure','170 Challenge']){
+  const a={...g,name,benchmark:false,visits:2,scores:[60,40],points:100,dartsUsed:5};
+  const h=host([a],[{...p,quickGame:name}]),r=quickAdaptiveMeasurements(h,day,now);assert.equal(r.length,1);assert.equal(r[0].attempts,5);assert.equal(r[0].perDart,true);
+  assert.ok(quickMeasurementCards(h,day,now).some(x=>x.value==='60.0 average'&&x.detail.includes('5 darts')));
+  a.dartsUsed=4;a.scores=[60,61];a.points=121;assert.equal(quickAdaptiveMeasurements(h,day,now).length,0);
+  delete a.dartsUsed;assert.equal(quickAdaptiveMeasurements(h,day,now).length,0);
+ }
+});

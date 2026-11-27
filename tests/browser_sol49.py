@@ -9,8 +9,8 @@ def run_sol49_audit(browser):
         if page.locator('#idcWalkthrough').is_visible(): page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPrecision")
         result=page.evaluate("""async()=>{
-          const names=['Scoring Challenge','Scoring Survival','Scoring Ladder','Treble Hunt','Doubles Survival','Doubles Streak','Staying Straight','Checkout Climb','Focused Checkouts','Bull Accuracy','Bull Survival','Bull Streak','Outside Doubles','Double Double','Dartboard Bingo','Target Mastery','Bull Bank','Bull Blackjack','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference','Double Duel'];
-          const out=[];
+          const names=['Scoring Challenge','Scoring Survival','Scoring Ladder','Treble Hunt','Doubles Survival','Doubles Streak','Staying Straight','Checkout Climb','Focused Checkouts','Bull Accuracy','Bull Survival','Bull Streak','Outside Doubles','Double Double','Dartboard Bingo','Target Mastery','Bull Bank','Bull Blackjack','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference','Double Duel','301 Pressure','501 Pressure','170 Challenge'];
+          const out=[];document.getElementById('quickStartAverage').value='q100';startQuickFromAverage();
           for(const name of names){
            data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;data.games=[];data.sessions=[];
            data.assessment.finished=true;data.assessment.quickStart=true;data.assessment.completedAt=Date.now()-DAY_MS;
@@ -18,7 +18,7 @@ def run_sol49_audit(browser):
            quickChoice=name;dc23QuickMode='bull';document.getElementById('quickDuration').value='300';startQuickPlay();playExercise();
            let actions=0;
            const action=()=>{
-            if(['Scoring Challenge','Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference'].includes(name)){document.getElementById('scoreInput').value=name==='Scoring Challenge'?'60':actions<2?'180':'0';if(name==='Scoring Challenge')recordScore();else if(['High-Low','Split the Difference'].includes(name))new40Score();else scoringVisit();}
+            if(['Scoring Challenge','Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference','301 Pressure','501 Pressure','170 Challenge'].includes(name)){document.getElementById('scoreInput').value=name==='Scoring Challenge'?'60':actions<2?'180':'0';if(name==='Scoring Challenge')recordScore();else if(['High-Low','Split the Difference'].includes(name))new40Score();else scoringVisit();}
             else if(name==='Bull Bank')bullBankDart(actions<2?25:0);
             else if(name==='Bull Blackjack')new40Dart(actions<2?25:0);
             else if(name==='Double Duel')new40Dart(actions<2?'hit':'miss');
@@ -53,7 +53,7 @@ def run_sol49_audit(browser):
           }
           return out;
         }""")
-        assert len(result)==24,result
+        assert len(result)==27,result
         page.reload()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPrecision")
         page.locator('#navProgress').click()

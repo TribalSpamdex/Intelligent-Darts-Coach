@@ -4,7 +4,8 @@ import {legalFinishCount} from './finish-validation.mjs';
 export const BASELINE='b248a1caa169c9a45a6beda3954dc067cbfbe6e1';
 export const STORAGE_KEYS=Object.freeze({dartsCoachV4:'IDC:training:v1',dartsCoachV4Checkpoint:'IDC:training:checkpoint:v1',dartsCoachAccentColour:'IDC:accent:v1',dartsCoachRhythm:'IDC:rhythm:v1',dartsCoachCasualV1:'IDC:casual:v1'});
 const values=[0,25,50,...Array.from({length:20},(_,i)=>i+1).flatMap(n=>[n,n*2,n*3])];
-const possible=new Set();for(const a of values)for(const b of values)for(const c of values)possible.add(a+b+c);
+const possible=new Set(),twoDarts=new Set();for(const a of values)for(const b of values){twoDarts.add(a+b);for(const c of values)possible.add(a+b+c)}
+const possibleForDarts=[null,new Set(values),twoDarts,possible];
 const count=(n,max)=>Number.isInteger(n)&&n>=0&&n<=max;
 const dayOK=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
 function localDay(at,offset){if(!Number.isFinite(at)||at<=0)return null;const d=new Date(at);if(!Number.isFinite(+d))return null;if(offset!==undefined){
@@ -97,10 +98,11 @@ export function masteryRows(host,now=Date.now(),windowDays=112){
 // Descriptive adaptive protocols. Never converted into fixed calibration or dose.
 export function quickAdaptiveMeasurements(host,day,now=Date.now()){
  const parents=trainingParentIndex(host.sessions??[]),groups=new Map();
- const add=(g,label,hits,attempts,scoring=false)=>{const key=g.name+' · '+label+' · '+(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting'),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
+ const add=(g,label,hits,attempts,scoring=false,perDart=false)=>{const key=g.name+' · '+label+' · '+(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting'),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
  for(const g of canonicalSkillGames(host.games??[])){
   if(!g||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
   if(['Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference'].includes(g.name)&&count(g.visits,1000)&&g.visits>=1&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every(n=>possible.has(n))&&(['Risk or Reward','High-Low','Split the Difference'].includes(g.name)||g.scores.reduce((a,b)=>a+b,0)===g.points)&&(g.name!=='First Nine Siege'||g.visits===3))add(g,g.name==='First Nine Siege'?'first nine, three fixed visits':'contextual three-dart visits',g.scores.reduce((a,b)=>a+b,0),g.visits,true);
+  if(['301 Pressure','501 Pressure','170 Challenge'].includes(g.name)&&count(g.visits,1000)&&g.visits>0&&count(g.dartsUsed,3000)&&g.dartsUsed>3*(g.visits-1)&&g.dartsUsed<=3*g.visits&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every((n,i)=>possibleForDarts[i===g.visits-1?g.dartsUsed-3*(g.visits-1):3].has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)add(g,'leg scoring with busts, recorded darts',g.points,g.dartsUsed,true,true);
   if(['Bull Bank','Bull Blackjack'].includes(g.name)){
    const b=g.name==='Bull Bank'?g:g.details,n=g.name==='Bull Bank'?g.dartsUsed:g.thrown;
    if(count(n,1000)&&n>0&&count(b?.outer,n)&&count(b?.inner,n)&&b.outer+b.inner<=n&&(g.name!=='Bull Bank'||count(g.misses,n)&&g.outer+g.inner+g.misses===n)&&g.points===25*b.outer+50*b.inner){add(g,'outer bull (25)',b.outer,n);add(g,'bullseye (50)',b.inner,n);add(g,'either bull',b.outer+b.inner,n)}
@@ -119,7 +121,7 @@ export function quickAbilityLines(host,day,now=Date.now()){
  return [...(groups.size||fixed.size||adaptive.length?[]:['No eligible completed Quick Play Mastery or measured game rounds recorded yet.']),
  ...[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.key.localeCompare(b.key)).map(x=>x.key+': '+x.hits+'/'+x.attempts+' ('+(100*x.hits/x.attempts).toFixed(1)+'%) across '+x.days.size+' measured days.'),
  ...[...fixed.values()].map(x=>x.protocol+': '+(x.skill==='scoring'?3*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.skill==='scoring'?' average':'%')+' across '+x.days.size+' measured days and '+x.attempts+' darts.'),
- ...adaptive.map(x=>x.key+': '+(x.scoring?x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.scoring?' measured visit average':'%')+' across '+x.attempts+(x.scoring?' visits':' darts')+' and '+x.days+' days; adaptive stopping rules and task selection mean this is not a fixed benchmark.'),
+ ...adaptive.map(x=>x.key+': '+(x.scoring?(x.perDart?3:1)*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.scoring?' measured visit average':'%')+' across '+x.attempts+(x.scoring&&!x.perDart?' visits':' darts')+' and '+x.days+' days; adaptive stopping rules and task selection mean this is not a fixed benchmark.'),
  'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'];
 }
 
