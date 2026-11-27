@@ -57,7 +57,7 @@ export function progressEvidence(observations,day){
 }
 // Only identical fixed practice protocols can justify a harder half. Any
 // adequately sampled contradictory protocol vetoes the change.
-const fixed=(skill,p)=>({scoring:'IDC V6.2 assessment scoring 60 darts',doubles:'IDC V6.2 assessment D1-D20 fixed 60',checkout:'IDC V6.2 assessment fixed 12 three-dart visits',bull:'IDC V6.2 assessment any bull 30'}[skill]===p)||skill==='scoring'&&p==='IDC V6.2 Scoring Challenge fixed 30 darts'||skill==='bull'&&p==='IDC V6.2 Bull Accuracy any bull 30'||p==='IDC precision fixed '+skill;
+const fixed=(skill,p)=>({scoring:'IDC V6.2 assessment scoring 60 darts',doubles:'IDC V6.2 assessment D1-D20 fixed 60',checkout:'IDC V6.2 assessment fixed 12 three-dart visits',bull:'IDC V6.2 assessment any bull 30'}[skill]===p)||skill==='scoring'&&p==='IDC V6.2 Scoring Challenge fixed 30 darts'||skill==='bull'&&p==='IDC V6.2 Bull Accuracy any bull 30'||skill==='bull'&&p==='IDC V6.2 Quick Play Bull Accuracy any bull 30'||skill==='scoring'&&p==='IDC V6.2 Quick Play Scoring Challenge fixed 30 darts'||p==='IDC precision fixed '+skill;
 const ringFixed=(skill,p)=>p==='IDC precision fixed '+skill||skill==='singles'&&['IDC V6.2 assessment large singles 60','IDC V6.2 daily large singles 60'].includes(p);
 const fixedSkill=(skill,protocol)=>['singles','trebles'].includes(skill)?ringFixed(skill,protocol):Object.hasOwn(SKILL_THRESHOLDS,skill)&&fixed(skill,protocol);
 const fresh=(r,day)=>r.adequate&&dayGap(r.last,day)<=7;

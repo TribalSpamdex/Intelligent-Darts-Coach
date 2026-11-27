@@ -1,4 +1,4 @@
-import {trainingParentIndex,trainingParentEligible,recordedDay} from './v62-evidence.mjs';
+import {trainingParentIndex,trainingParentEligible,recordedDay,quickSkillMeasurements} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
@@ -38,7 +38,8 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  for(const x of g.targetLog){const t=ring+x.target,v=bins.get(t)??row(g.day,g.name+' · tier '+(g.tierAtStart??'unspecified'),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
  record('game:'+g.at+':'+g.name,[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
- return {rows:[...groups.values()].flat().concat(projectChecks(checks,day)),conflicts:conflicts.size,windowDays:84,limitation:'Hit/miss records identify the intended target only. Miss landing segments and scoring points are unknown.'};
+ const quick=quickSkillMeasurements(host,day,now).filter(x=>x.kind==='target'&&eligible(x.day)).map(x=>row(x.day,x.protocol,x.target,x.attempts,x.hits));
+ return {rows:[...groups.values()].flat().concat(projectChecks(checks,day),quick),conflicts:conflicts.size,windowDays:84,limitation:'Hit/miss records identify the intended target only. Miss landing segments and scoring points are unknown.'};
 }
 function daily(rows,target,protocol){const m=new Map();for(const o of rows.filter(x=>x.target===target&&x.protocol===protocol)){const g=m.get(o.day)??{attempts:0,hits:0};g.attempts+=o.attempts;g.hits+=o.hits;m.set(o.day,g)}return m}
 export function summaries(rows){const keys=[...new Set(rows.map(x=>JSON.stringify([x.protocol,x.target])))];return keys.map(k=>{const [protocol,target]=JSON.parse(k),days=daily(rows,target,protocol),v=[...days.values()],attempts=v.reduce((n,x)=>n+x.attempts,0),hits=v.reduce((n,x)=>n+x.hits,0);return {protocol,target,attempts,hits,days:days.size,rate:hits/attempts,dayMean:mean(v.map(x=>x.hits/x.attempts)),status:days.size>=7&&attempts>=30?'exploratory':'limited'}}).sort((a,b)=>a.protocol.localeCompare(b.protocol)||a.target.localeCompare(b.target,undefined,{numeric:true}))}

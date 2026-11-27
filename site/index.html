@@ -7577,44 +7577,57 @@ function dc24Wilson(h,n,z=1.96){
  const p=h/n,z2=z*z,den=1+z2/n;
  return {low:Math.max(0,(p+z2/(2*n)-z*Math.sqrt(p*(1-p)/n+z2/(4*n*n)))/den),high:Math.min(1,(p+z2/(2*n)+z*Math.sqrt(p*(1-p)/n+z2/(4*n*n)))/den)};
 }
-function dc24MasteryRows(now=Date.now()){
- const cutoff=now-112*DAY_MS,out=[];
- for(const g of (data.games||[])){
-  if(!g||g.name!=='Target Mastery'||g.completion!=='natural'||!Number.isFinite(g.at)||g.at>now||g.at<cutoff||g.challengeTuning||g.recovery||g.quick)continue;
-  const day=dateKey(g.at),log=Array.isArray(g.targetLog)?g.targetLog:[];
+function dc24MasteryRows(now=Date.now(),includeQuick=false){
+ const cutoff=now-112*DAY_MS,out=[],parents=new Map(),duplicates=new Set();
+ for(const s of [...(data.sessions||[]),...(data.activeSession?[data.activeSession]:[])]){
+  if(!s||s.id==null)continue;const k=String(s.id);if(parents.has(k))duplicates.add(k);else parents.set(k,s);
+ }
+ const records=dcRecordHistory((data.games||[]).filter(g=>g?.name==='Target Mastery'),now).rows;
+ for(const g of records){
+  if(!g||g.name!=='Target Mastery'||g.completion!=='natural'||!Number.isFinite(g.at)||g.at>now||g.at<cutoff||g.challengeTuning||g.recovery||g.quick&&!includeQuick)continue;
+  const k=String(g.sessionId),parent=parents.get(k);
+  if(duplicates.has(k)||parent&&(!!parent.quick!==!!g.quick||Number.isFinite(parent.start)&&g.at<parent.start)||g.quick&&(!parent||parent.quickGame!=='Target Mastery'||!Number.isFinite(parent.start)||parent.start<=0))continue;
+  const day=Number.isInteger(g.offsetMinutes)&&Math.abs(g.offsetMinutes)<=840?new Date(g.at-g.offsetMinutes*60000).toISOString().slice(0,10):dateKey(g.at),log=Array.isArray(g.targetLog)?g.targetLog:[],prefix=g.quick?'Quick Play · ':'';
+  if(g.day&&g.day!==day)continue;
+  if(g.quick){
+   if(g.masteryMode==='checkout'){
+    const a=g.attemptLog,bands={'2–40':[24,32,40],'41–60':[42,52,60],'61–80':[64,72,80],'81–100':[81,92,100],'101+':[101,121,138]};
+    if(g.attempts!==5||g.thrown!==0||!Array.isArray(a)||a.length!==5||a.filter(x=>x?.success===true).length!==g.hits||!a.every(x=>x&&Object.hasOwn(bands,x.range)&&bands[x.range].includes(x.finish)&&x.allowance===3&&typeof x.success==='boolean'&&(x.dartsUsed==null||x.success&&possibleCheckoutIn(x.finish,x.dartsUsed))))continue;
+   }else if(g.thrown!==15||log.length!==15||log.filter(x=>x?.hit===true).length!==g.hits||!log.every(x=>x&&typeof x.hit==='boolean'&&(g.masteryMode==='bull'?x.ring==='B'&&[25,50,null].includes(x.target)&&x.hit===(x.target!==null):['segment','straight','switch','setup','pressure','scoring'].includes(g.masteryMode)&&['S','D','T'].includes(x.ring)&&Number.isInteger(x.target)&&x.target>=1&&x.target<=20)))continue;
+  }
   if(g.masteryMode==='checkout'){
-   for(const a of (Array.isArray(g.attemptLog)?g.attemptLog:[]))if(a&&typeof a.success==='boolean'&&typeof a.range==='string')out.push({kind:'checkout',key:'Checkout '+a.range,day,hit:Number(a.success),darts:a.dartsUsed??null});
+   for(const a of (Array.isArray(g.attemptLog)?g.attemptLog:[]))if(a&&typeof a.success==='boolean'&&typeof a.range==='string')out.push({kind:'checkout',key:prefix+'Checkout '+a.range,day,quick:!!g.quick,hit:Number(a.success),darts:a.dartsUsed??null});
   }else if(g.masteryMode==='bull'){
-   for(const d of log)if(d&&d.ring==='B'&&[25,50,null].includes(d.target))out.push({kind:'bull',key:'Bull outcomes',day,hit:Number(d.hit),outcome:d.target});
+   for(const d of log)if(d&&d.ring==='B'&&[25,50,null].includes(d.target))out.push({kind:'bull',key:prefix+'Bull outcomes',day,quick:!!g.quick,hit:Number(d.hit),outcome:d.target});
   }else{
-   for(const d of log)if(d&&['S','D','T'].includes(d.ring)&&Number.isInteger(d.target)&&d.target>=1&&d.target<=20&&typeof d.hit==='boolean')out.push({kind:g.masteryMode,key:g.masteryMode+' '+d.ring+d.target,day,hit:Number(d.hit)});
+   for(const d of log)if(d&&['S','D','T'].includes(d.ring)&&Number.isInteger(d.target)&&d.target>=1&&d.target<=20&&typeof d.hit==='boolean')out.push({kind:g.masteryMode,key:prefix+g.masteryMode+' '+d.ring+d.target,day,quick:!!g.quick,hit:Number(d.hit)});
   }
  }
  return out;
 }
-function dc24MasteryEvidence(){
- const rows=dc24MasteryRows(),groups=new Map();
+function dc24MasteryEvidence(includeQuick=false){
+ const rows=dc24MasteryRows(Date.now(),includeQuick),groups=new Map();
  for(const r of rows){const g=groups.get(r.key)||{key:r.key,kind:r.kind,hits:0,tries:0,days:new Set(),records:[],darts:[]};g.hits+=r.hit;g.tries++;g.days.add(r.day);g.records.push(r);if(r.kind==='checkout'&&r.hit&&[1,2,3].includes(r.darts))g.darts.push(r.darts);groups.set(r.key,g)}
  return [...groups.values()].map(g=>({...g,days:g.days.size,rate:g.hits/Math.max(1,g.tries),interval:dc24Wilson(g.hits,g.tries),ready:g.days.size>=5&&g.tries>=30}));
 }
 function dc24Metric(label,value,sub){return '<div class="recordMetric"><span>'+esc(label)+'<small style="display:block;color:var(--muted)">'+esc(sub)+'</small></span><strong>'+esc(String(value))+'</strong></div>'}
 function dc23RenderMasteryProgress(){
  const box=$('dc23MasteryProgress');if(!box)return;
- const evidence=dc24MasteryEvidence();
- if(!evidence.length){box.innerHTML='<p class="muted">Your focused Mastery results will appear as comparable exercises are completed. Quick Play is excluded from coach diagnosis.</p>';return}
- const rows=dc24MasteryRows(),bull=rows.filter(r=>r.kind==='bull'),out=[];
- if(bull.length){const outer=bull.filter(r=>r.outcome===25).length,inner=bull.filter(r=>r.outcome===50).length,days=new Set(bull.map(r=>r.day)).size;
-  out.push('<h3>Bull outcomes</h3>');out.push(dc24Metric('Outer bull (25)',(100*outer/bull.length).toFixed(1)+'%',outer+' / '+bull.length+' darts · '+days+' days'));
+ const evidence=dc24MasteryEvidence(true);
+ if(!evidence.length){box.innerHTML='<p class="muted">Your focused Mastery results from training and Quick Play will appear as comparable exercises are completed.</p>';return}
+ const rows=dc24MasteryRows(Date.now(),true),out=[];
+ for(const quick of [false,true]){const bull=rows.filter(r=>r.kind==='bull'&&r.quick===quick);if(!bull.length)continue;const outer=bull.filter(r=>r.outcome===25).length,inner=bull.filter(r=>r.outcome===50).length,days=new Set(bull.map(r=>r.day)).size;
+  out.push('<h3>'+ (quick?'Quick Play · ':'Training · ')+'Bull outcomes</h3>');out.push(dc24Metric('Outer bull (25)',(100*outer/bull.length).toFixed(1)+'%',outer+' / '+bull.length+' darts · '+days+' days'));
   out.push(dc24Metric('Bullseye (50)',(100*inner/bull.length).toFixed(1)+'%',inner+' / '+bull.length+' darts · same attempts'));
   out.push(dc24Metric('Either bull',(100*(outer+inner)/bull.length).toFixed(1)+'%',(outer+inner)+' / '+bull.length+' darts'));
  }
- const separate=evidence.filter(g=>g.kind!=='bull').sort((a,b)=>b.tries-a.tries).slice(0,35);
+ const separate=evidence.filter(g=>g.kind!=='bull').sort((a,b)=>b.tries-a.tries);
  if(separate.length)out.push('<h3>Comparable targets and finishes</h3>');
  for(const g of separate){const interval=g.ready?(' · estimated 95% range '+(100*g.interval.low).toFixed(0)+'–'+(100*g.interval.high).toFixed(0)+'%'):' · collecting evidence';
   const darts=g.kind==='checkout'&&g.darts.length?' · '+(g.darts.reduce((a,b)=>a+b,0)/g.darts.length).toFixed(2)+' darts per measured finish':'';
   out.push(dc24Metric(g.key,(100*g.rate).toFixed(1)+'%',g.hits+' / '+g.tries+' · '+g.days+' days'+interval+darts));
  }
- box.innerHTML='<p class="muted">Separate targets and checkout ranges are never pooled for accuracy. Confidence ranges are descriptive, not proof of skill improvement. Dart counts include only reported successful checkouts.</p>'+out.join('');
+ box.innerHTML='<p class="muted">Training and Quick Play are shown separately. Separate targets and checkout ranges are never pooled for accuracy. Confidence ranges are descriptive, not proof of skill improvement. Dart counts include only reported successful checkouts.</p>'+out.join('');
 }
 
 /* V5.63 read-only protocol evidence map. Distinguishes differing bull target rules
@@ -8571,7 +8584,7 @@ function idcPhysicalAllowed(){
  alert("The independent coach cannot approve throwing right now. Review readiness in Coach before continuing.");return false;
 }
 function idcBoundary(){if(currentTab!=="train")return null;const s=session();if(s&&s.phase==="complete"&&!s.quick){const a=s.completed.find(x=>x.exerciseIndex===s.index);if(a)return {kind:"exercise",sessionId:String(s.id),index:s.index,name:a.name,at:a.at,day:dateKey(s.start),quick:false}}if(!s&&!$("sessionFinished").classList.contains("hidden")){const x=data.sessions.at(-1);if(x&&!x.quick)return {kind:"session",sessionId:String(x.id),index:null,name:"Training session",at:Math.max(x.start,...(x.activities||[]).map(a=>Number(a.at)||0)),day:x.date,quick:false}}return null}
-window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>dc69UniqueTrainingGames(data.games,dc63QuickEvidence()).filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,ruleVersion:g.ruleVersion??null,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
+window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>dc69UniqueTrainingGames(data.games,dc63QuickEvidence()).filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,ruleVersion:g.ruleVersion??null,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,activeQuickSession:data.activeSession?.quick?{id:data.activeSession.id,start:data.activeSession.start,quick:true,quickGame:data.activeSession.quickGame}:null,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
  if(session()?.phase==="playing"&&!session().pausedAt)pauseSession();
  if(activeStage==="warmup"||assessmentWarmup().startedAt)pauseAssessmentWarmup();
  }checkpointData();return true},active:()=>!!session(),nativePlanPreview:()=>{const s=session();if(!s&&assessmentDue())return {status:'assessment-required',segments:[]};const plan=s?s.plan.slice(s.index):generateSession(false,false,true);return {status:s?s.allocated?'locked':'initial':'initial',segments:plan.map(e=>({name:e.name,mode:e.mode,minutes:e.mode==='timed'?Math.round(e.seconds/60):null}))}},legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});
