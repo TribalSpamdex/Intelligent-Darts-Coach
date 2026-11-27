@@ -1,7 +1,7 @@
 // A deliberately separate, explicit local archive. It never replaces, loads
 // into, or silently resurrects the primary player profile. A successful IDB
 // transaction is required before reporting a saved copy.
-const DB='IDC:local-archive:v1',STORE='snapshots',KEY='manual';
+const DB='IDC:local-archive:v1',STORE='snapshots',KEY='manual',PREVIOUS='previous';
 export const ARCHIVE_LIMIT=50_000_000;
 const encoder=new TextEncoder();
 export async function archiveEnvelope(json,now=Date.now(),digest=globalThis.crypto?.subtle){
@@ -36,13 +36,38 @@ async function transaction(mode,operation,factory){
   const req=operation(tx.objectStore(STORE));req.onsuccess=()=>{result=req.result};
  })}finally{db.close()}
 }
+// Read and verify the existing generation before attempting rotation. The
+// read-write transaction rechecks it, so concurrent saves cannot silently
+// overwrite a newer snapshot. Failed quota writes abort both generations.
+const sameGeneration=(a,b)=>a===b||!!a&&!!b&&a.version===b.version&&a.savedAt===b.savedAt&&a.bytes===b.bytes&&a.checksum===b.checksum&&a.json===b.json;
+async function rotateArchive(value,old,verified,factory){
+ const db=await openDB(factory);
+ try{await new Promise((resolve,reject)=>{
+  const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);let failure;
+  tx.oncomplete=()=>resolve();tx.onabort=()=>reject(failure??tx.error??Error('Local archive transaction aborted'));tx.onerror=()=>reject(failure??tx.error??Error('Local archive transaction failed'));
+  const request=store.get(KEY);
+  request.onsuccess=()=>{try{
+   if(!sameGeneration(request.result,old)){failure=Error('Archive changed in another window; check it and retry');tx.abort();return}
+   if(verified&&verified.checksum!==value.checksum)store.put(verified,PREVIOUS);
+   store.put(value,KEY);
+  }catch(e){failure=e;try{tx.abort()}catch{reject(e)}}};
+ })}finally{db.close()}
+}
 export async function saveArchive(json,{factory=globalThis.indexedDB,digest=globalThis.crypto?.subtle,now=Date.now()}={}){
- const value=await archiveEnvelope(json,now,digest);await transaction('readwrite',s=>s.put(value,KEY),factory);return {savedAt:value.savedAt,bytes:value.bytes,checksum:value.checksum};
+ const value=await archiveEnvelope(json,now,digest),old=await transaction('readonly',s=>s.get(KEY),factory);
+ let verified=null;if(old!==undefined){try{verified=await verifyArchive(old,digest)}catch{/* Never rotate a damaged generation over a good older copy. */}}
+ await rotateArchive(value,old,verified,factory);return {savedAt:value.savedAt,bytes:value.bytes,checksum:value.checksum};
 }
-export async function readArchive({factory=globalThis.indexedDB,digest=globalThis.crypto?.subtle}={}){
- const value=await transaction('readonly',s=>s.get(KEY),factory);return value===undefined?null:verifyArchive(value,digest);
+export async function readArchive({factory=globalThis.indexedDB,digest=globalThis.crypto?.subtle,generation='latest'}={}){
+ if(!['latest','previous'].includes(generation))throw Error('Unknown archive generation');
+ const value=await transaction('readonly',s=>s.get(generation==='previous'?PREVIOUS:KEY),factory);return value===undefined?null:verifyArchive(value,digest);
 }
-export async function deleteArchive({factory=globalThis.indexedDB}={}){await transaction('readwrite',s=>s.delete(KEY),factory)}
+export async function archiveStatus(options={}){
+ // Do not substitute an older snapshot for a damaged latest generation.
+ const check=async generation=>{try{const value=await readArchive({...options,generation});return {status:value?'verified':'missing',value:value?{savedAt:value.savedAt,bytes:value.bytes,checksum:value.checksum}:null}}catch(e){return {status:'unavailable',error:e.message,value:null}}};
+ const latest=await check('latest'),previous=await check('previous');return {latest,previous};
+}
+export async function deleteArchive({factory=globalThis.indexedDB}={}){await transaction('readwrite',s=>{s.delete(PREVIOUS);return s.delete(KEY)},factory)}
 export async function storageEstimate(storage=globalThis.navigator?.storage){
  try{const e=await storage?.estimate?.();if(!Number.isFinite(e?.usage)||!Number.isFinite(e?.quota)||e.quota<=0||e.usage<0)return null;return {usage:e.usage,quota:e.quota}}catch{return null}
 }

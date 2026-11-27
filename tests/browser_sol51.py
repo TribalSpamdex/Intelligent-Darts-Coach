@@ -78,13 +78,16 @@ def run_pinned51_upgrade_audit(browser):
 def run_pinned52_upgrade_audit(browser):
     run_pinned_upgrade(browser, "dev51", "3fa01585ae05384f468746f083d9994d9fa63e9c")
 
+def run_pinned53_upgrade_audit(browser):
+    run_pinned_upgrade(browser, "dev52", "407265875ece199fc2c9e268402dbdde166d49ff")
+
 def run_pinned_upgrade(browser, source_version, source_commit):
     import os, re, socket
     version=re.search(r"IDC:assets:2\.0\.0-(dev\d+)",(SITE/'sw.js').read_text()).group(1)
     state={'candidate':False,'disconnect':False,'dropped':0}
     @lru_cache(maxsize=None)
     def baseline(path):
-        archive=os.environ.get('IDC_ARCHIVED_BASELINE' if source_version=='dev50' else 'IDC_ARCHIVED_DEV51')
+        archive=os.environ.get({'dev50':'IDC_ARCHIVED_BASELINE','dev51':'IDC_ARCHIVED_DEV51','dev52':'IDC_ARCHIVED_DEV52'}[source_version])
         return (Path(archive)/'site'/path).read_bytes() if archive else subprocess.check_output(['git','show',source_commit+':site/'+path],cwd=SITE.parent)
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
@@ -117,7 +120,10 @@ def run_pinned_upgrade(browser, source_version, source_commit):
         assert source_version in page.title()
         page.evaluate("""()=>{$('quickStartAverage').value='q60';startQuickFromAverage();data.__sol51Upgrade='keep';localStorage.setItem('dartsCoachV4','SOL51-LEGACY');quickChoice='Shanghai Combo';$('quickDuration').value='300';startQuickPlay();playExercise();shanghaiDart(true)}""")
         trace_version='undefined' if source_version=='dev50' else '1'
-        assert page.evaluate('activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==='+trace_version+' && activeGame.skillProtocol===undefined')
+        protocol_check="activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo'" if source_version=='dev52' else 'activeGame.skillProtocol===undefined'
+        assert page.evaluate('activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==='+trace_version+' && '+protocol_check)
+        if source_version=='dev52':
+            page.evaluate("async()=>{const m=await import('./storage-vault.mjs');await m.saveArchive(JSON.stringify({games:[],sessions:[],probe:'dev52-archive'}))}")
         state['candidate']=True
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         wait_async(page,"async()=>!!(await navigator.serviceWorker.getRegistration()).waiting",'actual '+version+' waiting')
@@ -128,7 +134,7 @@ def run_pinned_upgrade(browser, source_version, source_commit):
         wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');const keys=await caches.keys();return !!r.active&&!r.waiting&&keys.includes('IDC:assets:2.0.0-"+version+"')&&!keys.includes('IDC:assets:2.0.0-"+source_version+"')}",'actual '+version+' activation')
         page=ctx.new_page();page.goto(url);observer.close();ready(page)
         assert version in page.title()
-        assert page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==="+trace_version+" && activeGame.skillProtocol===undefined && localStorage.getItem('dartsCoachV4')==='SOL51-LEGACY'")
+        assert page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==="+trace_version+" && ("+protocol_check+") && localStorage.getItem('dartsCoachV4')==='SOL51-LEGACY'")
         page.evaluate("show('train')")
         # Reopen pause is native behavior; resume, then finish using controls.
         if page.evaluate('!!session().pausedAt'):page.locator('#pauseButton').click()
@@ -136,9 +142,12 @@ def run_pinned_upgrade(browser, source_version, source_commit):
         page.locator('#gameControls').get_by_role('button',name='Hit',exact=True).click()
         assert page.evaluate("data.games.length===1 && activeGame.skillTraceVersion===1 && activeGame.skillStartLives>0")
         assert page.evaluate("async()=>{const m=await import('./v62-evidence.mjs?v=2.0.0-dev');return m.extraQuickRounds(window.IDCTrainingBridge.snapshot(),dateKey()).length===1}")
-        if version=='dev52':
-            assert page.evaluate("activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo' && data.games[0].skillProtocol===undefined")
-        if source_version=='dev51':
+        if version in ('dev52','dev53'):
+            assert page.evaluate("activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo'")
+            assert page.evaluate("data.games[0].skillProtocol?.version===1" if source_version=='dev52' else "data.games[0].skillProtocol===undefined")
+        if source_version in ('dev51','dev52'):
+            if source_version=='dev52':
+                assert page.evaluate("async()=>JSON.parse((await (await import('./storage-vault.mjs')).readArchive()).json).probe==='dev52-archive'")
             state['disconnect']=True
             assert page.evaluate("async()=>{try{await fetch('./transport-disconnected-probe',{cache:'no-store'});return false}catch(e){return true}}")
             assert state['dropped']>0
@@ -147,7 +156,7 @@ def run_pinned_upgrade(browser, source_version, source_commit):
             page.locator('#navTechnique').click();page.locator('#idcQuestion').fill('Are any weaknesses emerging?');page.locator('#idcAsk').click()
             assert 'warning' in page.locator('#idcAnswer').inner_text().lower()
             assert page.evaluate("async()=>{const m=await import('./storage-vault.mjs');const json=JSON.stringify({games:[],sessions:[],probe:'offline'});await m.saveArchive(json);return (await m.readArchive()).json===json}")
-            print('SOL52 actual pinned dev51-to-dev52 worker upgrade and disconnected Coach/IndexedDB passed; baseline='+source_commit)
+            print('SOL53 actual pinned '+source_version+'-to-'+version+' worker upgrade and disconnected Coach/IndexedDB passed; baseline='+source_commit)
         else:
             print('SOL51 actual pinned dev50-to-current worker upgrade: exact production assets, waiting activation, existing player state, legacy sentinel, old active trace completion and new-round metadata passed; baseline='+source_commit)
     finally:

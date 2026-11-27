@@ -4,9 +4,9 @@ import {analyseLeg} from './engine/match.mjs';
 import {points,isDouble} from './engine/engine.mjs';
 import {classify} from './engine/target-evidence.mjs';
 import {legalFinishCount} from './finish-validation.mjs';
-import {dayValid,dayGap} from './engine/context.mjs';
+import {dayValid,dayGap,robustTrend,earlyWarning} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
-import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
+import {FIXED_PROTOCOLS,recordedConfounder,learningBoundary} from './challenge-episodes.mjs';
 const canonical=x=>/^[LI]/.test(x)?'S'+x.slice(1):x;
 const shortest=new Map();
 export function minimumFinishDarts(score){
@@ -209,3 +209,23 @@ export function transferLines(rows){
   if(report.rows.length>20)lines.push('Showing 20 most recent available scope comparisons; remaining comparisons are not shown.');
   return [...lines,report.limitation];
  }
+
+// Current within-format competition stage development; unlike stages are not
+// pooled. No missing finishing aim becomes a miss, no bot games become legs.
+export function competitionStageDevelopment(state,day){
+ const boundary=learningBoundary(state,day),report=stageProfiles((state.legs??[]).filter(l=>!boundary||l.day>boundary),day),out=[];
+ for(const p of report.profiles.filter(p=>p.context==='competition'))for(const [metric,spec] of Object.entries(metrics)){
+  const scoring=spec.units==='points',adverse=metric==='checkout bust rate',label=adverse?'checkout visits without a bust':metric;
+  const rows=p.daily.flatMap(d=>{const [hits,attempts]=spec.read(d);return attempts?[{day:d.day,skill:scoring?'scoring':'contextual',context:'competition',protocol:p.start+' straight-in '+label,attempts,hits:scoring?hits/3:adverse?attempts-hits:hits}]:[]});
+  if(!rows.length||dayGap(rows.at(-1).day,day)>7)continue;
+  const trend=robustTrend(rows,{asOf:day}),warning=earlyWarning(rows,{asOf:day});
+  if(!trend.earlier||!trend.recent||trend.earlier.attempts<spec.min||trend.recent.attempts<spec.min)continue;
+  const status=['declining','improving'].includes(trend.status)&&Math.abs(trend.change)>=spec.floor?trend.status:warning.status==='watch'&&Math.abs(warning.change)>=spec.floor?'watch':null;
+  if(status)out.push({start:p.start,metric:label,scoring,status,trend});
+ }
+ return out.sort((a,b)=>Number(b.status==='declining')-Number(a.status==='declining')||a.start-b.start||a.metric.localeCompare(b.metric));
+}
+export function competitionStageDevelopmentLines(rows){
+ const f=(x,s)=>(s?x:100*x).toFixed(1)+(s?' average':'%');
+ return [...rows.slice(0,8).map(r=>r.start+' straight-in · '+r.metric+': '+r.status+'; earlier '+f(r.trend.earlier.value,r.scoring)+' ('+r.trend.earlier.attempts+' attempts on '+r.trend.earlier.days+' days), recent '+f(r.trend.recent.value,r.scoring)+' ('+r.trend.recent.attempts+' attempts on '+r.trend.recent.days+' days).'),...(rows.length?['Repeat comparable actual match measurements. Format, opponent, selection and pressure may differ; no causal conclusion or automatic practice change.']:['No fresh adequately sampled competition-stage change established.'])];
+}

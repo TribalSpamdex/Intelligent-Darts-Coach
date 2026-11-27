@@ -1,3 +1,4 @@
+import {adaptiveReview,adaptiveReviewLines} from './adaptive-review.mjs';
 import {quickDevelopment,quickDevelopmentLines} from './quick-development.mjs';
 // A single actionable coaching prompt, not an extra automatic planner.
 import {dayValid,dayGap} from './engine/context.mjs';
@@ -28,6 +29,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
   'changed-conditions':'A dated player-reported setup or routine change limits which older evidence can guide current optional choices.',
   'quick-check':'Repeated contextual game evidence; confirm under familiar fixed conditions.',
   'target-check':'Repeated within-task target measurements; confirmation is needed before broader conclusions.',
+  'competing-measurements':'Current fixed practice and actual match evidence disagree; no causal claim.',
   balanced:'No new supported change; this does not establish that performance is stable.'
  };
  const response=(kind,title,detail,extra={})=>({kind,title,detail,event,basis:basis[kind],...extra});
@@ -77,6 +79,8 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  const concern=reflectionInsights(reflections??[],host,day).repeated[0];
  if(concern)return response('reflection','A recurring practice observation',concern.question+' This is player-reported context, not a diagnosis.');
 
+ const synthesis=adaptiveReview(host,state,day,now);
+ if(synthesis.decision==='disagree')return response('competing-measurements','Resolve conflicting performance evidence',adaptiveReviewLines(synthesis).slice(0,4).join(' ')+' '+synthesis.next);
  const targets=targetDevelopment(host,state,day,now);
  if(targets.focus)return response('target-check','Check '+targets.focus.target+' in familiar practice',targetDevelopmentLines(targets).slice(0,3).join(' '),{target:targets.focus.target});
  const quick=quickDevelopment(host,state,day,now);

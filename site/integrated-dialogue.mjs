@@ -138,6 +138,9 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
    'quick-development':{question:'What is Quick Play telling you?',next:'Repeat the recommended familiar check on separate days; do not add workload or change your throw based on contextual results.'},
    'individual-methods':{question:'Which methods should I keep using?',next:'Keep your normal plan and review one exact method at a time using independent fixed benchmarks.'},
    'match-direction':{question:'Are my practice gains reaching matches?',next:'Record actual competition legs separately from practice and repeat the same fixed practice check.'},
+   'adaptive-profile':{question:'What is my current skill profile?',next:'Use comparable fixed skill checks; do not compare unlike practice and match protocols.'},
+   'adaptive-diagnosis':{question:'Why has my performance changed?',next:'Resolve one competing explanation at a time, then repeat the familiar reference task.'},
+   'warning-replay':{question:'How reliable are your warnings?',next:'Use warnings as prompts to measure again, not automatic difficulty or workload changes.'},
    'method-cautions':{question:'Which methods should we reconsider?',next:'Continue the ordinary balanced plan and repeat independent checks before reinstating an optional drill preference.'}
   };
   const topic=previous?.day===day&&Object.hasOwn(topics,previous.topic)?previous.topic:null;

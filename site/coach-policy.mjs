@@ -3,7 +3,7 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {eventContext} from './competition-calendar.mjs';
 // Final clock-budget transfer only; no game replacement, no additional minutes.
 const skills=['scoring','doubles','checkout','bull'];
-export function decideTransfer({report,confirmation,edited=[],memory,session,queue,legacyTransfer,legacyPolicy,priorSessions=[],day}){
+export function decideTransfer({report,confirmation,edited=[],memory,session,queue,legacyTransfer,legacyPolicy,priorSessions=[],day,referenceReview=null}){
  const no=reason=>({status:'unchanged',reason});
  if(!dayValid(day))return no('Invalid allocation date');
  if(!report||report.verification?.status!=='passed'||!['balanced','temporary-focus','investigate'].includes(report.decision))return no('Independent recommendation not currently actionable');
@@ -14,6 +14,7 @@ export function decideTransfer({report,confirmation,edited=[],memory,session,que
  if(!Array.isArray(interventions)||interventions.filter(o=>o?.status==='accepted').length!==1)return no('No unique accepted intervention');
  const i=interventions.find(o=>o.id===report.active.intervention&&o.status==='accepted');
  if(!i||edited.includes(i.id)||!skills.includes(i.skill)||i.context!=='practice')return no('Unsupported or corrected intervention baseline');
+ if(referenceReview&&(referenceReview.decision==='readiness'||referenceReview.conflicts.some(c=>c.focus.skill===i.skill)||referenceReview.profiles.some(p=>p.skill===i.skill&&p.context===i.context&&p.protocol===i.protocol&&p.status==='recovering')))return no('Current reference review requires resolving competing evidence or recovery before additional allocation');
  if(dayValid(i.responseDay)&&i.responseDay<=day&&deliveryGate({sessions:priorSessions},i,day).defer)return no('Repeated measured delivery shortfall; review existing adjustment');
  if(!dayValid(i.proposedDay)||!dayValid(i.responseDay)||i.responseDay<i.proposedDay||dayGap(i.responseDay,day)<0||!Number.isInteger(i.reviewAfterDays)||i.reviewAfterDays!==14||dayGap(i.responseDay,day)>=i.reviewAfterDays)return no('Accepted focus is outside its active review window');
  if(!confirmation||confirmation.verification?.status!=='passed'||confirmation.decision!=='temporary-focus'||confirmation.focus!==i.skill||confirmation.focusProtocol!==i.protocol||confirmation.focusContext!==i.context)return no('Current measurements no longer support the same focus');
