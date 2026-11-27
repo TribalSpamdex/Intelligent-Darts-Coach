@@ -48,7 +48,7 @@ export function skillPlayEligible(g,index){
 }
 // Deduplicate authoritative identities BEFORE eligibility/count validation. A corrupt
 // mirror must veto its valid twin, rather than disappear before conflict detection.
-const measurementFields=['name','quick','day','offsetMinutes','completion','benchmark','recovery','challengeTuning','variant','tierAtStart','tier','visits','points','scores','thrown','hits','success','fail','outer','inner','misses','attempts','masteryMode','target','targetLog','attemptLog','rangeStart','rangeEnd','pressure','counts','darts','targets','details'];
+const measurementFields=['name','ruleVersion','precision','learningSetting','quick','day','offsetMinutes','completion','benchmark','recovery','challengeTuning','variant','tierAtStart','tier','visits','points','scores','thrown','hits','success','fail','outer','inner','misses','attempts','masteryMode','target','targetLog','attemptLog','rangeStart','rangeEnd','pressure','counts','darts','targets','details'];
 const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
 export function canonicalSkillGames(games=[],conflicts=null){
  const seen=new Map(),bad=new Set(),legacy=[];

@@ -105,3 +105,14 @@ test('SOL49-14 deterministic 2-year high-volume Quick Play chronology, correctio
  const last=h.games.at(-1);h.games.push({...last,scores:[]});assert.equal(projectEvidence(h,{today:day,now}).observations.length,729);
  console.log('SOL49 synthetic two-year state transitions:',JSON.stringify({seed:49017,days:730,monthlyReviews:months.length,savedRows:h.games.length,protocols:1,trainingDose:0}));
 });
+test('SOL49-15 native training evidence also rejects a malformed Quick Play mirror before filtering',()=>{
+ const html=fs.readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
+ const extract=name=>{const start=html.indexOf('function '+name+'('),end=html.indexOf('\nfunction ',start+1);return html.slice(start,end)};
+ const data={sessions:[{id:1,quick:false}]},run=new Function('data',['quickEvidenceEligible','dc63QuickEvidence','dc69UniqueTrainingGames'].map(extract).join('\n')+';return games=>dc69UniqueTrainingGames(games,dc63QuickEvidence())')(data);
+ const a={...g,quick:false};assert.equal(run([a]).length,1);assert.equal(run([a,{...a,quick:true}]).length,0);
+});
+test('SOL49-16 old advancing-target and current per-target streaks remain distinct',()=>{
+ const make=(version,i)=>({...g,name:'Doubles Streak',at:now-1000-i,benchmark:false,variant:'doubles',ruleVersion:version,tierAtStart:4,thrown:1,hits:1,targetLog:[{ring:'D',target:16,hit:true}]});
+ const a=make(null,0),b=make('same-target-streak-v1',1),r=projectTargets(host([a,b],[{...p,quickGame:a.name}]),day,now).rows;
+ assert.equal(new Set(r.map(x=>x.protocol)).size,2);
+});

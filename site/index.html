@@ -1496,14 +1496,14 @@ function dc63QuickEvidence(){
 function dc69UniqueTrainingGames(games,context){
  const unique=new Map(),conflicts=new Set(),legacy=[];
  for(const g of games||[]){
-  if(!quickEvidenceEligible(g,context))continue;
+  if(!g)continue;
   if(!Number.isFinite(g.at)||g.at<=0){legacy.push(g);continue}
   const key=JSON.stringify([g.name,g.at,g.sessionId==null?null:String(g.sessionId)]);
-  const projection=JSON.stringify([g.completion,g.benchmark,g.challengeTuning,g.variant,g.tier,g.visits,g.points,g.thrown,g.hits,g.success,g.fail,g.outer,g.inner,g.misses,g.attemptLog,g.tierAtStart,g.ruleVersion,g.precision,g.learningSetting,g.win,g.recovery,g.extra]);
+  const projection=JSON.stringify([g.quick,g.day,g.offsetMinutes,g.scores,g.targetLog,g.details,g.completion,g.benchmark,g.challengeTuning,g.variant,g.tier,g.visits,g.points,g.thrown,g.hits,g.success,g.fail,g.outer,g.inner,g.misses,g.attemptLog,g.tierAtStart,g.ruleVersion,g.precision,g.learningSetting,g.win,g.recovery,g.extra]);
   if(unique.has(key)){if(unique.get(key).projection!==projection)conflicts.add(key)}
   else unique.set(key,{g,projection});
  }
- return legacy.concat([...unique].filter(([key])=>!conflicts.has(key)).map(([,row])=>row.g));
+ return legacy.concat([...unique].filter(([key])=>!conflicts.has(key)).map(([,row])=>row.g)).filter(g=>quickEvidenceEligible(g,context));
 }
 function dc64RecentEstimate(key,rows,prior,now){
  // These are bounded comparison blocks. Equal recency prevents the candidate's
@@ -7449,7 +7449,7 @@ function lineChart(values,percent){const W=340,H=190,L=38,R=12,T=18,B=34,innerW=
  for(let i=0;i<=4;i++){const v=low+(high-low)*i/4,yy=y(v);svg+='<line x1="'+L+'" y1="'+yy+'" x2="'+(W-R)+'" y2="'+yy+'" stroke="#3b5363" stroke-width="1"/><text class="axisText" x="'+(L-7)+'" y="'+(yy+4)+'" text-anchor="end">'+Math.round(v)+'</text>'}
  const pts=values.map((d,i)=>x(i).toFixed(1)+','+y(d.value).toFixed(1)).join(' ');svg+='<polyline points="'+pts+'" fill="none" stroke="#67e3a7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
  values.forEach((d,i)=>{svg+='<circle cx="'+x(i)+'" cy="'+y(d.value)+'" r="4.3" fill="#67e3a7" stroke="#142330" stroke-width="2"/>';if(values.length<=7||i===0||i===values.length-1){const dt=new Date(d.time);svg+='<text class="axisText" x="'+x(i)+'" y="'+(H-10)+'" text-anchor="middle">'+(dt.getMonth()+1)+'/'+String(dt.getDate()).padStart(2,'0')+'</text>'}});return svg+'</svg>'}
-function renderTrend(){const keys=["scoring","doubles","checkout","bull","singles"];$("trendPicker").innerHTML=keys.map(k=>'<button class="'+(selectedTrend===k?'on':'')+'" onclick="setTrend(\''+k+'\')">'+SKILL_LABELS[k]+'</button>').join('');const rows=groupedTrend(selectedTrend).slice(-8),area=$("trendChart");if(rows.length<2){area.innerHTML='<p class="muted">At least two separate training weeks are needed to show a meaningful trend.</p>';return}const first=rows[0].value,last=rows[rows.length-1].value,diff=last-first,unit=selectedTrend==="scoring"?' points':' percentage points',verb=diff>1?'Improving':diff< -1?'Variation recorded':'Stable';area.innerHTML='<div class="trendSummary"><strong>'+verb+'</strong> · '+(diff>0?'+':'')+diff.toFixed(1)+unit+' across '+rows.length+' recorded weeks</div>'+lineChart(rows,selectedTrend!=="scoring")+'<p class="secondarySub">Weekly values are weighted by darts or attempts. A chart reflects recorded accuracy, not proof of what caused a change.</p>'}
+function renderTrend(){const keys=["scoring","doubles","checkout","bull","singles"];$("trendPicker").innerHTML=keys.map(k=>'<button class="'+(selectedTrend===k?'on':'')+'" onclick="setTrend(\''+k+'\')">'+SKILL_LABELS[k]+'</button>').join('');const rows=groupedTrend(selectedTrend).slice(-8),area=$("trendChart");if(rows.length<2){area.innerHTML='<p class="muted">At least two separate measured weeks are needed to show a meaningful trend.</p>';return}const first=rows[0].value,last=rows[rows.length-1].value,diff=last-first,unit=selectedTrend==="scoring"?' points':' percentage points',verb=diff>1?'Improving':diff< -1?'Variation recorded':'Stable';area.innerHTML='<div class="trendSummary"><strong>'+verb+'</strong> · '+(diff>0?'+':'')+diff.toFixed(1)+unit+' across '+rows.length+' recorded weeks</div>'+lineChart(rows,selectedTrend!=="scoring")+'<p class="secondarySub">Weekly values are weighted by darts or attempts. A chart reflects recorded accuracy, not proof of what caused a change.</p>'}
 function weeklyEvidence(k,start,end){const rows=completedRows(k).filter(r=>r.time>=start&&r.time<end);const v=rows.reduce((a,r)=>a+r.volume,0);return v?{value:rows.reduce((a,r)=>a+(k==="scoring"?r.value*r.volume:r.hits),0)/v*(k==="scoring"?1:100),count:rows.length}:null}
 function renderWeeklyReview(){const now=Date.now(),thisWeek=weekStart(now),lastWeek=addDays(thisWeek,-7),prior=addDays(lastWeek,-7);const names=["scoring","doubles","checkout","bull"],changes=[];for(const k of names){const a=weeklyEvidence(k,prior,lastWeek),b=weeklyEvidence(k,lastWeek,thisWeek);if(a&&b&&a.count>=1&&b.count>=1)changes.push({key:k,diff:b.value-a.value})}
  const el=$("weeklyCoachReview");if(!changes.length){el.innerHTML='<p class="muted">Your coach will offer a short weekly review when there are comparable results from two training weeks. No invented feedback.</p>';return}
