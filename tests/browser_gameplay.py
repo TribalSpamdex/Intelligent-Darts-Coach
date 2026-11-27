@@ -63,29 +63,35 @@ def run_gameplay_audit(browser):
              if(activeGame.name!==name||mode&&activeGame.mode!==mode)throw Error('Wrong game configuration '+label);
              prepare(name);
              const before=JSON.stringify(activeGame);
+             const totals=JSON.stringify([data.bestDouble,data.bestCheckout,data.doublesHit,data.doublesThrown]);
              const rounds=session().roundsCompleted;
              miss(name);
              if(JSON.stringify(activeGame)===before&&session().roundsCompleted===rounds)throw Error('Legal miss made no progress: '+label);
              undoGame();
              if(JSON.stringify(activeGame)!==before||session().roundsCompleted!==rounds||data.games.length)throw Error('First-action Undo mismatch: '+label);
              let completed=false,steps=0;
-             // Complete one natural all-miss round for each name and mastery mode at tier 4.
-             if(tier===4){
+             // Complete an entire round at EVERY coarse tier and mastery mode.
+             {
               while(!data.games.length&&steps<600){
                prepare(name);const prior=JSON.stringify(activeGame);miss(name);steps++;
                if(data.games.length){
                 const row=data.games[0];
                 if(row.name!==name||row.completion!=='natural'||row.sessionId!==session().id||session().roundsCompleted!==1||session().round!==2||activeGame.name!==name)throw Error('Round record/restart mismatch: '+label);
                 undoGame();
-                if(data.games.length||session().roundsCompleted!==0||session().round!==1||JSON.stringify(activeGame)!==prior)throw Error('Terminal-action Undo mismatch: '+label);
+                if(data.games.length||session().roundsCompleted!==0||session().round!==1||JSON.stringify(activeGame)!==prior||JSON.stringify([data.bestDouble,data.bestCheckout,data.doublesHit,data.doublesThrown])!==totals)throw Error('Terminal-action Undo mismatch: '+label);
                 completed=true;break;
                }
                if(JSON.stringify(activeGame)===prior)throw Error('Round stopped progressing: '+label);
               }
               if(!completed)throw Error('No bounded natural round: '+label);
               session().activityStarted=Date.now()-600001;session().activityAccumulated=0;
-              trainingTimer();
+              session().pausedAt=Date.now();trainingTimer();
+              if(session().phase!=='playing'||session().completed.length)throw Error('Paused timer completed an exercise: '+label);
+              session().pausedAt=null;trainingTimer();
               if(session().phase!=='complete'||session().completed.length!==1||session().completed[0].seconds!==600||session().index!==0)throw Error('Timer completion mismatch: '+label);
+              const after=JSON.stringify(session().completed),savedGames=data.games.length;
+              trainingTimer();finishExpiredExercise();
+              if(JSON.stringify(session().completed)!==after||data.games.length!==savedGames)throw Error('Repeated expiry duplicated an activity: '+label);
              }
              checks.push({name,tier,mode,completed,steps});
             }
@@ -120,7 +126,7 @@ def run_gameplay_audit(browser):
            return {names:new Set(checks.map(x=>x.name)).size,configurations:checks.length,naturalRounds:checks.filter(x=>x.completed).length,actions:checks.reduce((n,x)=>n+x.steps+1,0)};
           }finally{save=oldSave;window.alert=oldAlert;announceRound=oldAnnounce;hideRoundAnnouncement()}
         }""")
-        assert result['names']==41 and result['configurations']==336 and result['naturalRounds']==48, result
+        assert result['names']==41 and result['configurations']==336 and result['naturalRounds']==336, result
         print('Native gameplay action, round, Undo and timer matrix:',result)
     finally:
         ctx.close()
