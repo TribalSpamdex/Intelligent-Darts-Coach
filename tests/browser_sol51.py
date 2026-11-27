@@ -84,13 +84,16 @@ def run_pinned53_upgrade_audit(browser):
 def run_pinned54_upgrade_audit(browser):
     run_pinned_upgrade(browser, 'dev53', 'b69596969c24829a7603475331383eef78a75ba3')
 
+def run_pinned55_upgrade_audit(browser):
+    run_pinned_upgrade(browser, 'dev54', '1321f09fd7c811a14c52e4ed6e171a50761fffd7')
+
 def run_pinned_upgrade(browser, source_version, source_commit):
     import os, re, socket
     version=re.search(r"IDC:assets:2\.0\.0-(dev\d+)",(SITE/'sw.js').read_text()).group(1)
     state={'candidate':False,'disconnect':False,'dropped':0}
     @lru_cache(maxsize=None)
     def baseline(path):
-        archive=os.environ.get({'dev50':'IDC_ARCHIVED_BASELINE','dev51':'IDC_ARCHIVED_DEV51','dev52':'IDC_ARCHIVED_DEV52','dev53':'IDC_ARCHIVED_DEV53'}[source_version])
+        archive=os.environ.get({'dev50':'IDC_ARCHIVED_BASELINE','dev51':'IDC_ARCHIVED_DEV51','dev52':'IDC_ARCHIVED_DEV52','dev53':'IDC_ARCHIVED_DEV53','dev54':'IDC_ARCHIVED_DEV54'}[source_version])
         return (Path(archive)/'site'/path).read_bytes() if archive else subprocess.check_output(['git','show',source_commit+':site/'+path],cwd=SITE.parent)
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
@@ -123,9 +126,9 @@ def run_pinned_upgrade(browser, source_version, source_commit):
         assert source_version in page.title()
         page.evaluate("""()=>{$('quickStartAverage').value='q60';startQuickFromAverage();data.__sol51Upgrade='keep';localStorage.setItem('dartsCoachV4','SOL51-LEGACY');quickChoice='Shanghai Combo';$('quickDuration').value='300';startQuickPlay();playExercise();shanghaiDart(true)}""")
         trace_version='undefined' if source_version=='dev50' else '1'
-        protocol_check="activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo'" if source_version in ('dev52','dev53') else 'activeGame.skillProtocol===undefined'
+        protocol_check="activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo'" if source_version in ('dev52','dev53','dev54') else 'activeGame.skillProtocol===undefined'
         assert page.evaluate('activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==='+trace_version+' && '+protocol_check)
-        if source_version in ('dev52','dev53'):
+        if source_version in ('dev52','dev53','dev54'):
             page.evaluate("async()=>{const m=await import('./storage-vault.mjs');await m.saveArchive(JSON.stringify({games:[],sessions:[],probe:'dev52-archive'}))}")
         state['candidate']=True
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
@@ -145,11 +148,11 @@ def run_pinned_upgrade(browser, source_version, source_commit):
         page.locator('#gameControls').get_by_role('button',name='Hit',exact=True).click()
         assert page.evaluate("data.games.length===1 && activeGame.skillTraceVersion===1 && activeGame.skillStartLives>0")
         assert page.evaluate("async()=>{const m=await import('./v62-evidence.mjs?v=2.0.0-dev');return m.extraQuickRounds(window.IDCTrainingBridge.snapshot(),dateKey()).length===1}")
-        if version in ('dev52','dev53','dev54'):
+        if version in ('dev52','dev53','dev54','dev55'):
             assert page.evaluate("activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo'")
-            assert page.evaluate("data.games[0].skillProtocol?.version===1" if source_version in ('dev52','dev53') else "data.games[0].skillProtocol===undefined")
-        if source_version in ('dev51','dev52','dev53'):
-            if source_version in ('dev52','dev53'):
+            assert page.evaluate("data.games[0].skillProtocol?.version===1" if source_version in ('dev52','dev53','dev54') else "data.games[0].skillProtocol===undefined")
+        if source_version in ('dev51','dev52','dev53','dev54'):
+            if source_version in ('dev52','dev53','dev54'):
                 assert page.evaluate("async()=>JSON.parse((await (await import('./storage-vault.mjs')).readArchive()).json).probe==='dev52-archive'")
             state['disconnect']=True
             assert page.evaluate("async()=>{try{await fetch('./transport-disconnected-probe',{cache:'no-store'});return false}catch(e){return true}}")

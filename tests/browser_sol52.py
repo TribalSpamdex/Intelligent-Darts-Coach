@@ -7,7 +7,7 @@ def run_sol52_audit(browser):
     try:
         page=ctx.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)));page.on('dialog',lambda d:d.accept())
         page.goto('http://127.0.0.1:8765/index.html');ready(page)
-        assert 'dev54' in page.title()
+        assert 'dev55' in page.title()
         page.evaluate("$('quickStartAverage').value='q60';startQuickFromAverage();show('settings')")
         page.locator('#idcArchiveSave').click()
         page.wait_for_function("$('idcArchiveStatus').textContent.includes('Verified local archive')")
@@ -44,7 +44,7 @@ def run_sol52_audit(browser):
         # Chromium's network-emulation gate is supplementary; both engines
         # must pass actual socket-disconnection in the pinned Dev51 upgrade.
         if os.getenv('IDC_BROWSER','chromium')=='chromium':
-            ctx.set_offline(True);page.reload();ready(page);assert 'dev54' in page.title();ctx.set_offline(False)
+            ctx.set_offline(True);page.reload();ready(page);assert 'dev55' in page.title();ctx.set_offline(False)
         assert not errors,errors
         print('DEV52 rendered '+os.getenv('IDC_BROWSER','chromium')+': archive save/readback/reload/export/delete, 7.6 MB IndexedDB copy, Coach watch, native fixed-check start/metadata/reload passed')
     finally:ctx.close()

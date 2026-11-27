@@ -7,7 +7,7 @@ const start=html.indexOf('function dcRecordHistory('),end=html.indexOf('/* V5.15
 const nodes={recordOverview:{},recordGames:{}};
 const now=Date.parse('2026-11-27T12:00Z');
 const original={name:'Bull Streak',sessionId:1,exerciseId:'1:e:0',at:now-1000,completion:'natural',oneEighties:0,best:4,tierAtStart:5};
-const ctx=vm.createContext({Date:class extends Date{static now(){return now}},data:{games:[]},QUICK_GAMES:['Bull Streak'],gameTime:g=>Number(g.at)||0,$:id=>nodes[id],num:x=>Number(x)||0,monthString:()=>'',weekStart:()=>now-604800000,esc:String,formatDate:()=>'',recordMetrics:g=>[{label:'Longest streak',value:g.best,higher:true}]});
+const ctx=vm.createContext({Date:class extends Date{static now(){return now}},data:{games:[]},QUICK_GAMES:['Bull Streak'],gameTime:g=>Number(g.at)||0,$:id=>nodes[id],num:x=>Number(x)||0,monthString:()=>'',weekStart:()=>now-604800000,esc:String,formatDate:()=>'',recordMetrics:g=>[{label:'Longest streak',value:g.best,higher:true}],idcHistoricalMonths:()=>ctx.data.idcHistoryRetention?.months??[]});
 assert.ok(start>=0);vm.runInContext(html.slice(start,end),ctx);
 const read=rows=>JSON.parse(JSON.stringify(ctx.dcRecordHistory(rows,now)));
 test('future, undated, exact duplicate and conflicting record identities cannot inflate personal records',()=>{
@@ -22,6 +22,10 @@ test('rendered record cards keep the actual achievement and hide internal tier n
  assert.match(nodes.recordGames.innerHTML,/Longest streak/);assert.match(nodes.recordGames.innerHTML,/>4</);
  assert.doesNotMatch(nodes.recordGames.innerHTML,/Tier 5|tier5/);
  assert.equal(ctx.data.games[0].tierAtStart,5);
+});
+test('archived career records retain previous personal best and milestone without fake game rows',()=>{
+ ctx.data.games=[original];ctx.data.idcHistoryRetention={months:[{gamesByName:[{name:'Bull Streak',recordedCompleted:8}],personalBests:[{name:'Bull Streak',label:'Longest streak',value:9,higher:true,at:now-800*86400000,quick:true}],scoringMilestones:{total180:7,training180:4,quick180:3,hundreds:10,oneForties:6}}]};
+ try{ctx.renderRecords();assert.match(nodes.recordGames.innerHTML,/>9</);assert.match(nodes.recordGames.innerHTML,/9 rounds/);assert.match(nodes.recordOverview.innerHTML,/>7<\/strong><small>Career 180s/);assert.equal(ctx.data.games.length,1);}finally{delete ctx.data.idcHistoryRetention;}
 });
 test('Coach display labels hide tier suffixes while preserving distinct raw protocol identities',()=>{
  const src=fs.readFileSync(new URL('../site/idc.mjs',import.meta.url),'utf8');
