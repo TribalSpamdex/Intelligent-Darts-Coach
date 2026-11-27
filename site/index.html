@@ -5862,8 +5862,8 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Lives: "+g.lives+" · Miss = lose a life";
   html=button("Hit","trebleDart(true)")+button("Miss","trebleDart(false)");break;
  case "Doubles Streak":
-  heading=(g.variant==="singles"?"S":"D")+g.targets[g.targetIndex];detail="Streak: "+g.streak+"/"+g.goal;
-  mini="Lives: "+g.lives+" · Best: "+g.best;
+  heading=(g.variant==="singles"?"S":"D")+g.targets[g.targetIndex];detail="Round goal: "+g.goal+" consecutive hits";
+  mini="Lives: "+g.lives;
   html=button("Hit","doublesStreakDart(true)")+button("Miss","doublesStreakDart(false)");break;
  case "301 Pressure":
   heading=String(g.remaining);detail="Darts used: "+g.dartsUsed+" / "+g.maxDarts+" · "+g.visits+" visits";

@@ -547,6 +547,36 @@ with sync_playwright() as p:
     assert all(gates.values()), gates
     safety.close()
     print('Physical readiness mid-session and resume audit:',gates)
+    # Real player-visible progress, not outcome overlays, across native round restart and Undo.
+    progress_ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    pp=progress_ctx.new_page()
+    pp.goto('http://127.0.0.1:8765/index.html')
+    pp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
+    progress=pp.evaluate("""()=>{
+      document.getElementById('quickStartAverage').value='q60';startQuickFromAverage();
+      quickChoice='Doubles Survival';document.getElementById('quickDuration').value='300';startQuickPlay();playExercise();
+      if(session()?.phase!=='playing'||activeGame?.name!=='Doubles Survival')throw Error('Doubles control game did not start');
+      const overlayHidden=()=>$('roundAnnouncement').classList.contains('hidden');
+      const current=()=>$('roundFlash').textContent;
+      const metrics=()=>$('miniMetrics').textContent;
+      const n=activeGame.sequence.length;
+      if(!overlayHidden()||current()!=='STREAK 0')throw Error('Unexpected initial presentation '+current());
+      for(let i=0;i<n;i++)survivalDart(true);
+      if(!overlayHidden()||session().round!==2||current()!=='STREAK '+n||!metrics().includes('Hits: '+n)||data.games.at(-1).win!==true)throw Error('Restart progress mismatch '+current()+' '+metrics());
+      undoGame();
+      if(!overlayHidden()||session().round!==1||current()!=='STREAK '+(n-1))throw Error('Round Undo mismatch '+current());
+      survivalDart(true);survivalDart(false);
+      if(!overlayHidden()||current()!=='STREAK 0'||!metrics().includes('Best streak: '+n))throw Error('Miss did not reset streak '+current()+' '+metrics());
+      undoGame();
+      if(current()!=='STREAK '+n)throw Error('Miss Undo mismatch '+current());
+      return {n,round:session().round,metrics:metrics()};
+    }""")
+    assert progress['n']>0 and progress['round']==2,progress
+    assert pp.locator('#roundFlash').is_visible() and pp.locator('#miniMetrics').is_visible()
+    assert not pp.locator('#roundAnnouncement').is_visible()
+    progress_ctx.close()
+    print('Player progress and no-overlay browser regression:',progress)
+
     # Sol H1: a second document must not overwrite a successfully saved profile.
     before=page.evaluate("localStorage.getItem(KEY)")
     other=ctx.new_page()
