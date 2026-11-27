@@ -28,7 +28,7 @@ export function applyPrecision(game,profile,games,day,opts={}){
 // This marker is constructed here; saved records cannot opt themselves in.
 export function quickFixedSamples(host,now=Date.now()){
  const day=recordedDay(now),eligible=new Set(projectEvidence(host,{today:day,now}).observations.filter(o=>o.protocol.startsWith('IDC V6.2 Quick Play ')).map(o=>o.id));
- const games=canonicalSkillGames(host.games),sources=fixedGameSources(games);
+ const games=canonicalSkillGames(host.games.filter(g=>g&&['Scoring Challenge','Bull Accuracy'].includes(g.name))),sources=fixedGameSources(games);
  return games.flatMap(g=>{
   const skill=g?.name==='Scoring Challenge'?'scoring':g?.name==='Bull Accuracy'?'bull':null;
   if(!skill||g.quick!==true||!eligible.has('IDC:host-v62:'+sources.get(roundIdentity(g))+':'+skill))return [];

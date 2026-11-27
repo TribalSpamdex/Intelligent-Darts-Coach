@@ -123,7 +123,12 @@ const sum=a=>a.reduce((s,n)=>s+n,0);
 const neighbours=n=>{const b=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5],i=b.indexOf(n);return [b[(i+19)%20],b[(i+1)%20]]};
 function extraRound(g){
  const d=g.details,log=d?.skillTrace,metrics=[],targets=[],finishes=[];
- const setting=Number.isInteger(g.tierAtStart)&&g.tierAtStart>=1&&g.tierAtStart<=7?'tier '+g.tierAtStart:'legacy setting';
+ const conditions=[];
+ for(const [field,label] of [['allowed','dart allowance'],['allowedMisses','miss allowance'],['entryLimit','opening allowance'],['maxVisits','visit allowance'],['goal','goal'],['skillStartLives','starting lives']])if(Number.isInteger(d?.[field]))conditions.push(label+' '+d[field]);
+ if(g.name==='Shanghai Combo')conditions.push(d?.variant==='singles'?'three single stages':'single, double, treble stages');
+ if(g.name==='Switchback')conditions.push(d?.beginner||d?.holdPosition?'hold position after a miss':'retreat two after a miss');
+ for(const field of ['targets','sequence','scores','stages','cards'])if(Array.isArray(d?.[field])&&d[field].length<=10&&d[field].every(x=>typeof x==='string'||Number.isInteger(x)))conditions.push(field+' '+d[field].join(' / '));
+ const setting=(Number.isInteger(g.tierAtStart)&&g.tierAtStart>=1&&g.tierAtStart<=7?'tier '+g.tierAtStart:'legacy setting')+(conditions.length?' · '+conditions.join(' · '):'');
  const m=(label,hits,attempts,unit='darts',scoring=false)=>{if(attempts>0)metrics.push({label,hits,attempts,unit,scoring,perDart:scoring})};
  const t=(target,hits,attempts=1)=>targets.push({target,hits,attempts});
  const f=(score,success,used)=>finishes.push({score,success,used,allowance:3});
@@ -367,7 +372,7 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
   if(session.date!==b.day||!Number.isFinite(session.start)||session.start<=0||session.start>now||localDay(session.start,session.startOffsetMinutes)!==b.day||(b.at!=null&&b.at<session.start)){skip(source,'daily benchmark chronology mismatch');continue}
   add(source,b.day,'singles','daily large singles 60',60,b.hits);
  }
- const games=canonicalSkillGames(host.games),sources=fixedGameSources(games);
+ const games=canonicalSkillGames(host.games.filter(g=>g&&['Scoring Challenge','Bull Accuracy'].includes(g.name))),sources=fixedGameSources(games);
  for(const g of games){
   if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;
   const source=sources.get(roundIdentity(g)),day=g.day;

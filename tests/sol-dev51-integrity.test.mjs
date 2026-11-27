@@ -40,3 +40,27 @@ test('SOL51 windowed canonical projection preserves conflict-first validation wi
  assert.equal(canonicalSkillGames([ancient,a,bad],null,{since:now-84*86400000,until:now}).length,0);
  assert.equal(canonicalSkillGames([ancient,a],null,{since:now-84*86400000,until:now}).length,1);
 });
+
+import fs from 'node:fs';
+import cp from 'node:child_process';
+function cricketNative(code){
+ const start=code.indexOf('function newGameDart('),end=code.indexOf('\nfunction ',start+1),g={name:'Cricket Countdown',targets:[25],marks:[0],index:0,allowed:5,thrown:0,hits:0,skillTrace:[]},data={};let snapshots=0;
+ const run=new Function('session','activeGame','snapshot','data','save','endRound',code.slice(start,end)+';return newGameDart')(()=>({phase:'playing',pausedAt:null}),g,()=>snapshots++,data,()=>{},()=>{});
+ return {g,run,snapshots:()=>snapshots};
+}
+test('SOL51 native bull marks fail before snapshot and traces; baseline reproduction is independent',()=>{
+ const current=cricketNative(fs.readFileSync(new URL('../site/index.html',import.meta.url),'utf8'));
+ const baseline=cricketNative(cp.execFileSync('git',['show','3695ed4fbe2b516c4d66fc6397374daf283bed4b:site/index.html'],{encoding:'utf8',maxBuffer:2e6}));
+ baseline.run(3);assert.equal(baseline.g.thrown,1);assert.equal(baseline.snapshots(),1);
+ current.run(3);assert.equal(current.g.thrown,0);assert.equal(current.snapshots(),0);assert.deepEqual(current.g.skillTrace,[]);
+ current.run(2);assert.equal(current.g.thrown,1);assert.deepEqual(current.g.skillTrace,[{action:2}]);
+});
+test('SOL51 duplicate top-level trace totals cannot disagree even for a descriptive metric',()=>{
+ const g={...game('one'),name:'Last Dart Standing',benchmark:false,thrown:1,hits:0,points:900,details:{name:'Last Dart Standing',scores:[40],index:0,lives:0,thrown:1,hits:0,points:0,choice:null,skillTrace:[{choice:'FINISH',value:'miss'}]}};
+ assert.equal(extraQuickRounds(host([g]),day,now).length,0);
+});
+test('SOL51 legacy benchmark IDs stay unchanged when no real provenance collision exists',()=>{
+ const h=host([game('one')]),r=projectEvidence(h,{today:day,now}).observations;
+ assert.equal(r[0].id,'IDC:host-v62:game:'+at+':Scoring Challenge:scoring');
+ assert.equal(JSON.stringify(h),JSON.stringify(host([game('one')])));
+});
