@@ -26,7 +26,7 @@ export function statisticsAnswer(host,state,q,day,now=Date.now(),checks=[]){
  if(target)return reply('detailed-targets',targetDetailLines(detailedTargets([...projectTargets(host,day,now,checks).rows,...manualTargetRows(state.throws??[],day)],day),target[1]?.toUpperCase()));
  if(q==='detailed scoring statistics')return reply('detailed-scoring',scoringDetailLines(scoringDetail(host,day,now)));
  if(checkout)return reply('detailed-checkouts',checkoutDetailLines(checkoutDetail(host,day,now),checkout[1]?Number(checkout[1]):null));
- if(q==='practice volume')return reply('practice-volume',practiceLines(practiceProfile(host,day)));
+ if(q==='practice volume')return reply('practice-volume',practiceLines(practiceProfile(host,day,now)));
  if(q==='practice versus competition')return reply('context-comparison',contextComparisonLines(contextComparison(observations(),day)));
  if(q==='evidence coverage')return reply('evidence-coverage',coverageLines(evidenceCoverage(host,{...state,observations:observations()},day,now,checks)));
  if(q==='actual match statistics')return reply('actual-matches',matchLines(matchProfiles(state.legs??[],day)));
