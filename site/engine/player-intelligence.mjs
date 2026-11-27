@@ -55,13 +55,14 @@ export function evidenceReview(memory,day){
  return {day,profiles,issues,focus:focus?.skill??null,focusProtocol:focus?.protocol??null,wellbeing,exposure,decision:wellbeing.decision==='stop'?'stop':wellbeing.decision==='reduce-load'?'reduce-load':focus?'consider-focus':issues.length?'investigate':'balanced',limitations:['Priority is magnitude relative to provisional practical threshold, not a scientific probability.','Long-window assessment is intentionally conservative; it does not replace a fixed benchmark.','Reported conditions are associations, never diagnoses.']};
 }
 export function drillPlan(memory,day,focus=null){
- const records=memory.difficulty??[],chosen=plan(focus),extras=['switching','firstNine','trebles','pressure','grouping'];
+ const records=memory.difficulty??[],chosen=plan(focus),extras=['switching','setup','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!chosen.some(x=>x.skill===skill));
  // Rotate optional skills without claiming equivalence of their measurements.
  const rotation=Math.floor(Date.parse(day)/86400000)%extras.length;
  const optional=extras[(rotation+extras.length)%extras.length];
  const slot=chosen.find(x=>x.skill==='switching'&&x.minutes===5&&focus!=='switching');
  if(slot)slot.skill=optional;
  return chosen.map(s=>{if(s.skill==='warmup')return {...s,instructions:'Comfortable throws; no difficulty assessment.'};
+ if(s.skill==='application')return {...s,instructions:'Play repeated 301 legs with legal double-out finishing; apply your existing skills.'};
  const rows=records.filter(o=>o.skill===s.skill&&o.protocol===s.skill+'-core'&&o.day<=day).sort((a,b)=>b.day.localeCompare(a.day));
  const current=rows[0]?.level??1;
  const decision=difficultyDecision(records,s.skill,s.skill+'-core',current,day);

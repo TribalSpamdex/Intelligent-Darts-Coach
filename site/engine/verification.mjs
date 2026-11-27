@@ -1,6 +1,6 @@
 import {SKILLS,plan} from './engine.mjs';
 const same=(a,b)=>a.skill===b.skill&&a.context===b.context&&a.protocol===b.protocol;
-const safePlan=p=>Array.isArray(p)&&p.reduce((s,g)=>s+g.minutes,0)===60&&p[0]?.skill==='warmup'&&p[0]?.minutes===10&&p.every(g=>Number.isInteger(g.minutes)&&g.minutes>=5&&['warmup',...SKILLS].includes(g.skill))&&new Set(p.map(g=>g.skill)).size===p.length;
+const safePlan=p=>Array.isArray(p)&&p.reduce((s,g)=>s+g.minutes,0)===60&&p[0]?.skill==='warmup'&&p[0]?.minutes===10&&p.at(-1)?.skill==='application'&&p.at(-1)?.minutes===10&&p.every(g=>Number.isInteger(g.minutes)&&g.minutes>=5&&['warmup','application',...SKILLS].includes(g.skill))&&new Set(p.map(g=>g.skill)).size===p.length;
 export function checkDecision(m,r){
  const faults=[],safety=['stop','reduce-load'].includes(r.decision),candidate=r.issues.find(i=>i.skill===r.focus&&i.protocol===r.focusProtocol&&i.context===r.focusContext);
  if(safety&&(r.focus||r.plan.length||r.active.plan.length))faults.push('safety-plan-conflict');

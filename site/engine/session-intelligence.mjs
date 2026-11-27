@@ -64,7 +64,7 @@ export function drillOptions(skill,level){
 }
 export function validateSession(s){
  if(!s||typeof s.id!=='string'||!s.id.trim()||s.id.length>100||!dayValid(s.day)||!Number.isInteger(s.number)||s.number<1||s.number>3||!['completed','partial'].includes(s.status)||!Array.isArray(s.segments)||s.segments.length<1||s.segments.length>15)throw Error('Invalid training session');
- const seen=new Set();for(const g of s.segments){if(!g||!['warmup',...SKILLS].includes(g.skill)||typeof g.drill!=='string'||!g.drill.trim()||g.drill.length>100||!Number.isInteger(g.minutes)||g.minutes<1||g.minutes>60||seen.has(g.skill))throw Error('Invalid session segment');if(g.skill!=='warmup'&&!DRILLS.some(d=>d.id===g.drill&&d.skill===g.skill))throw Error('Unknown drill');seen.add(g.skill)}
+ const seen=new Set();for(const g of s.segments){if(!g||!['warmup','application',...SKILLS].includes(g.skill)||typeof g.drill!=='string'||!g.drill.trim()||g.drill.length>100||!Number.isInteger(g.minutes)||g.minutes<1||g.minutes>60||seen.has(g.skill))throw Error('Invalid session segment');if(g.skill==='application'){if(g.drill!=='301-application'||g.minutes>10)throw Error('Invalid application segment')}else if(g.skill!=='warmup'&&!DRILLS.some(d=>d.id===g.drill&&d.skill===g.skill))throw Error('Unknown drill');seen.add(g.skill)}
  const minutes=s.segments.reduce((a,b)=>a+b.minutes,0);if(minutes>60||s.status==='completed'&&minutes!==60||s.status==='partial'&&minutes===60)throw Error('Invalid completed session duration');return s;
 }
 export function logSession(m,s){s=validateSession(s);const rows=m.sessions??[];if(rows.some(x=>x.id===s.id||x.day===s.day&&x.number===s.number))throw Error('Duplicate training session');return {...m,sessions:[...rows,s]}}
@@ -77,12 +77,13 @@ export function trainingRecommendation(m,report,day,active,number=1){
  if(previous.some(s=>s.number===number))return {mode:'already-recorded',segments:[],reason:'This session has already been logged.'};
  const focus=active.mode==='accepted-temporary-focus'?m.interventions.find(i=>i.id===active.intervention)?.skill:null;
  const base=plan(focus);
- const rotating=['switching','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!base.some(x=>x.skill===skill));
+ const rotating=['switching','setup','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!base.some(x=>x.skill===skill));
  const slot=base.find(x=>x.skill==='switching'&&x.minutes===5&&focus!=='switching');
  if(slot)slot.skill=[...rotating].sort((a,b)=>history.skills[a]-history.skills[b]||rotating.indexOf(a)-rotating.indexOf(b))[0];
  const measured=measuredPracticeLevels(m.observations??[],day);
  const segments=base.map(g=>{
  if(g.skill==='warmup')return {...g,drill:'warmup',name:'Comfortable warm-up',instructions:'Throw comfortably for 10 minutes.'};
+ if(g.skill==='application')return {...g,drill:'301-application',name:'Practical 301 application',instructions:'Play repeated 301 legs, applying scoring, setup and legal double-out finishing. Keep practice familiar; no added workload.'};
  const rows=(m.difficulty??[]).filter(x=>x.skill===g.skill&&x.protocol===g.skill+'-core'&&x.day<=day).sort((a,b)=>b.day.localeCompare(a.day));
  const taskLevel=difficultyDecision(m.difficulty??[],g.skill,g.skill+'-core',rows[0]?.level??1,day).next;
  const level=Object.hasOwn(measured,g.skill)?rows.length?Math.min(measured[g.skill],taskLevel):measured[g.skill]:taskLevel;
