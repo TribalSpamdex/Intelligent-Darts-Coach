@@ -72,6 +72,18 @@ def run_player_progress_audit(browser):
                 geometry.append({"width":width,"boxes":boxes})
             page.set_viewport_size({"width":390,"height":844})
             checks.append({"name":name,"successDarts":thrown,"naturalRounds":2,"reloadUndo":True,"geometry":geometry})
+        records=page.evaluate("""()=>{
+          const row=clone(data.games[0]),future={...clone(row),sessionId:'future',at:Date.now()+DAY_MS};
+          data.games.push(clone(row),future);show('records');
+          const cards=document.getElementById('recordGames');
+          for(const section of cards.querySelectorAll('details'))section.open=true;
+          return {text:cards.innerText,kept:data.games.length,sourceTier:row.tierAtStart};
+        }""")
+        assert 'Repeated records: 1' in records['text'],records
+        assert 'Invalid or future dates excluded: 1' in records['text'],records
+        assert 'Tier ' not in records['text'],records
+        assert records['kept']==4,records
+        print('Independent rendered record presentation: '+json.dumps(records))
         print('Independent rendered player-progress audit: '+json.dumps(checks))
     finally:
         ctx.close()

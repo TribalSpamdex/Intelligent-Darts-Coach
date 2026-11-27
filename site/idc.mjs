@@ -26,7 +26,9 @@ import {measuredGamePreferences} from './engine/session-intelligence.mjs';
 import {competitionSchedulePolicy} from './competition-calendar.mjs';
 const $=id=>document.getElementById(id);
 const host=window.IDCTrainingBridge;
-const el=(tag,s)=>{const e=document.createElement(tag);if(s!==undefined)e.textContent=s;return e};
+// Display labels only; protocol identities and stored evidence stay exact.
+const publicLabel=s=>String(s).replace(/([·:]\s*)tier\s*(?:[1-7]|unspecified)\b/gi,'$1separate setting');
+const el=(tag,s)=>{const e=document.createElement(tag);if(s!==undefined)e.textContent=publicLabel(s);return e};
 const line=(p,s)=>p.append(el('p',s));
 const button=(p,s,fn)=>{const b=el('button',s);b.type='button';b.onclick=fn;p.append(b);return b};
 const select=(node,items)=>{const old=node.value;node.replaceChildren();for(const item of items){const [v,t]=Array.isArray(item)?item:[item,item];const o=el('option',t);o.value=v;node.append(o)}if([...node.options].some(o=>o.value===old))node.value=old};

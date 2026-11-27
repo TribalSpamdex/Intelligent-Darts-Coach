@@ -7469,9 +7469,23 @@ function recordMetrics(g){
  if(g.name==="Risk or Reward"||g.name==="Setup Shot")return [{label:"Best bank / setup score",value:num(g.points||g.details?.remaining),higher:true}];
  return [{label:"Most successful targets",value:num(g.hits||g.success||g.details?.index||g.wins),higher:true}];
 }
+function dcRecordHistory(records,now=Date.now()){
+ const seen=new Map(),conflicts=new Set();let duplicates=0,excluded=0;
+ for(const g of records){
+  if(!g||!['natural','partial'].includes(g.completion))continue;
+  const time=gameTime(g);
+  if(!Number.isFinite(time)||time<=0||time>now){excluded++;continue}
+  const key=JSON.stringify([String(g.sessionId??''),g.exerciseId??g.exerciseIndex??null,g.name,time]);
+  if(seen.has(key)){
+   duplicates++;
+   if(JSON.stringify(seen.get(key))!==JSON.stringify(g))conflicts.add(key);
+  }else seen.set(key,g);
+ }
+ return {rows:[...seen].filter(([key])=>!conflicts.has(key)).map(([,g])=>g),duplicates,conflicts:conflicts.size,excluded};
+}
 function renderRecords(){
  const overview=$("recordOverview"),out=$("recordGames");if(!out)return;
- const all=data.games.filter(g=>g.completion==="natural"),allRecorded=data.games.filter(g=>g.completion==="natural"||g.completion==="partial"),total180=allRecorded.reduce((a,g)=>a+num(g.oneEighties),0),thisMonth=monthString(Date.now());
+ const eligible=dcRecordHistory(data.games),allRecorded=eligible.rows,all=allRecorded.filter(g=>g.completion==="natural"),total180=allRecorded.reduce((a,g)=>a+num(g.oneEighties),0),thisMonth=monthString(Date.now());
  const inMonth=allRecorded.filter(g=>monthString(gameTime(g))===thisMonth).reduce((a,g)=>a+num(g.oneEighties),0);
  const visits=allRecorded.flatMap(g=>Array.isArray(g.scores)?g.scores:[]);
  overview.innerHTML=`<div class="kpiGrid"><div class="kpi"><strong>${total180}</strong><small>Career 180s</small></div><div class="kpi"><strong>${inMonth}</strong><small>180s this month</small></div><div class="kpi"><strong>${visits.filter(n=>n>=100).length}</strong><small>100+ visits</small></div></div><div class="recordBreakdown"><h3>Scoring milestones</h3><div class="recordStatGrid"><div class="recordStat"><strong>${visits.filter(n=>n>=140).length}</strong><span>140+ visits</span></div><div class="recordStat"><strong>${allRecorded.filter(g=>gameTime(g)>=weekStart(Date.now())).reduce((a,g)=>a+num(g.oneEighties),0)}</strong><span>180s this week</span></div></div><div class="recordSplit"><div><span>Scheduled training 180s</span><strong>${allRecorded.filter(g=>!g.quick).reduce((a,g)=>a+num(g.oneEighties),0)}</strong></div><div><span>Quick Play 180s</span><strong>${allRecorded.filter(g=>g.quick).reduce((a,g)=>a+num(g.oneEighties),0)}</strong></div></div><details class="recordHelp"><summary>How these statistics are counted</summary><p>Only identifiable three-dart 180s are counted. Older records without exact throw information are not guessed.</p></details></div>`;
@@ -7479,9 +7493,9 @@ function renderRecords(){
   const rows=all.filter(x=>x.name===name);const best={};for(const g of rows)for(const m of recordMetrics(g)){
    const key=m.label;const old=best[key];if(!old||(m.higher?m.value>old.value:m.value<old.value))best[key]={...m,at:g.at,tier:g.tierAtStart||g.checkoutTierAtStart||null,quick:g.quick};
   }
-  const metrics=Object.values(best).map(m=>'<div class="recordMetric"><span>'+esc(m.label)+'</span><strong>'+m.value+'</strong><small>'+esc(formatDate(m.at))+(m.tier?' · Tier '+m.tier:'')+(m.quick?' · Quick Play':'')+'</small></div>').join('');
+  const metrics=Object.values(best).map(m=>'<div class="recordMetric"><span>'+esc(m.label)+'</span><strong>'+m.value+'</strong><small>'+esc(formatDate(m.at))+(m.quick?' · Quick Play':'')+'</small></div>').join('');
   return '<details class="recordSection"><summary>'+esc(name)+' <span>'+rows.length+' rounds</span></summary>'+(metrics||'<p class="muted">No completed rounds yet.</p>')+'</details>';
- });out.innerHTML=sections.join('');
+ });out.innerHTML=sections.join('')+((eligible.duplicates||eligible.excluded)?'<p class="secondarySub">Repeated records: '+eligible.duplicates+' · Conflicting identities excluded: '+eligible.conflicts+' · Invalid or future dates excluded: '+eligible.excluded+'. Saved history is unchanged.</p>':'');
 }
 /* V5.15.4: comparable Mastery performance, not pooled percentages that hide targets. */
 function dc24Wilson(h,n,z=1.96){
