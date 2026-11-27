@@ -1,6 +1,7 @@
 import {dayValid,dayGap} from './engine/context.mjs';
 import {validSetting,settingKey,baseKey,LEARNING_GAMES} from './challenge-setting.mjs';
 import {validPrecisionRecord} from './precision-games.mjs';
+import {validActivityTimeline} from './training-ledger.mjs';
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const id=v=>typeof v==='string'&&v.length>0&&v.length<=150||Number.isSafeInteger(v)&&v>0;
 const seconds=v=>Number.isInteger(v)&&v>=0&&v<=3600;
@@ -14,14 +15,14 @@ function validRound(g,s,a,now){
 export function extractLearningExposure(host,day,now=Date.now(),{includeSequence=false}={}){
  if(!host||!Array.isArray(host.sessions)||!Array.isArray(host.games)||!dayValid(day)||!Number.isFinite(now))throw Error('Invalid exposure history');
  const sessions=new Map(),duplicates=new Set(),games=new Map(),conflicts=new Set(),rounds=new Map(),out=[],blockedDays=new Set();
- for(const s of host.sessions){if(!s||!id(s.id)||!dayValid(s.date)||s.date>day||dayGap(s.date,day)>180)continue;const k=String(s.id);if(sessions.has(k))duplicates.add(k);else sessions.set(k,s)}
+ for(const s of host.sessions){if(!s||!id(s.id)||!dayValid(s.date)||s.date>day||dayGap(s.date,day)>180)continue;const k=String(s.id);if(sessions.has(k)){duplicates.add(k);blockedDays.add(s.date);blockedDays.add(sessions.get(k).date)}else sessions.set(k,s)}
  for(const g of host.games){if(!g||!id(g.sessionId)||!sessions.has(String(g.sessionId))||!Number.isFinite(g.at)||g.at>now)continue;const k=JSON.stringify([String(g.sessionId),g.at,g.name,g.exerciseIndex]);if(games.has(k)&&!same(games.get(k),g))conflicts.add(k);else games.set(k,g)}
  for(const [k,g] of games){const i=String(g.sessionId),a=rounds.get(i)??[];a.push({g,conflict:conflicts.has(k)});rounds.set(i,a)}
  for(const [key,s] of sessions){
  if(s.quick===true)continue;
  if(duplicates.has(key)||s.quick!==false||s.extra||s.completed!==true||!Number.isFinite(s.start)||s.start>now||!Array.isArray(s.activities)||s.activities.some(a=>!a||!seconds(a.seconds)||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0)||new Set(s.activities.map(a=>a.exerciseIndex)).size!==s.activities.length){blockedDays.add(s.date);continue}
  const total=s.activities.reduce((n,a)=>n+a.seconds,0);
- if(total>7200){blockedDays.add(s.date);continue}
+ if(total>7200||!validActivityTimeline(s.start,s.activities,now)){blockedDays.add(s.date);continue}
  const list=rounds.get(key)??[];
  for(const a of s.activities){
  if(!LEARNING_GAMES.includes(a.name)||a.seconds<300||!id(a.exerciseId)||!Number.isFinite(a.at)||a.at>now||a.at<s.start)continue;
