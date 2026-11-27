@@ -13,9 +13,30 @@ function localDay(at,offset){if(!Number.isFinite(at)||at<=0)return null;const d=
  return Number.isFinite(+local)?local.toISOString().slice(0,10):null;
 }return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 const targets=[41,46,52,60,68,76,81,90,101,110,120,130];
+// Known contradictory parent records veto training eligibility even when a
+// round claims quick:false. Unknown parents remain explicitly legacy/active
+// evidence, not proof of session completion. No stored record is edited.
+export function trainingParentIndex(sessions=[]){
+ const parents=new Map(),duplicates=new Set();
+ for(const s of sessions){
+  if(!s||!((typeof s.id==='string'&&s.id.length>0)||Number.isSafeInteger(s.id)))continue;
+  const k=String(s.id);if(parents.has(k))duplicates.add(k);else parents.set(k,s);
+ }
+ return {parents,duplicates};
+}
+export function trainingParentEligible(g,index,requireParent=false){
+ if(!g||g.quick!==false)return false;
+ const k=g.sessionId==null?null:String(g.sessionId);
+ if(k===null||!index.parents.has(k))return !requireParent;
+ if(index.duplicates.has(k))return false;
+ const s=index.parents.get(k);
+ return s.quick===false&&!(Number.isFinite(s.start)&&Number.isFinite(g.at)&&g.at<s.start);
+}
+export function recordedDay(at,offset){return localDay(at,offset)}
+
 export function projectEvidence(host,{today,now=Date.now()}={}){
  if(!host||typeof host!=='object'||!Array.isArray(host.games)||!Array.isArray(host.sessions)||!dayOK(today)||!Number.isFinite(now))throw Error('Invalid V6.2 snapshot or date');
- const rows=[],skipped=[],seen=new Map(),ambiguous=new Set();
+ const rows=[],skipped=[],seen=new Map(),ambiguous=new Set(),parents=trainingParentIndex(host.sessions);
  const skip=(source,reason)=>skipped.push({source,reason});
  function add(source,day,skill,protocol,attempts,hits){
   if(!dayOK(day)||day>today||!count(attempts,1000)||!attempts||!count(hits,attempts*(skill==='scoring'?60:1))){skip(source,'invalid measurement');return false}
@@ -39,8 +60,8 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
   if(b.source==='assessment'){skip(source,'assessment mirror excluded');continue}
   if(b.at!=null&&(!Number.isFinite(b.at)||b.at>now||!localDay(b.at,b.offsetMinutes)||localDay(b.at,b.offsetMinutes)>today)){skip(source,'invalid or not yet available timestamp');continue}
   if(typeof b.sessionId!=='string'&&typeof b.sessionId!=='number'){skip(source,'missing native training session identity');continue}
-  const sessions=host.sessions.filter(s=>s?.id===b.sessionId);if(sessions.length!==1||sessions[0].quick!==false){skip(source,'unconfirmed non-quick session');continue}
-  const session=sessions[0];
+  if(!trainingParentEligible({...b,quick:false},parents,true)){skip(source,'unconfirmed non-quick session');continue}
+  const session=parents.parents.get(String(b.sessionId));
   // Native daily singles are attributed to the session start date, even
   // when the final dart is recorded after midnight. Reject contradictory
   // dates and timestamps instead of moving later evidence into an earlier day.
@@ -50,7 +71,7 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
  for(const g of host.games){
   if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;
   const source='game:'+g.at+':'+g.name,day=g.day;
-  if(g.completion!=='natural'||g.benchmark!==true||g.quick!==false||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)||localDay(g.at,g.offsetMinutes)!==day){skip(source,'not a comparable fixed training game');continue}
+  if(g.completion!=='natural'||g.benchmark!==true||!trainingParentEligible(g,parents)||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)||localDay(g.at,g.offsetMinutes)!==day){skip(source,'not a comparable fixed training game');continue}
   if(g.name==='Scoring Challenge'&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((s,n)=>s+n,0)===g.points)add(source,day,'scoring','Scoring Challenge fixed 30 darts',30,g.points);
   else if(g.name==='Bull Accuracy'&&g.thrown===30&&count(g.outer,30)&&count(g.inner,30)&&g.outer+g.inner<=30&&count(g.misses,30)&&g.outer+g.inner+g.misses===30)add(source,day,'bull','Bull Accuracy any bull 30',30,g.outer+g.inner);
   else skip(source,'invalid game counts');

@@ -1,3 +1,4 @@
+import {trainingParentIndex,trainingParentEligible,recordedDay} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
@@ -10,13 +11,13 @@ const count=(x,n)=>Number.isInteger(x)&&x>=0&&x<=n;
 const fixed='Fixed doubles assessment';
 export function projectTargets(host,day,now=Date.now(),checks=[]){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(host.games)||!Array.isArray(host.sessions))throw Error('Invalid target evidence input');
- const groups=new Map(),conflicts=new Set();
+ const groups=new Map(),conflicts=new Set(),parents=trainingParentIndex(host.sessions);
  const eligible=d=>dayValid(d)&&dayGap(d,day)>=0&&dayGap(d,day)<84;
  function record(id,rows){if(conflicts.has(id))return;const prev=groups.get(id);if(prev){if(JSON.stringify(prev)!==JSON.stringify(rows)){groups.delete(id);conflicts.add(id)}return}groups.set(id,rows)}
  const row=(day,protocol,target,attempts,hits)=>({day,protocol,target,attempts,hits});
  for(const a of [...(host.assessmentHistory??[]),host.assessment].filter(Boolean)){
  if(a.version!==6||a.finished!==true||a.quickStart||a.carriedForward||!Number.isFinite(a.completedAt)||a.completedAt>now||a.completedAt<=0)continue;
- const d=localDay(a.completedAt);if(!eligible(d))continue;
+ const d=recordedDay(a.completedAt,a.offsetMinutes);if(!eligible(d))continue;
  const ds=a.doubles,ss=a.singles,bs=a.bull,rows=[];
  if(Array.isArray(ds)&&ds.length===20&&new Set(ds.map(x=>x?.target)).size===20&&ds.every(x=>/^D(?:[1-9]|1[0-9]|20)$/.test(x?.target)&&Array.isArray(x.darts)&&x.darts.length===3&&x.darts.every(v=>v?.segment===x.target||v?.segment==='MISS')))for(const x of ds)rows.push(row(d,fixed,x.target,3,x.darts.filter(v=>v.segment===x.target).length));
  if(Array.isArray(ss)&&ss.length===60&&ss.every((x,i)=>x?.target===Math.floor(i/3)+1&&typeof x.hit==='boolean'))for(let n=1;n<=20;n++)rows.push(row(d,'Fixed large singles assessment','S'+n,3,ss.slice((n-1)*3,n*3).filter(x=>x.hit).length));
@@ -25,11 +26,12 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  }
  for(const b of host.bigSingles??[]){
  if(b?.complete!==true||b.source==='assessment'||!eligible(b.day)||!count(b.hits,60)||!Array.isArray(b.perNumber)||b.perNumber.length!==20||!b.perNumber.every(x=>count(x,3))||b.perNumber.reduce((a,x)=>a+x,0)!==b.hits||b.at!=null&&(!Number.isFinite(b.at)||b.at>now))continue;
- if(host.sessions.filter(s=>s.id===b.sessionId&&s.quick===false).length!==1)continue;
+ if(!trainingParentEligible({...b,quick:false},parents,true))continue;
+ const parent=parents.parents.get(String(b.sessionId));if(parent.date!==b.day||!Number.isFinite(parent.start)||parent.start<=0||parent.start>now||recordedDay(parent.start,parent.startOffsetMinutes)!==b.day||b.at!=null&&(recordedDay(b.at,b.offsetMinutes)===null||recordedDay(b.at,b.offsetMinutes)>day))continue;
  record('daily:'+b.day,b.perNumber.map((hits,i)=>row(b.day,'Daily large singles benchmark','S'+(i+1),3,hits)));
  }
  for(const g of host.games){
- if(!g||g.quick!==false||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!eligible(g.day))continue;
+ if(!g||!trainingParentEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!eligible(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
  const ring=['Doubles Survival','Doubles Streak'].includes(g.name)&&g.variant==='doubles'?'D':g.name==='Treble Hunt'&&g.variant!=='single'?'T':null;
  if(!ring||!Array.isArray(g.targetLog)||!g.targetLog.length||g.targetLog.length!==g.thrown||!g.targetLog.every(x=>x?.ring===ring&&Number.isInteger(x.target)&&x.target>=1&&x.target<=20&&typeof x.hit==='boolean')||g.targetLog.filter(x=>x.hit).length!==g.hits)continue;
  const bins=new Map();

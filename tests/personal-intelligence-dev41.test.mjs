@@ -80,7 +80,7 @@ test('checkout follow-up remembers score and remaining darts and handles actual 
 });
 test('checkout context does not survive a new question, date, bust or finish',()=>{
  const a=turn('Checkout 40 with 2 darts');assert.equal(turn('I hit D20',a.context).context,null);assert.equal(turn('I hit T20',a.context).context,null);
- const b=turn('Show me my equipment history',a.context);assert.equal(b.context,null);
+ const b=turn('Show me my equipment history',a.context);assert.deepEqual(b.context,{day,topic:'equipment-evidence'});
  assert.equal(turn('With one dart',b.context).answer.kind,'answer');assert.equal(turn('With one dart',a.context,ago(-1)).answer.type,'clarification');
 });
 test('invalid segment asks for clarification; natural dart count changes only the scenario',()=>{

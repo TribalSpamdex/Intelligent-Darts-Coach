@@ -1,3 +1,4 @@
+import {trainingParentIndex} from './v62-evidence.mjs';
 // Authoritative observed training ledger. Read-only; no new stored player facts.
 import {dayValid,dayGap} from './engine/context.mjs';
 import {validSetting} from './challenge-setting.mjs';
@@ -64,13 +65,14 @@ function validRound(g,s,a,now){
 export function trainingLedger(host,day,now=Date.now()){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(host?.sessions)||!Array.isArray(host?.games))throw Error('Invalid training ledger');
  const sessions=new Map(),duplicate=new Set(),duplicateDays=new Set(),rounds=new Map(),roundConflicts=new Set();
- const rejected={session:0,duplicate:0,activity:0,round:0};
+ const rejected={session:0,duplicate:0,activity:0,round:0},parents=trainingParentIndex(host.sessions);
  for(const s of host.sessions){
   if(!s||s.quick!==false||!dayValid(s.date)||s.date>day||dayGap(s.date,day)>=365)continue;
   if(!id(s.id)){rejected.session++;continue}
   const k=String(s.id);
   if(sessions.has(k)){duplicate.add(k);duplicateDays.add(s.date);duplicateDays.add(sessions.get(k).date)}else sessions.set(k,s);
  }
+ for(const [key,s] of sessions)if(parents.duplicates.has(key)){duplicate.add(key);duplicateDays.add(s.date)}
  const groups=new Map();
  for(const g of host.games){
   if(!g||!id(g.sessionId)||!sessions.has(String(g.sessionId))||!positiveTime(g.at,now))continue;

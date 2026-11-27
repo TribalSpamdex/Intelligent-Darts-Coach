@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const html=fs.readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
 const extract=(source,name)=>{const start=source.indexOf('function '+name+'('),end=source.indexOf('\nfunction ',start+1);assert.ok(start>=0&&end>start,name);return source.slice(start,end)};
-const names=['gameTime','quickEvidenceEligible','dc68CheckoutLogValid','dc5CheckoutEvidence','dc68RecordedCount','dc68EvidenceCounts','skillSamples','quickWeight','dc63QuickEvidence','dailySamples','completedRows'];
+const names=['gameTime','quickEvidenceEligible','dc68CheckoutLogValid','dc5CheckoutEvidence','dc68RecordedCount','dc68EvidenceCounts','skillSamples','quickWeight','dc63QuickEvidence','dc69UniqueTrainingGames','dailySamples','completedRows'];
 const api=(source,data)=>new Function('data','num','dateKey','clamp',names.map(n=>extract(source,n)).join('\n')+'\nreturn {skillSamples,completedRows,dailySamples,quickEvidenceEligible,quickWeight}')(data,x=>Number(x)||0,x=>new Date(x).toISOString().slice(0,10),(x,a,b)=>Math.max(a,Math.min(b,x)));
 const at=Date.now()-3600000;
 const games=[
@@ -40,4 +40,15 @@ test('extra training focus is invariant to recreational session count',()=>{
  const run=data=>new Function('data','dateKey','FOCUS',line+'\nreturn focusForDay(true)')(data,()=> 'today',['a','b','c','d','e']);
  const p={days:[1,2,3,4,5],sessions:[{date:'today',quick:false}]};
  assert.equal(run(p),run({...p,sessions:[...p.sessions,...Array.from({length:4},()=>({date:'today',quick:true}))]}));
+});
+
+test('duplicate parent IDs and duplicate/conflicting rounds cannot inflate native coaching',()=>{
+ const expected=view(api(html,base));
+ assert.deepEqual(view(api(html,{...base,games:[...games,...structuredClone(games)]})),expected);
+ const duplicate={...base,sessions:[...base.sessions,{...base.sessions[0],id:'1'}]};
+ assert.ok(Object.values(api(html,duplicate).skillSamples()).every(x=>x.length===0));
+ const conflicted={...base,games:[...games,{...games[0],points:1000}]};
+ assert.equal(api(html,conflicted).skillSamples().scoring.length,0);
+ assert.equal(api(html,conflicted).completedRows('scoring').length,0);
+ assert.equal(conflicted.games.length,5);
 });

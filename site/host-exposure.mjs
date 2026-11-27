@@ -1,12 +1,13 @@
+import {trainingParentIndex} from './v62-evidence.mjs';
 // Conservative observed practice time from finished IDC sessions.
 // Mixed or ambiguous game names remain unclassified; do not assume all practice was logged.
 import {validActivityTimeline} from './training-ledger.mjs';
 const fixed=new Map([['Scoring Challenge','scoring'],['Scoring Survival','scoring'],['Scoring Ladder','scoring'],['Bull Accuracy','bull'],['Bull Survival','bull'],['Bull Streak','bull'],['Checkout Climb','checkout'],['Focused Checkouts','checkout'],['Big Singles','singles']]);
 export function projectExposure(host,day,now=Date.now()){
- const totals=new Map(),seen=new Map(),ambiguous=new Set(),blockedDays=new Set();let unclassifiedSeconds=0;
+ const totals=new Map(),seen=new Map(),ambiguous=new Set(),blockedDays=new Set();let unclassifiedSeconds=0;const parentIndex=trainingParentIndex(host.sessions);
  for(const s of host.sessions){
  if(!s||s.quick!==false||!Array.isArray(s.activities)||typeof s.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!Number.isFinite(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||s.date>day||!['number','string'].includes(typeof s.id))continue;
- const id=String(s.id);if(seen.has(id)){ambiguous.add(id);blockedDays.add(s.date);blockedDays.add(seen.get(id))}else seen.set(id,s.date);
+ const id=String(s.id);if(parentIndex.duplicates.has(id)){ambiguous.add(id);blockedDays.add(s.date)}if(seen.has(id)){ambiguous.add(id);blockedDays.add(s.date);blockedDays.add(seen.get(id))}else seen.set(id,s.date);
  }
  seen.clear();
  for(const s of host.sessions){

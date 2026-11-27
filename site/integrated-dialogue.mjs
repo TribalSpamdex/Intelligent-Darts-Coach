@@ -114,11 +114,25 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
   ];
   return aliases.find(([re])=>re.test(bare))?.[1]??bare;
  }
- // Ephemeral explicitly scoped checkout context. Never persisted or used
- // to create observations. A different question clears the context.
+ // Ephemeral explicitly scoped checkout or review context. Never persisted
+ // or used to create observations. A different question replaces it.
  export function conversationTurn(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={},events=[],previous=null){
   const q=typeof text==='string'&&text.length<=300?normaliseQuestion(text):'';
   const context=previous?.day===day&&Number.isInteger(previous.score)&&previous.score>=2&&previous.score<=1001&&Number.isInteger(previous.darts)&&previous.darts>=1&&previous.darts<=3?previous:null;
+  const topics={
+   'calibration-review':{question:'Is my difficulty calibrated correctly?',next:'Repeat the same fixed benchmark on separate days, under familiar conditions. If results disagree, check the measurement rules and recent conditions before changing challenge.'},
+   'equipment-evidence':{question:'Has my equipment change helped?',next:'Keep a comfortable reference setup. Record only one intentional change, then repeat the same benchmark on separate days. If discomfort occurs, stop the aggravating practice.'},
+   'mental-evidence':{question:'How do nerves and confidence affect my performance?',next:'Keep normal preparation and compare naturally occurring conditions with the same benchmark. Do not deliberately induce pressure or fatigue.'},
+   'technique-evidence':{question:'Do my technique observations match my results?',next:'Observe a comfortable baseline. Record one specific technical observation, preferably with a consistent video angle, and compare the same fixed benchmark on separate days.'},
+   'method-cautions':{question:'Which methods should we reconsider?',next:'Continue the ordinary balanced plan and repeat independent checks before reinstating an optional drill preference.'}
+  };
+  const topic=previous?.day===day&&Object.hasOwn(topics,previous.topic)?previous.topic:null;
+  if(/^(?:why|why is that|what is the evidence|show me the evidence|what evidence do you have|what should i do about that|how do i test that|what do i do now)$/.test(q)){
+   if(!topic)return {answer:reply('clarification',['Start with a specific coaching review so I know which evidence you mean.']),context:null};
+   const t=topics[topic],a=integratedAsk(host,state,t.question,day,now,checks,reflections,baselines,events);
+   const action=/what should i do|how do i test|what do i do now/.test(q);
+   return {answer:reply('review-followup',[...(action?[t.next]:[]),...a.lines,'No player records or training allocation changed.']),context:{day,topic}};
+  }
   const count=q.match(/^(?:what about |and |what if i have )?(?:with )?(one|two|three|[123]) darts?(?: left| in hand| remaining)?$/);
   const hit=q.match(/^(?:what if i hit|i hit|after|instead i hit) ([a-z0-9]+)$/);
   if(count||hit){
@@ -139,5 +153,5 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
   }
   const intent=interpret(q,day);
   const answer=integratedAsk(host,state,text,day,now,checks,reflections,baselines,events);
-  return {answer,context:intent.kind==='query'&&intent.request.type==='checkout'&&answer.kind==='answer'?{day,...intent.request.payload}:null};
+  return {answer,context:intent.kind==='query'&&intent.request.type==='checkout'&&answer.kind==='answer'?{day,...intent.request.payload}:Object.hasOwn(topics,answer.type)?{day,topic:answer.type}:null};
  }

@@ -1458,7 +1458,7 @@ function dc68EvidenceCounts(g,legacyNumbers=false){
   (!Object.prototype.hasOwnProperty.call(g,'misses')||Number.isInteger(g.misses)&&g.misses>=0&&g.misses+g.outer+g.inner===30);
  return false;
 }
-function skillSamples(){const quickContext=dc63QuickEvidence();const result={scoring:[],doubles:[],checkout:[],bull:[]};for(const g of data.games){if(g.challengeTuning==='precision'||!dc68EvidenceCounts(g))continue;const time=gameTime(g);if(!time||time>Date.now()||g.completion==="manual")continue;
+function skillSamples(){const quickContext=dc63QuickEvidence();const result={scoring:[],doubles:[],checkout:[],bull:[]};for(const g of (typeof dc69UniqueTrainingGames==='function'?dc69UniqueTrainingGames(data.games,quickContext):data.games)){if(g.challengeTuning==='precision'||!dc68EvidenceCounts(g))continue;const time=gameTime(g);if(!time||time>Date.now()||g.completion==="manual")continue;
   if(!quickEvidenceEligible(g,quickContext))continue;
 if(g.benchmark===false&&!(["Scoring Survival","Scoring Ladder","Outside Doubles","Double Double"].includes(g.name)&&g.completion==="natural"))continue;
  if(g.name==="Scoring Challenge"&&Number.isInteger(g.visits)&&g.visits===10&&Number.isInteger(g.points)&&g.points>=0&&g.points<=1800)result.scoring.push({time,points:num(g.points),volume:num(g.visits),id:time,source:g.name+(Number.isFinite(g.tier)?':tier'+g.tier:'')+(typeof g.variant==='string'?':'+g.variant:''),quick:!!g.quick,weight:quickWeight(g,quickContext)});
@@ -1481,12 +1481,27 @@ function quickWeight(g,context=null){
 
 /* Coach evidence is indexed for one calculation, never cached across mutations. */
 function dc63QuickEvidence(){
- const sessions=new Map();
+ const sessions=new Map(),seen=new Map();
  for(const row of data.sessions||[]){
-  if(row?.quick&&row.id!=null)sessions.set(String(row.id),row);
+  if(!row||row.id==null)continue;
+  const key=String(row.id);
+  if(row.quick||seen.has(key))sessions.set(key,row);
+  seen.set(key,row);
  }
  if(data.activeSession?.quick&&data.activeSession.id!=null)sessions.set(String(data.activeSession.id),data.activeSession);
  return {sessions,volumes:new Map()};
+}
+function dc69UniqueTrainingGames(games,context){
+ const unique=new Map(),conflicts=new Set(),legacy=[];
+ for(const g of games||[]){
+  if(!quickEvidenceEligible(g,context))continue;
+  if(!Number.isFinite(g.at)||g.at<=0){legacy.push(g);continue}
+  const key=JSON.stringify([g.name,g.at,g.sessionId==null?null:String(g.sessionId)]);
+  const projection=JSON.stringify([g.completion,g.benchmark,g.challengeTuning,g.variant,g.tier,g.visits,g.points,g.thrown,g.hits,g.success,g.fail,g.outer,g.inner,g.misses,g.attemptLog,g.tierAtStart,g.ruleVersion,g.precision,g.learningSetting,g.win,g.recovery,g.extra]);
+  if(unique.has(key)){if(unique.get(key).projection!==projection)conflicts.add(key)}
+  else unique.set(key,{g,projection});
+ }
+ return legacy.concat([...unique].filter(([key])=>!conflicts.has(key)).map(([,row])=>row.g));
 }
 function dc64RecentEstimate(key,rows,prior,now){
  // These are bounded comparison blocks. Equal recency prevents the candidate's
@@ -1910,6 +1925,12 @@ function dc2UpdateSkills(early=false){
   if(key==='doubles'&&old>=6&&proposed.next<old){
    const freshReal=decisionRows.filter(d=>d.time>=now-28*DAY_MS);
    if(freshReal.length<3)proposed.next=old;
+  }
+  // Independently measured fixed results can contradict the native
+  // adaptive-game estimate. Defer only the candidate, not the saved tier.
+  if(proposed.next!==old&&typeof window!=='undefined'&&window.IDCPrecision?.tierGuard){
+   const fixed=window.IDCPrecision.tierGuard(key,old,proposed.next);
+   if(fixed.status==='defer')proposed={...proposed,next:old,reason:'fixed-benchmark-contradiction'};
   }
   // Never change tiers during a session; called only on session completion or weekly review.
   const next=proposed.next;
@@ -6554,7 +6575,7 @@ function setHand(hand){if(!["left","right"].includes(hand))return;data.throwingH
 async function shareDartsApp(){const url="https://tribalspamdex.github.io/Intelligent-Darts-Coach/";try{if(navigator.share){await navigator.share({title:"Darts Coach",text:"Personalised darts training",url});return}}catch(e){if(e.name==="AbortError")return}try{await navigator.clipboard.writeText(url);alert("App link copied to clipboard.")}catch(e){prompt("Copy this app link:",url)}}
 function completedRows(skill){
  const quickContext=dc63QuickEvidence(),out=[];
- for(const g of data.games){if(g.challengeTuning==='precision'||!dc68EvidenceCounts(g,true))continue;if(g.benchmark===false||g.completion==="manual"||g.completion==="partial"||g.completion==="timed")continue;
+ for(const g of (typeof dc69UniqueTrainingGames==='function'?dc69UniqueTrainingGames(data.games,quickContext):data.games)){if(g.challengeTuning==='precision'||!dc68EvidenceCounts(g,true))continue;if(g.benchmark===false||g.completion==="manual"||g.completion==="partial"||g.completion==="timed")continue;
   if(!quickEvidenceEligible(g,quickContext))continue;
   const time=gameTime(g);if(!time||time>Date.now())continue;
   if(skill==="scoring"&&g.name==="Scoring Challenge"&&num(g.visits)===10)out.push({time,volume:10,value:num(g.points)/10});
@@ -6563,7 +6584,7 @@ function completedRows(skill){
   if(skill==="bull"&&g.name==="Bull Accuracy"&&num(g.thrown)===30)out.push({time,volume:30,hits:num(g.outer)+num(g.inner)});
  }
  if(skill==="singles")for(const g of data.bigSingles||[]){
-  if(!g||g.complete!==true||!dc68RecordedCount(g.hits)||num(g.hits)>60||!g.day)continue;
+  if(!g||!quickEvidenceEligible(g,quickContext)||g.complete!==true||!dc68RecordedCount(g.hits)||num(g.hits)>60||!g.day)continue;
   if(g.perNumber!==undefined&&(!Array.isArray(g.perNumber)||g.perNumber.length!==20||!g.perNumber.every(h=>Number.isInteger(h)&&h>=0&&h<=3)||g.perNumber.reduce((a,h)=>a+h,0)!==num(g.hits)))continue;
   const t=Number.isFinite(g.at)?g.at:new Date(g.day+"T00:00:00").getTime();
   if(Number.isFinite(t)&&t<=Date.now())out.push({time:t,volume:60,hits:num(g.hits)});
@@ -8550,7 +8571,7 @@ function idcPhysicalAllowed(){
  alert("The independent coach cannot approve throwing right now. Review readiness in Coach before continuing.");return false;
 }
 function idcBoundary(){if(currentTab!=="train")return null;const s=session();if(s&&s.phase==="complete"&&!s.quick){const a=s.completed.find(x=>x.exerciseIndex===s.index);if(a)return {kind:"exercise",sessionId:String(s.id),index:s.index,name:a.name,at:a.at,day:dateKey(s.start),quick:false}}if(!s&&!$("sessionFinished").classList.contains("hidden")){const x=data.sessions.at(-1);if(x&&!x.quick)return {kind:"session",sessionId:String(x.id),index:null,name:"Training session",at:Math.max(x.start,...(x.activities||[]).map(a=>Number(a.at)||0)),day:x.date,quick:false}}return null}
-window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>data.games.filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,ruleVersion:g.ruleVersion??null,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
+window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>dc69UniqueTrainingGames(data.games,dc63QuickEvidence()).filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,ruleVersion:g.ruleVersion??null,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
  if(session()?.phase==="playing"&&!session().pausedAt)pauseSession();
  if(activeStage==="warmup"||assessmentWarmup().startedAt)pauseAssessmentWarmup();
  }checkpointData();return true},active:()=>!!session(),nativePlanPreview:()=>{const s=session();if(!s&&assessmentDue())return {status:'assessment-required',segments:[]};const plan=s?s.plan.slice(s.index):generateSession(false,false,true);return {status:s?s.allocated?'locked':'initial':'initial',segments:plan.map(e=>({name:e.name,mode:e.mode,minutes:e.mode==='timed'?Math.round(e.seconds/60):null}))}},legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});
