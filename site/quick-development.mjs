@@ -1,3 +1,4 @@
+import {currentReferenceBoundary} from './adaptive-review.mjs';
 // Read-only contextual signals. Native validated samples are the only inputs;
 // these records never enter fixed calibration, dose, or intervention memory.
 import {quickAdaptiveMeasurements,projectEvidence,recordedDay} from './v62-evidence.mjs';
@@ -11,7 +12,7 @@ const advice=p=>p.target?(['25','50','B25','B50'].includes(String(p.target))?'Re
 export function quickDevelopment(host,state,day,now=Date.now()){
  if(!dayValid(day)||!Number.isFinite(now))throw Error('Invalid Quick Play review date');
  const boundary=learningBoundary(state,day),a=host.assessment;
- const reassessed=a?.finished&&!a.quickStart&&!a.carriedForward&&Number.isFinite(a.completedAt)&&a.completedAt<=now?recordedDay(a.completedAt,a.offsetMinutes):null;
+ const reassessed=currentReferenceBoundary({assessment:a},{},day,now);
  const after=d=>dayValid(d)&&d<=day&&(!boundary||d>boundary)&&(!reassessed||d>reassessed)&&dayGap(d,day)<56;
  const groups=new Map();
  const current={...host,games:(host.games??[]).filter(g=>Number.isFinite(g?.at)&&g.at>=now-84*86400000&&g.at<=now),sessions:host.sessions??[],bigSingles:[]};

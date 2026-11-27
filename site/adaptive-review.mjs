@@ -20,8 +20,8 @@ export function currentReferenceBoundary(host,state,day,now=Date.now()){
  if(a?.version===6&&a.finished===true&&!a.quickStart&&!a.carriedForward&&Number.isFinite(a.completedAt)&&a.completedAt>0&&a.completedAt<=now){const d=recordedDay(a.completedAt,a.offsetMinutes);if(dayValid(d)&&d<=day)dates.push(d);}
  return dates.filter(Boolean).sort().at(-1)??null;
 }
-export function currentConditionRows(observations,state,day){
- const boundary=learningBoundary(state,day);
+export function currentConditionRows(observations,state,day,host=null,now=Date.now()){
+ const boundary=currentReferenceBoundary(host,state,day,now);
  return canonicalRows(observations,day).filter(o=>!boundary||o.day>boundary);
 }
 function grouped(rows){const m=new Map();for(const o of rows){const k=scopeKey(o),g=m.get(k)??[];g.push(o);m.set(k,g)}return [...m.values()]}
