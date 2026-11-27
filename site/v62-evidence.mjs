@@ -49,13 +49,27 @@ export function skillPlayEligible(g,index){
 }
 // Deduplicate authoritative identities BEFORE eligibility/count validation. A corrupt
 // mirror must veto its valid twin, rather than disappear before conflict detection.
-const measurementFields=['name','ruleVersion','precision','learningSetting','quick','day','offsetMinutes','completion','benchmark','recovery','challengeTuning','variant','tierAtStart','tier','visits','points','scores','thrown','hits','success','fail','outer','inner','misses','attempts','masteryMode','target','targetLog','attemptLog','rangeStart','rangeEnd','pressure','counts','darts','dartsUsed','targets','details'];
+const measurementFields=['name','ruleVersion','precision','learningSetting','quick','day','offsetMinutes','completion','benchmark','recovery','challengeTuning','variant','tierAtStart','tier','visits','points','scores','thrown','hits','success','fail','outer','inner','misses','attempts','masteryMode','target','targetLog','attemptLog','rangeStart','rangeEnd','pressure','counts','darts','dartsUsed','targets','locked','ring','details'];
+// Use the same provenance at every projection boundary. Numeric/string native
+// session aliases are equivalent; different sessions are different rounds.
+export const roundIdentity=g=>JSON.stringify([g.name,g.at,g.sessionId==null?null:String(g.sessionId)]);
+export function fixedGameSources(games){
+ const groups=new Map();
+ for(const g of games){if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;const base='game:'+g.at+':'+g.name,keys=groups.get(base)??new Set();keys.add(roundIdentity(g));groups.set(base,keys)}
+ // Preserve historic benchmark IDs when unambiguous, including intervention
+ // baselines. Only genuine collisions require a provenance suffix.
+ return new Map(games.filter(Boolean).map(g=>{const base='game:'+g.at+':'+g.name;return [roundIdentity(g),base+(groups.get(base)?.size>1?':s'+String(g.sessionId??'legacy'):'')]}));
+}
 const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
-export function canonicalSkillGames(games=[],conflicts=null){
+export function canonicalSkillGames(games=[],conflicts=null,window=null){
  const seen=new Map(),bad=new Set(),legacy=[];
  for(const g of games){
+  // Timestamp is part of identity. Windowing it before deep serialization
+  // cannot hide a conflicting mirror at the same identity. Day/source/count
+  // validation still happens only after conflict detection.
+  if(window&&Number.isFinite(g?.at)&&(g.at<window.since||g.at>window.until))continue;
   if(!g||!Number.isFinite(g.at)||g.at<=0){legacy.push(g);continue}
-  const key=JSON.stringify([g.name,g.at,g.sessionId==null?null:String(g.sessionId)]),value=JSON.stringify(measurementFields.map(k=>stable(g[k])));
+  const key=roundIdentity(g),value=JSON.stringify(measurementFields.map(k=>stable(g[k])));
   if(seen.has(key)){if(seen.get(key).value!==value)bad.add(key)}else seen.set(key,{g,value});
  }
  if(conflicts)for(const key of bad)conflicts.add(key);
@@ -68,7 +82,7 @@ const targetValid=d=>d&&['S','D','T'].includes(d.ring)&&Number.isInteger(d.targe
 // Duplicate mirrors collapse, contradictory identities are discarded.
 export function masteryRows(host,now=Date.now(),windowDays=112){
  const parents=trainingParentIndex(host.sessions??[]),seen=new Map(),bad=new Set(),out=[];
- for(const g of canonicalSkillGames(host.games??[])){
+ for(const g of canonicalSkillGames(host.games??[],null,{since:now-windowDays*86400000,until:now})){
   if(!g||g.name!=='Target Mastery'||!Number.isFinite(g.at)||g.at<=0||g.at>now||g.at<now-windowDays*86400000)continue;
   const k=JSON.stringify([g.at,String(g.sessionId??'')]),value=JSON.stringify([g.quick,g.completion,g.recovery,g.challengeTuning,g.masteryMode,g.thrown,g.hits,g.attempts,g.targetLog,g.attemptLog,g.day,g.offsetMinutes]);
   if(seen.has(k)){if(seen.get(k).value!==value)bad.add(k)}else seen.set(k,{g,value});
@@ -127,11 +141,25 @@ function extraRound(g){
   m('101 completed within '+d.allowed+' darts (legacy)',d.success,1,'rounds');return done();
  }
  if(!d||d.name!==g.name||!Array.isArray(log)||!log.length||log.length>5000||!log.every(x=>x&&typeof x==='object'&&!Array.isArray(x)))return null;
+ // Fields duplicated by native serialization must agree. Missing legacy
+ // fields stay missing; never repair a contradiction by choosing one copy.
+ for(const key of ['thrown','hits','points','visits','success','remaining'])if(g[key]!==undefined&&d[key]!==undefined&&g[key]!==d[key])return null;
+ const lifeGame=['Shanghai Combo','Last Dart Rescue','Last Dart Standing'].includes(g.name);
+ let budget=null;
+ if(lifeGame){
+  if(!count(d.lives,1000))return null;
+  const penalties=log.filter(x=>x.hit===false).length;
+  // Rescue's changing target needs replay below; legacy budgets are checked
+  // after replay. Versioned new rounds retain the actual initial allowance.
+  if(d.skillTraceVersion!==undefined){if(d.skillTraceVersion!==1||!count(d.skillStartLives,1000)||!d.skillStartLives)return null;budget=d.skillStartLives}
+  else if(g.name==='Shanghai Combo')budget=d.lives+penalties;
+ }
  let i=0,h=0,n=0,misses=0,terminal=false;
  switch(g.name){
  case 'Shanghai Combo':{
   if(!number(d.target))return null;
-  for(const x of log){if(i>=3||!bool(x.hit))return null;t((d.variant==='singles'?'S':['S','D','T'][i])+d.target,Number(x.hit));n++;if(x.hit){i++;h++}else misses++}
+  for(const x of log){if(i>=3||budget!==null&&misses>=budget||!bool(x.hit))return null;t((d.variant==='singles'?'S':['S','D','T'][i])+d.target,Number(x.hit));n++;if(x.hit){i++;h++}else misses++}
+  if(budget!==null&&d.lives!==budget-misses)return null;
   if(d.stage!==i||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||d.combinations!==Number(i===3)||!(i===3||d.lives===0))return null;break;
  }
  case 'Number Lock':{
@@ -210,18 +238,21 @@ function extraRound(g){
  }
  case 'Last Dart Rescue':{
   if(!Array.isArray(d.targets)||!d.targets.length||!d.targets.every(x=>x===50||Number.isInteger(x)&&x>=2&&x<=40&&x%2===0))return null;
-  let aim=null,decisions=0,correct=0;
-  for(const x of log){if(i>=d.targets.length)return null;const target=d.targets[i]===50?'BULL':'D'+d.targets[i]/2;
+  let aim=null,decisions=0,correct=0,lastPenalty=-1;
+  for(const x of log){if(i>=d.targets.length||budget!==null&&misses>=budget)return null;const target=d.targets[i]===50?'BULL':'D'+d.targets[i]/2;
    if(Object.hasOwn(x,'choice')){if(aim||!(exact(x.choice)&&x.choice[0]==='D'||x.choice==='BULL'))return null;decisions++;if(x.choice===target){aim=target;correct++}else misses++}
-   else{if(!aim||!bool(x.hit))return null;t(aim==='BULL'?'50':aim,Number(x.hit));n++;if(x.hit){h++;i++}else misses++;aim=null}}
+   else{if(!aim||!bool(x.hit))return null;t(aim==='BULL'?'50':aim,Number(x.hit));n++;if(x.hit){h++;i++}else misses++;aim=null}
+   if(Object.hasOwn(x,'choice')?x.choice!==target:x.hit===false)lastPenalty=decisions+n-1;}
+  if(budget!==null&&d.lives!==budget-misses||d.lives===0&&lastPenalty!==log.length-1)return null;
   if(aim||d.aim!==null||d.index!==i||d.thrown!==n||g.thrown!==n||d.hits!==h||g.hits!==h||!(i===d.targets.length||d.lives===0))return null;
   m('one-dart finish selection',correct,decisions,'decisions');break;
  }
  case 'Last Dart Standing':{
   if(!Array.isArray(d.scores)||!d.scores.length||!d.scores.every(x=>Number.isInteger(x)&&x>=2&&x<=50&&(x%2||x<=40||x===50)))return null;
-  let decisions=0,correct=0,executed=0;
-  for(const x of log){if(i>=d.scores.length||!['FINISH','SETUP'].includes(x.choice)||!['hit','miss'].includes(x.value))return null;
-   const right=x.choice===(d.scores[i]%2===0?'FINISH':'SETUP');decisions++;if(right){correct++;if(x.value==='hit'){executed++;h++;i++}}n++}
+  let decisions=0,correct=0,executed=0,lastPenalty=-1;
+  for(const x of log){if(i>=d.scores.length||budget!==null&&misses>=budget||!['FINISH','SETUP'].includes(x.choice)||!['hit','miss'].includes(x.value))return null;
+   const right=x.choice===(d.scores[i]%2===0?'FINISH':'SETUP');decisions++;if(right){correct++;if(x.value==='hit'){executed++;h++;i++}}if(!right||x.value==='miss'){misses++;lastPenalty=n}n++}
+  if(budget!==null&&d.lives!==budget-misses||d.lives===0&&lastPenalty!==log.length-1)return null;
   if(d.index!==i||d.hits!==h||g.hits!==h||d.thrown!==n||g.thrown!==n||d.choice!==null||!(i===d.scores.length||d.lives===0))return null;
   m('finish or setup decision',correct,decisions,'decisions');m('reported execution after correct decision',executed,correct);break;
  }
@@ -261,7 +292,7 @@ function extraRound(g){
 }
 export function extraQuickRounds(host,day,now=Date.now()){
  const parents=trainingParentIndex(host.sessions??[]),out=[];
- for(const g of canonicalSkillGames(host.games??[])){
+ for(const g of canonicalSkillGames(host.games??[],null,{since:now-84*86400000,until:now})){
   if(!g||!EXTRA_QUICK_GAMES.includes(g.name)||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
   const r=extraRound(g);if(r&&(r.metrics.length||r.targets.length||r.finishes.length))out.push(r);
  }
@@ -271,7 +302,7 @@ export function extraQuickRounds(host,day,now=Date.now()){
 export function quickAdaptiveMeasurements(host,day,now=Date.now()){
  const parents=trainingParentIndex(host.sessions??[]),groups=new Map();
  const add=(g,label,hits,attempts,scoring=false,perDart=false,unit=null)=>{const key=g.name+' · '+label+' · '+(Number.isInteger(g.tierAtStart)?'tier '+g.tierAtStart:'legacy setting'),x=groups.get(key)??{key,hits:0,attempts:0,days:new Set(),scoring,perDart,unit:unit??(scoring&&!perDart?'visits':'darts')};x.hits+=hits;x.attempts+=attempts;x.days.add(g.day);groups.set(key,x)};
- for(const g of canonicalSkillGames(host.games??[])){
+ for(const g of canonicalSkillGames(host.games??[],null,{since:now-84*86400000,until:now})){
   if(!g||g.quick!==true||!skillPlayEligible(g,parents)||g.at>now||g.at<now-84*86400000||g.day>day||g.completion!=='natural'||g.recovery||g.challengeTuning)continue;
   if(['Scoring Survival','Scoring Ladder','First Nine Siege','Setup Shot','Risk or Reward','High-Low','Split the Difference'].includes(g.name)&&count(g.visits,1000)&&g.visits>=1&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every(n=>possible.has(n))&&(['Risk or Reward','High-Low','Split the Difference'].includes(g.name)||g.scores.reduce((a,b)=>a+b,0)===g.points)&&(g.name!=='First Nine Siege'||g.visits===3))add(g,g.name==='First Nine Siege'?'first nine, three fixed visits':'contextual three-dart visits',g.scores.reduce((a,b)=>a+b,0),g.visits,true);
   if(['301 Pressure','501 Pressure','170 Challenge'].includes(g.name)&&count(g.visits,1000)&&g.visits>0&&count(g.dartsUsed,3000)&&g.dartsUsed>3*(g.visits-1)&&g.dartsUsed<=3*g.visits&&Array.isArray(g.scores)&&g.scores.length===g.visits&&g.scores.every((n,i)=>possibleForDarts[i===g.visits-1?g.dartsUsed-3*(g.visits-1):3].has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)add(g,'leg scoring with busts, recorded darts',g.points,g.dartsUsed,true,true);
@@ -295,7 +326,7 @@ export function quickAbilityLines(host,day,now=Date.now()){
  ...[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.key.localeCompare(b.key)).map(x=>x.key+': '+x.hits+'/'+x.attempts+' ('+(100*x.hits/x.attempts).toFixed(1)+'%) across '+x.days.size+' measured days.'),
  ...[...fixed.values()].map(x=>x.protocol+': '+(x.skill==='scoring'?3*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.skill==='scoring'?' average':'%')+' across '+x.days.size+' measured days and '+x.attempts+' darts.'),
  ...adaptive.map(x=>x.key+': '+(x.scoring?(x.perDart?3:1)*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.scoring?' measured visit average':'%')+' across '+x.attempts+' '+x.unit+' and '+x.days+' days; adaptive stopping rules and task selection mean this is not a fixed benchmark.'),
- 'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'];
+ 'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'].map(line=>line.replace(/tier [1-7]\b/g,'separate setting'));
 }
 
 
@@ -306,7 +337,9 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
  const skip=(source,reason)=>skipped.push({source,reason});
  function add(source,day,skill,protocol,attempts,hits){
   if(!dayOK(day)||day>today||!count(attempts,1000)||!attempts||!count(hits,attempts*(skill==='scoring'?60:1))){skip(source,'invalid measurement');return false}
-  const id='IDC:host-v62:'+source+':'+skill,o={id,day,skill,context:'practice',protocol:'IDC V6.2 '+protocol,attempts,hits};
+  const id='IDC:host-v62:'+source+':'+skill;
+  if(id.length>100){skip(source,'measurement identity too long');return false}
+  const o={id,day,skill,context:'practice',protocol:'IDC V6.2 '+protocol,attempts,hits};
   if(ambiguous.has(id))return false;
   if(seen.has(id)){if(JSON.stringify(seen.get(id))!==JSON.stringify(o)){ambiguous.add(id);skip(source,'conflicting record identity')}return false}
   seen.set(id,o);rows.push(o);return true;
@@ -334,9 +367,10 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
   if(session.date!==b.day||!Number.isFinite(session.start)||session.start<=0||session.start>now||localDay(session.start,session.startOffsetMinutes)!==b.day||(b.at!=null&&b.at<session.start)){skip(source,'daily benchmark chronology mismatch');continue}
   add(source,b.day,'singles','daily large singles 60',60,b.hits);
  }
- for(const g of canonicalSkillGames(host.games)){
+ const games=canonicalSkillGames(host.games),sources=fixedGameSources(games);
+ for(const g of games){
   if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;
-  const source='game:'+g.at+':'+g.name,day=g.day;
+  const source=sources.get(roundIdentity(g)),day=g.day;
   if(g.completion!=='natural'||g.benchmark!==true||!skillPlayEligible(g,parents)||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)||localDay(g.at,g.offsetMinutes)!==day){skip(source,'not a comparable fixed training game');continue}
   if(g.name==='Scoring Challenge'&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((s,n)=>s+n,0)===g.points)add(source,day,'scoring',(g.quick?'Quick Play ':'')+'Scoring Challenge fixed 30 darts',30,g.points);
   else if(g.name==='Bull Accuracy'&&g.thrown===30&&count(g.outer,30)&&count(g.inner,30)&&g.outer+g.inner<=30&&count(g.misses,30)&&g.outer+g.inner+g.misses===30)add(source,day,'bull',(g.quick?'Quick Play ':'')+'Bull Accuracy any bull 30',30,g.outer+g.inner);

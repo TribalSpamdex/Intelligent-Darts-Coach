@@ -1,10 +1,11 @@
-import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames,extraQuickRounds} from './v62-evidence.mjs';
+import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames,extraQuickRounds,roundIdentity} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
 import {advice} from './engine/tactics.mjs';
 import {checkProtocol,projectChecks} from './target-checks.mjs';
-import {dayValid,dayGap} from './engine/context.mjs';
+import {dayValid,dayGap,robustTrend} from './engine/context.mjs';
+import {learningBoundary} from './challenge-episodes.mjs';
 const targetOK=x=>typeof x==='string'&&/^(?:[SDT](?:[1-9]|1[0-9]|20)|50|25)$/.test(x);
 const localDay=t=>{const d=new Date(t);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const count=(x,n)=>Number.isInteger(x)&&x>=0&&x<=n;
@@ -30,7 +31,7 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  const parent=parents.parents.get(String(b.sessionId));if(parent.date!==b.day||!Number.isFinite(parent.start)||parent.start<=0||parent.start>now||recordedDay(parent.start,parent.startOffsetMinutes)!==b.day||b.at!=null&&(recordedDay(b.at,b.offsetMinutes)===null||recordedDay(b.at,b.offsetMinutes)>day))continue;
  record('daily:'+b.day,b.perNumber.map((hits,i)=>row(b.day,'Daily large singles benchmark','S'+(i+1),3,hits)));
  }
- for(const g of canonicalSkillGames(host.games,conflicts)){
+ for(const g of canonicalSkillGames(host.games,conflicts,{since:now-84*86400000,until:now})){
  if(!g||!skillPlayEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!eligible(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
  const ring=g.quick&&g.name==='Double Duel'?(g.details?.tier>=6?'S':'D'):['Doubles Survival','Doubles Streak'].includes(g.name)?(g.variant==='doubles'?'D':g.quick&&g.variant==='singles'?'S':null):g.name==='Treble Hunt'?(g.variant==='treble'?'T':g.quick&&g.variant==='single'?'S':null):g.quick&&['Outside Doubles','Double Double','Dartboard Bingo'].includes(g.name)?(g.details?.variant==='singles'?'S':g.details?.ring??'D'):null;
  const duel=g.quick&&g.name==='Double Duel',raw=g.details?.dcVisitLog;
@@ -38,7 +39,7 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  if(!['S','D','T'].includes(ring)||!Array.isArray(log)||!log.length||log.length!==g.thrown||!log.every(x=>x?.ring===ring&&Number.isInteger(x.target)&&x.target>=1&&x.target<=20&&typeof x.hit==='boolean')||log.filter(x=>x.hit).length!==expectedHits)continue;
  const bins=new Map();
  for(const x of log){const t=ring+x.target,v=bins.get(t)??row(g.day,(g.quick?'Quick Play · ':'')+g.name+' · tier '+(g.tierAtStart??'unspecified')+(g.name==='Doubles Streak'?' · '+(g.ruleVersion==='same-target-streak-v1'?'per-target streak':'legacy advancing targets'):''),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
- record('game:'+g.at+':'+g.name,[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
+ record('game:'+roundIdentity(g),[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
  for(const r of extraQuickRounds(host,day,now)){
   const bins=new Map(),g=r.g,protocol='Quick Play · '+g.name+' · '+r.setting+' · recorded targets';
@@ -87,3 +88,35 @@ export function personalisedCheckout(memory,rows,score,darts){
  return {...base,standard:standard.path,suggested:chosen.path,comparison,personalisation:comparison?'Alternative finishing double supported by matched practice evidence. This is a finishing-double comparison, not a measured full-route or match-win probability. Earlier dart accuracy and miss recovery are not modelled.':'Standard legal route using recorded preference; insufficient or unclear evidence to favour a different finishing double.'};
 }
 export function targetProfile(rows){const groups=summaries(rows),doubles=groups.filter(x=>x.protocol===fixed),strong=[],weak=[];for(const a of doubles){const peers=doubles.filter(b=>b.target!==a.target).map(b=>compareTargets(rows,a.target,b.target));const above=peers.filter(x=>x.status==='first-higher'),below=peers.filter(x=>x.status==='second-higher');if(above.length>=3&&below.length===0)strong.push({target:a.target,comparisons:above.length});if(below.length>=3&&above.length===0)weak.push({target:a.target,comparisons:below.length})}return {groups,strong,weak,limitation:'Fixed assessment comparisons only; adaptive game results are displayed separately. No automatic technique change or difficulty adjustment.'}}
+
+// Bounded contextual review. Keep each game's target protocol separate and
+// use the existing serial-form trend screen, never a pooled accuracy score.
+export function targetDevelopment(host,state,day,now=Date.now(),checks=[]){
+ const boundary=learningBoundary(state,day),assessment=host.assessment;
+ const assessmentAt=assessment?.finished&&Number.isFinite(assessment.completedAt)&&assessment.completedAt<=now?assessment.completedAt:null;
+ const current={...host,games:(host.games??[]).filter(g=>(!boundary||g?.day>boundary)&&(!assessmentAt||g?.at>=assessmentAt))};
+ const rows=projectTargets(current,day,now,checks.filter(c=>!boundary||c.day>boundary)).rows.filter(r=>(!boundary||r.day>boundary)&&(!assessmentAt||r.day>recordedDay(assessmentAt,assessment.offsetMinutes)));
+ const groups=new Map();
+ for(const r of rows){const key=JSON.stringify([r.protocol,r.target]),group=groups.get(key)??[];group.push(r);groups.set(key,group)}
+ const profiles=[...groups.values()].map(group=>{
+  const {protocol,target}=group[0],skill=target[0]==='D'?'doubles':target[0]==='T'?'trebles':target[0]==='S'?'singles':'bull';
+  const observations=group.map((r,i)=>({id:'target:'+i,day:r.day,skill,context:'practice',protocol,attempts:r.attempts,hits:r.hits}));
+  const trend=robustTrend(observations,{asOf:day}),last=group.map(r=>r.day).sort().at(-1);
+  return {protocol,target,skill,last,trend};
+ });
+ const candidates=profiles.filter(p=>/^[SDT]/.test(p.target)&&p.trend.status==='declining'&&dayGap(p.last,day)<=7);
+ const mixed=candidates.filter(p=>profiles.some(q=>q.target===p.target&&q.trend.status==='improving'&&dayGap(q.last,day)<=7));
+ const supported=candidates.filter(p=>!mixed.includes(p)).sort((a,b)=>b.last.localeCompare(a.last)||a.target.localeCompare(b.target,undefined,{numeric:true})||a.protocol.localeCompare(b.protocol));
+ const focus=supported[0]??null;
+ return {focus,mixed,profiles,boundary,limitation:'Repeated exact-target changes within a recorded task are contextual signals. Adaptive stopping and target selection can bias them; confirm with familiar fixed checks. No diagnosis, extra workload or automatic technique change.'};
+}
+export const publicProtocol=protocol=>protocol.replace(/tier (?:[1-7]|unspecified)\b/g,'separate setting');
+export function targetDevelopmentLines(review){
+ if(!review.focus)return [review.mixed.length?'Target protocols disagree. Repeat familiar fixed checks before choosing a target focus.':'No repeated recent exact-target decline is established. Missing target evidence is unknown.',review.limitation];
+ const p=review.focus,a=p.trend.earlier,b=p.trend.recent;
+ return [p.target+' is worth checking next · '+publicProtocol(p.protocol)+'.',
+  'Earlier 28 days: '+a.hits+'/'+a.attempts+' ('+(100*a.value).toFixed(1)+'%) over '+a.days+' days. Recent 28 days: '+b.hits+'/'+b.attempts+' ('+(100*b.value).toFixed(1)+'%) over '+b.days+' days.',
+  'Use a familiar 15-dart Target Mastery segment check at '+p.target+' on separate days, within your usual practice time.',review.limitation];
+}
+
+export function contextualDrillPreferences(review,base={}){const p=review.focus;return {...base,...(p?.skill==='doubles'?{doubles:'Doubles Streak'}:p?.skill==='trebles'?{scoring:'Treble Hunt'}:{})}}

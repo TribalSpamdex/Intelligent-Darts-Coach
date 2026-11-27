@@ -10,10 +10,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/*.test.mjs
+      - run: |
+          mkdir -p ci-evidence
+          node --test tests/*.test.mjs 2>&1 | tee ci-evidence/node.log
       - run: |
           python -m pip install playwright==1.51.0
           python -m playwright install --with-deps chromium webkit
@@ -24,9 +28,14 @@ jobs:
           for i in $(seq 1 20); do curl -fsS http://127.0.0.1:8765/index.html >/dev/null && break; sleep 1; done
           status=0
           echo '::group::Chromium browser verification'
-          python tests/browser.py || status=1
+          python tests/browser.py 2>&1 | tee ci-evidence/chromium.log || status=1
           echo '::endgroup::'
           echo '::group::WebKit browser verification'
-          IDC_BROWSER=webkit python tests/browser.py || status=1
+          IDC_BROWSER=webkit python tests/browser.py 2>&1 | tee ci-evidence/webkit.log || status=1
           echo '::endgroup::'
           exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dev51-verification
+          path: ci-evidence/

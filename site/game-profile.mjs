@@ -1,4 +1,4 @@
-import {trainingParentIndex,skillPlayEligible,recordedDay,masteryRows,canonicalSkillGames,extraQuickRounds} from './v62-evidence.mjs';
+import {trainingParentIndex,skillPlayEligible,recordedDay,masteryRows,canonicalSkillGames,extraQuickRounds,roundIdentity} from './v62-evidence.mjs';
 import {legalFinishCount} from './finish-validation.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {routes,mean,sd} from './engine/engine.mjs';
@@ -17,7 +17,7 @@ export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  const rows=Array.isArray(a.checkout)&&a.checkout.length===12&&a.checkout.every((x,i)=>x?.target===finishes[i]&&typeof x.hit==='boolean'&&[1,2,3].includes(x.darts)&&(x.hit?legalFinishCount(x.target,x.darts):x.darts===3))?a.checkout.map(x=>({score:x.target,success:x.hit,allowance:3,used:x.darts})):[];
  put('assessment:'+a.completedAt,{day:d,protocol:'Fixed checkout assessment',rows});
  }
- for(const g of canonicalSkillGames(host.games,bad)){
+ for(const g of canonicalSkillGames(host.games,bad,{since:now-84*86400000,until:now})){
  if(!g||!skillPlayEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!within(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
  if(['Checkout Climb','Focused Checkouts'].includes(g.name)&&Array.isArray(g.attemptLog)&&g.attemptLog.length>0&&g.attemptLog.length===g.success+g.fail){
  const rows=g.attemptLog.map(x=>{
@@ -25,9 +25,9 @@ export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  if(x&&Number.isInteger(x.finish)&&typeof x.success==='boolean'&&x.allowance===3&&[1,2,3].includes(x.dartsUsed))return {score:x.finish,success:x.success,allowance:3,used:x.dartsUsed};
  return null;
  });
- if((g.name!=='Focused Checkouts'||Number.isInteger(g.rangeStart)&&Number.isInteger(g.rangeEnd)&&g.rangeStart>=2&&g.rangeEnd<=170&&g.rangeStart<=g.rangeEnd&&g.attemptLog.every(x=>[1,2,3].includes(x.darts)&&(!x.hit?x.darts===3:true)&&x.target>=g.rangeStart&&x.target<=g.rangeEnd))&&rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(x.used===null?routes(x.score,3).length>0:legalFinishCount(x.score,x.used)):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:(g.quick?'Quick Play · ':'')+g.name+' (adaptive)'+(g.name==='Focused Checkouts'?' · '+g.rangeStart+'–'+g.rangeEnd+' · '+g.pressure:''),rows});
+ if((g.name!=='Focused Checkouts'||Number.isInteger(g.rangeStart)&&Number.isInteger(g.rangeEnd)&&g.rangeStart>=2&&g.rangeEnd<=170&&g.rangeStart<=g.rangeEnd&&g.attemptLog.every(x=>[1,2,3].includes(x.darts)&&(!x.hit?x.darts===3:true)&&x.target>=g.rangeStart&&x.target<=g.rangeEnd))&&rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(x.used===null?routes(x.score,3).length>0:legalFinishCount(x.score,x.used)):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+roundIdentity(g),{day:g.day,protocol:(g.quick?'Quick Play · ':'')+g.name+' (adaptive)'+(g.name==='Focused Checkouts'?' · '+g.rangeStart+'–'+g.rangeEnd+' · '+g.pressure:''),rows});
  }
- if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+g.at,{day:g.day,protocol:(g.quick?'Quick Play · ':'')+'Scoring Challenge fixed 30',scores:[...g.scores]});
+ if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+roundIdentity(g),{day:g.day,protocol:(g.quick?'Quick Play · ':'')+'Scoring Challenge fixed 30',scores:[...g.scores]});
  }
  for(const r of extraQuickRounds(host,day,now))if(r.finishes.length)put('extra:'+JSON.stringify([r.g.name,r.g.at,String(r.g.sessionId)]),{day:r.g.day,protocol:'Quick Play · '+r.g.name+' · '+r.setting+' · three-dart attempts',rows:r.finishes});
  const byFinish=new Map(),scoring=[];
