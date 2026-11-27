@@ -2,7 +2,7 @@ import {plan} from './engine.mjs';
 import {dayGap,dayValid,asOfState} from './context.mjs';
 import {executive} from './reasoning.mjs';
 import {selectCoaching} from './player-intelligence.mjs';
-import {deepenReport} from './diagnosis.mjs';
+import {deepenReport,sparseDeclines} from './diagnosis.mjs';
 import {clinicReview} from './clinic.mjs';
 import {resolvePriorities,developmentReview} from './strategy.mjs';
 import {combinedExposure} from './goals.mjs';
@@ -65,7 +65,7 @@ export function fullReport(m,day){
  // Use complete history for progress and learning, never pool unlike benchmarks.
  const development=developmentReview({...m,observations},report,day);
  const active=verifiedPlan(m,report,day);
- return enforceDecision(m,{...report,development,active,match:legSummary(m,day),learning:(m.trials??[]).filter(t=>t.status==='completed'&&t.pairs.every(p=>p.day<=day)).map(t=>({id:t.id,skill:t.skill,approach:t.approach,reviews:followupReview(m,t,day)})),trace:{decision:report.decision,primary:report.strategy.primary,safetyFlags:safety.flags,issues:report.issues.map(i=>({skill:i.skill,protocol:i.protocol,context:i.context,action:i.action,confirmation:i.confirmation?.status,veto:i.investigation?.veto??null,priorOutcome:i.strategy?.ledger?.policy??null})),policy:'Deterministic decision trace; no scientific probability assigned.'}});
+ return enforceDecision(m,{...report,sparseDeclines:sparseDeclines(visible,day),development,active,match:legSummary(m,day),learning:(m.trials??[]).filter(t=>t.status==='completed'&&t.pairs.every(p=>p.day<=day)).map(t=>({id:t.id,skill:t.skill,approach:t.approach,reviews:followupReview(m,t,day)})),trace:{decision:report.decision,primary:report.strategy.primary,safetyFlags:safety.flags,issues:report.issues.map(i=>({skill:i.skill,protocol:i.protocol,context:i.context,action:i.action,confirmation:i.confirmation?.status,veto:i.investigation?.veto??null,priorOutcome:i.strategy?.ledger?.policy??null})),policy:'Deterministic decision trace; no scientific probability assigned.'}});
 }
 export function verifiedPlan(m,report,day){
  const active=currentPlan(m,report,day);

@@ -108,3 +108,26 @@ export function deepenReport(m,report,day){
  const safe=['stop','reduce-load'].includes(report.decision)||comfort;
  return {...report,issues,decision:comfort?'stop':safe?report.decision:candidate?'temporary-focus':issues.length?'investigate':'balanced',focus:safe?null:candidate?.skill??null,focusProtocol:safe?null:candidate?.protocol??null,focusContext:safe?null:candidate?.context??null,plan:safe?[]:plan(candidate?.skill),review:comfort?{...report.review,wellbeing:{decision:'stop',action:'Stop throwing if uncomfortable or painful; seek qualified advice for persistent or significant pain.'}}:report.review};
 }
+
+// Descriptive two-day comparison only. Never used by intervention or allocation gates.
+// One date is one measured day regardless of how many individual darts were logged.
+export function sparseDeclines(m,day){
+ const groups=new Map();
+ for(const o of m.observations){
+  if(!dayValid(o.day)||dayGap(o.day,day)<0||dayGap(o.day,day)>=56)continue;
+  const k=JSON.stringify([o.skill,o.context,o.protocol]),rows=groups.get(k)??[];
+  rows.push(o);groups.set(k,rows);
+ }
+ const out=[];
+ for(const rows of groups.values()){
+  const dates=[...new Set(rows.map(o=>o.day))].sort();
+  if(dates.length!==2||dayGap(dates[1],day)>7)continue;
+  const a=summarise(rows.filter(o=>o.day===dates[0])),b=summarise(rows.filter(o=>o.day===dates[1]));
+  if(a.attempts<20||b.attempts<20)continue;
+  const {skill,context,protocol}=rows[0],scoring=['scoring','firstNine'].includes(skill);
+  const change=b.value-a.value,floor=scoring?5:.10;
+  if(change>-floor+1e-12)continue;
+  out.push({skill,context,protocol,earlierDay:dates[0],recentDay:dates[1],earlier:a.value,recent:b.value,attempts:[a.attempts,b.attempts],hits:[a.hits,b.hits],change});
+ }
+ return out.sort((a,b)=>Math.abs(b.change)/(['scoring','firstNine'].includes(b.skill)?5:.10)-Math.abs(a.change)/(['scoring','firstNine'].includes(a.skill)?5:.10)||a.skill.localeCompare(b.skill)||a.context.localeCompare(b.context)||a.protocol.localeCompare(b.protocol));
+}
