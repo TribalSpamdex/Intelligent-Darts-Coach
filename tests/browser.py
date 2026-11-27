@@ -341,6 +341,27 @@ with sync_playwright() as p:
     assert allocation[1]['calls']==1 and allocation[1]['names'][0]=='Scoring Survival', allocation
     assert all(x['calls']==0 and x['names'][0]=='Scoring Survival' for x in allocation[2:]), allocation
     assert all(x['total']==1800 for x in allocation), allocation
+    # Scheduled contract: actual generated and locked native plan, not advisory preview.
+    structure=page.evaluate("""()=>{
+      const original=clone(data),policy=window.IDCPolicy;
+      try{
+       data.sessions=[];data.bigSingles=[];data.activeSession=null;
+       const plan=generateSession(false,false,true),timed=plan.filter(e=>e.mode==='timed');
+       const initial={warmup:timed[0]?.seconds,application:timed.at(-1)?.seconds,role:timed.at(-1)?.application===true,name:timed.at(-1)?.name,total:timed.reduce((n,e)=>n+e.seconds,0),unique:new Set(timed.map(e=>e.name)).size===timed.length,benchmark:plan.some(e=>e.name==='Big Singles')};
+       const run=(elapsed)=>{
+        const now=Date.now(),s={id:now,start:now-elapsed*1000,pausedAt:now,pausedTotal:0,benchmarkSeconds:0,index:0,quick:false,extra:false,allocated:false,completed:[],phase:'rules',plan:clone(plan.filter(e=>e.name!=='Warm-up'&&e.name!=='Big Singles')),unifiedAudit:{},wholeSessionAudit:{policy:{categories:{}}}};
+        data.activeSession=s;
+        window.IDCPolicy={...policy,transfer:()=>({status:'unchanged'})};
+        allocateRemaining(s);
+        return {total:s.plan.reduce((n,e)=>n+e.seconds,0),last:s.plan.at(-1),min:Math.min(...s.plan.map(e=>e.seconds)),locked:s.provenanceLocked.exercises.at(-1)?.plannedSeconds};
+       };
+       return {initial,normal:run(600),short:run(3000),extraReview:generateSession(true,false,true).at(-1)?.name};
+      }finally{data=original;window.IDCPolicy=policy;window.IDCPrecision.invalidate()}
+    }""")
+    assert structure['initial']=={'warmup':600,'application':600,'role':True,'name':'301 Pressure','total':3600,'unique':True,'benchmark':True}, structure
+    assert structure['normal']['total']==3000 and structure['normal']['last']['application'] and structure['normal']['locked']==600 and structure['normal']['min']>=300, structure
+    assert structure['short']['total']==600 and structure['short']['last']['application'] and structure['short']['locked']==600, structure
+    assert structure['extraReview']=='Review', structure
     # H5: same native skill tier, calendar, exposure and settings; change only
     # independent measured ability and inspect actual executable scheduler output.
     adaptation=page.evaluate("""()=>{const original=clone(data);try{

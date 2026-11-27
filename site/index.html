@@ -2409,7 +2409,7 @@ function dc21FixedProgramme(focus){
 }
 function dc21CapturePlan(s){
  if(!s||s.extra||s.quick)return null;
- const focus=focusForDay(false),actual=s.plan.filter(p=>p&&QUICK_GAMES.includes(p.name)).map(p=>p.name);
+ const focus=focusForDay(false),actual=s.plan.filter(p=>p&&!p.application&&QUICK_GAMES.includes(p.name)).map(p=>p.name);
  const fixed=dc21FixedProgramme(focus),cutoff=s.start-7*DAY_MS;
  const past=(data.sessions||[]).filter(r=>r&&!r.quick&&Number.isFinite(r.start)&&r.start>=cutoff&&r.start<s.start);
  const minutes=past.reduce((v,r)=>v+Math.max(0,Math.min(240,num(r.minutes))),0);
@@ -3369,13 +3369,13 @@ function dc40ExplorationEligibility(now=Date.now(),policy=null){
   evidence:allowed?{evaluable:feedback[eligible[0]].evaluable,signal:feedback[eligible[0]].positiveSignal?'encouraging':'unknown'}:null,
   reason:allowed?'bounded near-tie experiment; observational outcomes only':'insufficient history, recent experiment or category safety limit'};
 }
-function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true,preparation=null){
+function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true,preparation=null,reserved=null){
  const primary=TRAINING_LIBRARY[focus]||TRAINING_LIBRARY.scoring;
  const recent=(data.sessions||[]).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
  const alreadyToday=dc22GamesPlayedToday();
  if(data.activeSession&&!data.activeSession.quick){for(const e of data.activeSession.plan||[])if(QUICK_GAMES.includes(e.name))alreadyToday.add(e.name)}
  const seed=(Math.floor(Date.now()/DAY_MS)*1103515245+(data.sessions||[]).filter(x=>x?.date===dateKey()).length*7919)>>>0;
- const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery');
+ const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery'&&n!==reserved);
  const profiles=dc18ChallengeProfiles(all),effects=dc15EffectEvidence(),categoryPlan=dc28CategoryPlanning(),selected=[],policy=sessionPolicy||dc32WholeSessionPolicy();
  const exploration=dc40ExplorationEligibility(Date.now(),policy);let explored=false,exploredGame=null,dc47Trial=null;
  const methodCandidates=[],methodEnabled=allowTrials&&!exploration.allowed&&window.IDCPolicy?.methodEnabled?.()===true;
@@ -3920,6 +3920,17 @@ function dc39FinalizeDecision(decision,plan){
 function dc91DevelopmentNeed(policy,extra=false,now=Date.now()){
  return coach61PracticeNeed(coach61Evidence(now),policy,now);
 }
+// Normal scheduled practice reserves a ten-minute application block. Extra
+// sessions and already-saved legacy plans retain their existing structure.
+function dc62InitialDrillBudget(drills,budget){
+ const mastery=drills.find(e=>e.name==='Target Mastery'),ordinary=drills.filter(e=>e!==mastery);
+ if(!ordinary.length||budget<drills.length*300)throw Error('Invalid scheduled drill budget');
+ if(mastery)mastery.seconds=Math.min(Math.max(300,Math.floor(mastery.seconds/60)*60),budget-ordinary.length*300);
+ const surplus=budget-(mastery?.seconds??0)-ordinary.length*300;
+ const weights=ordinary.map(e=>Math.max(1,num(e.seconds)/60-5)),sum=weights.reduce((a,b)=>a+b,0);
+ let spent=0;
+ ordinary.forEach((e,i)=>{const add=i===ordinary.length-1?surplus-spent:Math.floor(surplus*weights[i]/sum/60)*60;spent+=add;e.seconds=300+add;if(e.wholeCoach)e.wholeCoach.plannedMinutes=e.seconds/60});
+}
 function generateSession(extra=false,skipWarmup=false,preview=false){
  const focus=focusForDay(extra),sessionsToday=(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick).length;
  const count=sessionsToday>=2?3:4;
@@ -3928,13 +3939,14 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
  try{preparation=window.IDCPolicy?.competitionPlan?.()??null}catch(e){preparation={phase:'unverified',focus:null,familiar:true,deferEscalation:true}}
  const close=preparation?.deferEscalation===true;
  if(close)unified.masteryDecision=null;
- const chosen=chooseSessionGames(focus,count,wholePolicy,!extra&&!preview&&!close&&(!preparation||preparation.phase==='ordinary'),preparation);
+ const application=extra?null:'301 Pressure';
+ const chosen=chooseSessionGames(focus,count,wholePolicy,!extra&&!preview&&!close&&(!preparation||preparation.phase==='ordinary'),preparation,application);
  const dayIntent=coach62Intent(unified);
  if(close){dayIntent.focus=null;dayIntent.target=null}
  const need=close?null:coach62SessionNeed(dayIntent,wholePolicy);
  if(need&&!chosen.exploration?.trial&&!chosen.some(n=>dc28GameCategory(n)===need.key)){
   const recent=dc22GamesPlayedToday();
-  const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===need.key&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
+  const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===need.key&&n!==application&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
   const counts=chosen.map(n=>dc28GameCategory(n));
   const donor=counts.findLastIndex(k=>counts.filter(x=>x===k).length>1);
   if(pool.length&&donor>=0){
@@ -3944,7 +3956,7 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
    chosen[donor]=pool[0];
   }
  }
- const complement=close?null:coach62Complement(chosen,extra,wholePolicy,need?.key);
+ const complement=close?null:coach62Complement(chosen,extra,wholePolicy,need?.key,Date.now(),application);
  const plan=skipWarmup?[]:[{name:'Warm-up',seconds:600,mode:'timed'}];
  if(!extra&&!data.bigSingles.some(b=>b?.day===dateKey()&&b.complete))plan.push({name:'Big Singles',mode:'benchmark'});
  if(unified.masteryDecision&&chosen.length>=2){
@@ -3961,9 +3973,13 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
  chosen.forEach((name,i)=>plan.push({name,mode:'timed',seconds:lengths[i]*60,
   wholeCoach:{version:'5.25.0',category:dc28GameCategory(name),plannedMinutes:lengths[i],
    reason:wholePolicy.categories[dc28GameCategory(name)]?.reason||'balanced programme'}}));
- plan.push({name:'Review',mode:'timed',seconds:300});
+ if(application){
+  dc62InitialDrillBudget(plan.filter(e=>e.mode==='timed'&&e.name!=='Warm-up'),skipWarmup?3000:2400);
+  plan.push({name:application,mode:'timed',seconds:600,application:true,coachPurpose:'Practical application: use your scoring, setup and doubles together in repeated 301 legs.'});
+ }else plan.push({name:'Review',mode:'timed',seconds:300});
  plan.coachDayIntent=dayIntent;plan.coachComplement=complement;
  for(const item of plan){
+  if(item.application)continue;
   const category=dc28GameCategory(item.name);
   if(complement?.to===item.name)item.coachPurpose='Add '+COACH61_NAMES[category].toLowerCase()+' practice alongside the skills already trained '+(extra?'today.':'this week.');
   else if(dayIntent.focus&&category===dayIntent.focus)item.coachPurpose='Today’s coaching focus is '+COACH61_NAMES[category].toLowerCase()+'. '+coach61SessionAim(item);
@@ -4211,9 +4227,10 @@ function allocateRemaining(s){
  const available=Math.floor(remaining/60)*60;
  let queue=s.plan.slice(s.index).filter(e=>e.mode==='timed');
  if(!queue.length){s.allocated=true;dc45LockAllocation(s);return}
- while(queue.length>1&&queue.length*300>available){
-  const remove=queue.findLast(e=>e.name!=='Review'&&e.name!=='Target Mastery')||
-   queue.findLast(e=>e.name!=='Review')||queue[queue.length-1];
+ const reserve=queue.find(e=>e.application===true);
+ while(queue.length>1&&queue.length*300+(reserve?300:0)>available){
+  const remove=queue.findLast(e=>e!==reserve&&e.name!=='Review'&&e.name!=='Target Mastery')||
+   queue.findLast(e=>e!==reserve&&e.name!=='Review')||queue.findLast(e=>e!==reserve);
   const pos=s.plan.indexOf(remove);if(pos>=s.index)s.plan.splice(pos,1);
   queue=queue.filter(e=>e!==remove);
  }
@@ -4221,13 +4238,14 @@ function allocateRemaining(s){
  // Fix the exact completed allocation of the controller's chosen Mastery dose
  // where time permits. Other games absorb the scheduling surplus.
  const mastery=queue.find(e=>e.name==='Target Mastery');
- const review=queue.find(e=>e.name==='Review');
- if(review)review.seconds=300;
+ const review=reserve??queue.find(e=>e.name==='Review');
+ const reservedSeconds=review?(reserve?Math.min(600,available):300):0;
+ if(review)review.seconds=reservedSeconds;
  const ordinary=queue.filter(e=>e.name!=='Target Mastery'&&e!==review);
  let keep=mastery?Math.max(300,Math.floor(num(mastery.seconds)/60)*60):0;
- keep=Math.min(keep,available-ordinary.length*300-(review?300:0));
+ keep=Math.min(keep,available-ordinary.length*300-reservedSeconds);
  if(mastery)mastery.seconds=Math.max(300,keep);
- const ordinarySeconds=available-(mastery?mastery.seconds:0)-(review?300:0);
+ const ordinarySeconds=available-(mastery?mastery.seconds:0)-reservedSeconds;
  if(ordinary.length){
   const surplus=ordinarySeconds-ordinary.length*300;
   const weights=ordinary.map(e=>Math.max(1,num(e.seconds)/60-5));
@@ -4235,8 +4253,8 @@ function allocateRemaining(s){
   ordinary.forEach((e,i)=>{const add=i===ordinary.length-1?surplus-spent:Math.floor(surplus*weights[i]/sum/60)*60;
    e.seconds=300+add;spent+=add});
   ordinary[ordinary.length-1].seconds+=remaining-available;
- }else if(mastery)mastery.seconds+=remaining-(review?300:0)-mastery.seconds;
- else if(review)review.seconds=300;
+ }else if(mastery)mastery.seconds+=remaining-reservedSeconds-mastery.seconds;
+ else if(review&&!reserve)review.seconds=300;
  // Calculate actual final minutes, after the scheduler has met the clock budget.
  const legacyTransfer=s.unifiedAudit?.competition?.deferEscalation?{status:'no-transfer',reason:'Familiar preparation near recorded competition'}:dc43LearningTransfer(s,queue);
  let idcReceiver=null;
@@ -5731,7 +5749,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   }
  }
  if(!s){const prompt=$("reassessmentPrompt");if(prompt)prompt.classList.toggle("hidden",!reassessmentDue());return}const e=currentExercise();let g=activeGame||data.game;if(!e)return;if(g?.name==='Dartboard Bingo'&&(!Array.isArray(g.targets)||g.targets.length!==20||!Number.isInteger(g.called))){g=buildGame('Dartboard Bingo');activeGame=g;data.game=g;save(false)}const elapsed=exerciseElapsed(),isBenchmark=e.name==="Big Singles",seconds=e.seconds||0;
- $("sessionType").textContent=(s.quick?"Quick Play":s.extra?"Extra Training":"Today's Training")+(!s.extra&&(isBenchmark||s.benchmarkSeconds)?" · +"+fmt(s.benchmarkSeconds+(isBenchmark?elapsed:0)):"");$("sessionStepLabel").textContent="Exercise "+(s.index+1)+"/"+s.plan.length;$("exerciseName").textContent=g?.name==="Target Mastery"?"Mastery · "+dc23MasteryDescriptor(g):g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
+ $("sessionType").textContent=(s.quick?"Quick Play":s.extra?"Extra Training":"Today's Training")+(!s.extra&&(isBenchmark||s.benchmarkSeconds)?" · +"+fmt(s.benchmarkSeconds+(isBenchmark?elapsed:0)):"");$("sessionStepLabel").textContent="Exercise "+(s.index+1)+"/"+s.plan.length;$("exerciseName").textContent=e.application?'Application · '+e.name:g?.name==="Target Mastery"?"Mastery · "+dc23MasteryDescriptor(g):g&&g.name==="Doubles Survival"&&g.variant==="singles"?"Singles Survival":e.name;
  let rule=EXTRA_RULES[e.name]||RULES[e.name]||"";if(g&&g.name==="Doubles Survival"&&g.variant==="singles")rule="Hit the displayed SINGLE (either single section) within nine darts. A completed round restarts.";if(g&&g.name==="Treble Hunt"&&g.variant==="single")rule="Beginner target: hit the SINGLE shown. A miss costs one life. Clear the hit goal before lives run out.";
  if(g?.name==='High-Low'&&g.visitLimit)rule='Enter each three-dart total. Follow HIGHER or LOWER by the displayed gap. Four correct comparisons win immediately. You have '+g.visitLimit+' visits and '+(g.lives+g.losses)+' lives.';
  if(g?.singleLineRound)rule='Mark a line of five by hitting the called doubles. Completing a line wins the round.';
@@ -6157,7 +6175,7 @@ function coach62SessionNeed(intent,policy,now=Date.now()){
  if(total>=3600&&practice.categories[key].seconds/total>=.4)return null;
  return {key,days:intent.evidenceDays[key]||0};
 }
-function coach62Complement(chosen,extra,policy,priority,now=Date.now()){
+function coach62Complement(chosen,extra,policy,priority,now=Date.now(),reserved=null){
  if(chosen.exploration?.trial)return null;
  const week=coach62Practice(now),today=coach62Practice(now,new Date(new Date(now).getFullYear(),new Date(now).getMonth(),new Date(now).getDate()).getTime());
  if(extra?today.sessions<1:week.days.size<2)return null;
@@ -6176,7 +6194,7 @@ function coach62Complement(chosen,extra,policy,priority,now=Date.now()){
  if(donor<0)return null;
  const played=new Set(today.games.keys());
  const pool=QUICK_GAMES.filter(name=>dc28GameCategory(name)===category&&!DC10_MEASUREMENT_GAMES.has(name)&&name!=='Target Mastery'&&
-  !chosen.includes(name)&&!played.has(name));
+  name!==reserved&&!chosen.includes(name)&&!played.has(name));
  if(!pool.length)return null;
  const dayOffset=Math.floor(now/DAY_MS);
  const ranked=pool.map((name,i)=>({name,seconds:week.games.get(name)||0,tie:(i+dayOffset)%pool.length}));
@@ -6191,8 +6209,8 @@ function coach62PlanDialog(){
  $('coach62PlanFocus').textContent=intent?.focus?'Today’s focus · '+COACH61_NAMES[intent.focus]:'Balanced skills practice';
  $('coach62PlanItems').innerHTML=s.plan.map((item,index)=>{
   const duration=item.mode==='benchmark'?'60 darts · added to the hour':
-   s.allocated||index<=s.index||item.name==='Warm-up'||item.name==='Review'?fmt(item.seconds):'Time set after warm-up';
-  return '<div class="entry"><strong>'+esc(item.name)+'</strong><p>'+esc(duration)+'</p>'+
+   s.allocated||index<=s.index||item.application||item.name==='Warm-up'||item.name==='Review'?fmt(item.seconds):'Time set after warm-up';
+  return '<div class="entry"><strong>'+esc(item.application?'Application · '+item.name:item.name)+'</strong><p>'+esc(duration)+'</p>'+
    (item.coachPurpose?'<p>'+esc(item.coachPurpose)+'</p>':'')+'</div>';
  }).join('');
  dialog.showModal();$('coach62PlanTitle').focus();dialog.scrollTop=0;
