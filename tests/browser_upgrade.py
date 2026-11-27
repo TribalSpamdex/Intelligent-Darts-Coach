@@ -6,7 +6,7 @@ generations. No production deployment or network outside this local server.
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 from urllib.parse import urlsplit
 import re
 
@@ -15,8 +15,11 @@ SITE=Path(__file__).resolve().parent.parent/'site'
 def run_upgrade_audit(browser):
     state={'generation':901,'fail':False,'failed':0}
     lock=Lock()
+    failed_request=Event()
 
     class Handler(SimpleHTTPRequestHandler):
+        protocol_version='HTTP/1.1'
+
         def log_message(self,*args):
             pass
 
@@ -42,9 +45,11 @@ def run_upgrade_audit(browser):
             with lock:
                 generation=state['generation']
                 fail=state['fail']
-                if fail and path=='/engine/diagnosis.mjs':
+                unavailable=fail and path!='/sw.js'
+                if unavailable:
                     state['failed']+=1
-            if fail and path=='/engine/diagnosis.mjs':
+            if unavailable:
+                failed_request.set()
                 self.send_error(503,'Synthetic interrupted precache')
                 return
             if path not in ('/','/index.html','/sw.js','/idc.mjs'):
@@ -67,7 +72,10 @@ def run_upgrade_audit(browser):
             self.end_headers()
             self.wfile.write(payload)
 
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(SITE)))
+    class AuditServer(ThreadingHTTPServer):
+        request_queue_size=256
+
+    server=AuditServer(('127.0.0.1',0),partial(Handler,directory=str(SITE)))
     thread=Thread(target=server.serve_forever,daemon=True)
     thread.start()
     origin='http://127.0.0.1:'+str(server.server_port)
@@ -84,10 +92,12 @@ def run_upgrade_audit(browser):
         probe(page,901)
         page.evaluate("()=>{data.__upgradeAudit='keep';if(!save(false)||!checkpointData())throw Error('Could not save synthetic profile');localStorage.setItem('dartsCoachV4','LEGACY-UPGRADE-SENTINEL')}")
         page.evaluate("async()=>{const c=await caches.open('OTHER:unrelated');await c.put('./unrelated',new Response('keep'))}")
-        # Generation 902 fails while precaching a required runtime module.
+        # Generation 902 is available as a worker script but required assets
+        # return 503. Require server-observed failure before asserting isolation.
         with lock:
             state.update(generation=902,fail=True)
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
+        assert failed_request.wait(20), 'No failed precache request reached the synthetic server'
         page.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration();return (await caches.keys()).includes('IDC:assets:2.0.0-dev902')&&!r.installing&&!r.waiting}")
         with lock:
             assert state['failed']>0, state

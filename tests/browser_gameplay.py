@@ -101,6 +101,18 @@ def run_gameplay_audit(browser):
            dc23MasteryInput('finish2');
            if(activeGame.attempts!==1||activeGame.attemptLog[0].dartsUsed!==2||activeGame.hits!==1)throw Error('Legal two-dart mastery finish rejected');
            undoGame();if(JSON.stringify(activeGame)!==beforeCheckout)throw Error('Mastery checkout Undo mismatch');
+           // Native double-in keypad: opening double on dart two, credited
+           // points only after entry, then legal double-out and saved-result Undo.
+           data.games=[];data.activeSession.plan=[{name:'Double-In 201',mode:'timed',seconds:600}];data.activeSession.round=1;data.activeSession.roundsCompleted=0;data.activeSession.lastRoundUndo=null;
+           activeGame=buildGame('Double-In 201');data.game=activeGame;renderTraining();
+           if(!dc591OpeningValid(80,20,2,3,3)||dc591OpeningValid(80,20,3,3,3))throw Error('Double-in entry allowance mismatch');
+           padSet('80');dc591OpeningSubmit();dc591Select(20,2);dc591Confirm();
+           if(!activeGame.entered||activeGame.remaining!==121||activeGame.entryDarts!==2||activeGame.dartsUsed!==3||activeGame.entryMisses!==1)throw Error('Opening visit not credited accurately');
+           renderTraining();padSet('81');doubleInVisit();
+           if(activeGame.remaining!==40||activeGame.dartsUsed!==6)throw Error('Double-in follow-up visit mismatch');
+           renderTraining();const beforeFinish=JSON.stringify(activeGame);padSet('40');doubleInVisit();chooseCheckoutDarts(1);confirmCheckoutDarts();
+           if(data.games.length!==1||data.games[0].dartsUsed!==7||data.games[0].highestFinish!==40||!data.games[0].win)throw Error('Double-in finish not saved accurately');
+           undoGame();if(data.games.length||JSON.stringify(activeGame)!==beforeFinish)throw Error('Double-in finish Undo mismatch');
            // The target sequence cannot invite extra darts after the rival wins.
            const duel={name:'Double Duel',tier:4,opponentEvery:2,turn:1,player:0,opponent:3,sequence:[20,16,8,10,12,6]};
            if(dcVisitSpec(duel).targets.length!==1)throw Error('Personalised rival boundary is not reflected in visit display');
