@@ -8045,6 +8045,9 @@ if(data.activeSession){
 // V5.74: never burn a timed exercise while Safari is backgrounded or closed.
 // Do not auto-resume: the player must choose Resume Session when ready to throw.
 function dc74PauseForBackground(){
+ // A rules modal pauses temporarily. Backgrounding must cancel its
+ // automatic resume permission even if the exercise was already paused.
+ dc88Resume=null;
  const s=session();
  if(s&&s.phase==="playing"&&!s.pausedAt&&!finishExpiredExercise())pauseSession();
 }

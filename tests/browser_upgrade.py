@@ -122,7 +122,7 @@ def run_upgrade_audit(browser):
             state.update(generation=902,fail=True)
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         assert failed_request.wait(20), 'No failed precache request reached the synthetic server'
-        wait_async(page,"async()=>{const r=await navigator.serviceWorker.getRegistration();return (await caches.keys()).includes('IDC:assets:2.0.0-dev902')&&!r.installing&&!r.waiting}",'failed installation settles')
+        wait_async(page,"async()=>{const r=await navigator.serviceWorker.getRegistration();return (await caches.keys()).includes('IDC:assets:2.0.0-dev901')&&!r.installing&&!r.waiting}",'failed installation settles')
         with lock:
             assert state['failed']>0, state
         # Keep the original controlled client alive. Navigate a second tab

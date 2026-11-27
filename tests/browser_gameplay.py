@@ -122,6 +122,20 @@ def run_gameplay_audit(browser):
            // The target sequence cannot invite extra darts after the rival wins.
            const duel={name:'Double Duel',tier:4,opponentEvery:2,turn:1,player:0,opponent:3,sequence:[20,16,8,10,12,6]};
            if(dcVisitSpec(duel).targets.length!==1)throw Error('Personalised rival boundary is not reflected in visit display');
+           // A rules dialog can temporarily pause active practice, but a
+           // background transition revokes its permission to auto-resume.
+           data.activeSession.plan=[{name:'Bull Accuracy',mode:'timed',seconds:600}];
+           data.activeSession.phase='playing';data.activeSession.pausedAt=null;data.activeSession.activityStarted=Date.now()-5000;data.activeSession.activityAccumulated=0;data.activeSession.pausedTotal=0;
+           activeGame=buildGame('Bull Accuracy');data.game=activeGame;renderTraining();
+           dc88Open();
+           if(!session().pausedAt||!dc88Resume)throw Error('Rules modal did not pause practice');
+           const dialog=document.getElementById('dc88Dialog'),pausedAt=session().pausedAt,elapsed=exerciseElapsed();
+           dc74PauseForBackground();
+           if(dc88Resume!==null)throw Error('Background did not revoke modal auto-resume');
+           // Invoke the registered close handler deterministically; the
+           // native close event may otherwise be queued after this probe.
+           const onclose=dialog.onclose;dialog.onclose=null;dialog.close();onclose();
+           if(session().pausedAt!==pausedAt||exerciseElapsed()!==elapsed)throw Error('Rules modal resumed after background');
            if(alerts.length)throw Error('Unexpected game alert: '+alerts.join('; '));
            return {names:new Set(checks.map(x=>x.name)).size,configurations:checks.length,naturalRounds:checks.filter(x=>x.completed).length,actions:checks.reduce((n,x)=>n+x.steps+1,0)};
           }finally{save=oldSave;window.alert=oldAlert;announceRound=oldAnnounce;hideRoundAnnouncement()}
