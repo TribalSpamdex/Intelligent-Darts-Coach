@@ -72,7 +72,9 @@ def run_gameplay_audit(browser):
              let completed=false,steps=0;
              // Complete an entire round at EVERY coarse tier and mastery mode.
              {
-              while(!data.games.length&&steps<600){
+              const bound=name==='Dartboard Bingo'?activeGame.maxCalls*activeGame.allowed:600;
+              if(!Number.isInteger(bound)||bound<1||bound>2400)throw Error('Invalid round bound: '+label);
+              while(!data.games.length&&steps<bound){
                prepare(name);const prior=JSON.stringify(activeGame);miss(name);steps++;
                if(data.games.length){
                 const row=data.games[0];
@@ -83,7 +85,8 @@ def run_gameplay_audit(browser):
                }
                if(JSON.stringify(activeGame)===prior)throw Error('Round stopped progressing: '+label);
               }
-              if(!completed)throw Error('No bounded natural round: '+label);
+              if(!completed)throw Error('No bounded natural round: '+label+' after '+bound+' actions');
+              if(name==='Dartboard Bingo'&&steps!==bound)throw Error('All-miss Bingo did not exhaust exact call budget: '+label);
               session().activityStarted=Date.now()-600001;session().activityAccumulated=0;
               session().pausedAt=Date.now();trainingTimer();
               if(session().phase!=='playing'||session().completed.length)throw Error('Paused timer completed an exercise: '+label);
@@ -95,6 +98,28 @@ def run_gameplay_audit(browser):
              }
              checks.push({name,tier,mode,completed,steps});
             }
+           }
+           // Exercise successful Bingo rounds at every coarse tier.
+           for(let tier=1;tier<=7;tier++){
+            for(const skill of SKILLS)data.skills[skill].level=tier;
+            data.games=[];undoSnapshot=null;
+            const start=Date.now(),item={name:'Dartboard Bingo',mode:'timed',seconds:600,provenanceId:'bingo-hit:'+tier};
+            data.activeSession={id:++id,start,extra:false,quick:false,index:0,phase:'playing',pausedAt:null,pausedTotal:0,activityStarted:start,activityAccumulated:0,plan:[item],round:1,roundsCompleted:0,completed:[],allocated:true,benchmarkSeconds:0};
+            window.IDCPrecision.invalidate();activeGame=buildGame(item.name);data.game=activeGame;renderTraining();
+            const called=new Set(),goal=activeGame.singleLineRound;
+            let won=false;
+            while(!data.games.length&&called.size<20){
+             const target=activeGame.called,prior=JSON.stringify(activeGame);
+             if(called.has(target))throw Error('Bingo repeated a hit target');
+             called.add(target);new40Dart('hit');
+             if(data.games.length){
+              const row=data.games[0];
+              if(!row.win||row.details.marked.length!==called.size||(!goal&&called.size!==20))throw Error('Incorrect Bingo win: tier '+tier);
+              undoGame();if(data.games.length||JSON.stringify(activeGame)!==prior)throw Error('Bingo winning action Undo mismatch');
+              won=true;break;
+             }
+            }
+            if(!won||called.size<5)throw Error('Bingo win missing or too early');
            }
            // Checkout buttons and handlers must use real double-out mathematics.
            data.activeSession.plan=[{name:'Target Mastery',mode:'timed',seconds:600,mastery:{mode:'checkout',band:'101+'}}];
