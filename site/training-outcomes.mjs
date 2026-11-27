@@ -4,8 +4,8 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
 import {canonicalRows} from './longitudinal.mjs';
 import {summarise} from './engine/engine.mjs';
-import {learningEpisodes,recordedConfounder} from './challenge-episodes.mjs';
-import {settingKey} from './challenge-setting.mjs';
+import {learningEpisodes,recordedConfounder,FIXED_PROTOCOLS} from './challenge-episodes.mjs';
+import {settingKey,validSetting} from './challenge-setting.mjs';
 const floor=s=>s==='scoring'?3:5;
 const minimum={scoring:30,doubles:60,checkout:12,bull:30,singles:60,trebles:60};
 const ratio=(a,b,t=.25)=>Math.abs(a-b)<=Math.max(a,b)*t;
@@ -89,7 +89,8 @@ export function durationReview(comparisons,day){
  if(!dayValid(day)||!Array.isArray(comparisons))throw Error('Invalid duration review');
  const groups=new Map(),out=[];
  for(const c of comparisons){
-  if(c?.kind!=='dose'||!dayValid(c.latest)||dayGap(c.latest,day)<0||dayGap(c.latest,day)>28||c.pairs<6||c.weeks<6||!['first-associated','second-associated','unclear'].includes(c.status)||!Number.isInteger(c.pairs)||!Number.isInteger(c.weeks)||!c.firstSetting||!c.secondSetting||settingKey(c.firstSetting)!==settingKey(c.secondSetting)||![300,600,900,1200].includes(c.shortSeconds)||![300,600,900,1200].includes(c.longSeconds)||c.shortSeconds>=c.longSeconds)continue;
+  if(c?.kind!=='dose'||!dayValid(c.latest)||dayGap(c.latest,day)<0||dayGap(c.latest,day)>28||c.pairs<6||c.weeks<6||!['first-associated','second-associated','unclear'].includes(c.status)||!Number.isInteger(c.pairs)||!Number.isInteger(c.weeks)||!FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)||!validSetting(c.firstSetting)||!validSetting(c.secondSetting)||c.firstSetting.skill!==c.skill||c.secondSetting.skill!==c.skill||settingKey(c.firstSetting)!==settingKey(c.secondSetting)||![300,600,900,1200].includes(c.shortSeconds)||![300,600,900,1200].includes(c.longSeconds)||c.shortSeconds>=c.longSeconds)continue;
+  if(!Array.isArray(c.matched)||c.matched.length!==c.pairs||c.matched.some(m=>m?.aSessions!==1||m?.bSessions!==1||doseBand(m.aSeconds)!==c.shortSeconds||doseBand(m.bSeconds)!==c.longSeconds))continue;
   const k=JSON.stringify([c.skill,c.protocol,settingKey(c.firstSetting)]),g=groups.get(k)??[];
   g.push(c);groups.set(k,g);
  }
