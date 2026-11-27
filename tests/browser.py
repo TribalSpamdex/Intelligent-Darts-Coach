@@ -277,7 +277,9 @@ with sync_playwright() as p:
     assert 'No saved competitions' in page.locator('#idcEvents').inner_text()
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=false')
     page.locator('#idcDeepPanel').evaluate('(e)=>e.open=true')
-    assert page.locator('#idcDeepQuestions button').count()==14
+    assert page.locator('#idcDeepQuestions button').count()==18
+    for question in ('What is Quick Play telling you?', 'Which methods should I keep using?', 'Are my practice gains reaching matches?', 'Are any weaknesses emerging?'):
+        assert page.locator('#idcDeepQuestions').get_by_role('button',name=question,exact=True).count()==1, question
     page.locator('#idcDeepQuestions button').filter(has_text='Is my real match performance improving?').click()
     assert 'No eligible real competition' in page.locator('#idcAnswer').inner_text()
     page.locator('#idcDeepQuestions button').filter(has_text='Recovery from 81 after S19').click()
