@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {methodComparisons,delayedFollowups,trainingOutcomes,outcomeReportLines,followupLines} from '../site/training-outcomes.mjs';
+import {methodComparisons,delayedFollowups,trainingOutcomes,outcomeReportLines,followupLines,durationReview,doseBand} from '../site/training-outcomes.mjs';
 import {recordSetting} from '../site/challenge-setting.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const first=recordSetting({name:'Scoring Survival',tier:4,target:60,lives:3},{name:'Scoring Survival',tier:4,target:60,lives:3}).learningSetting;
@@ -77,4 +77,28 @@ test('empty authentic history stays explicitly insufficient',()=>{
  const r=trainingOutcomes({games:[],sessions:[]},{observations:[]},day,now);
  assert.deepEqual(r.comparisons,[]);assert.deepEqual(r.followups,[]);
  assert.ok(outcomeReportLines(r).some(x=>x.includes('No comparable')));
+});
+
+test('duration evidence keeps distinct five, ten and fifteen minute contrasts separate',()=>{
+ const rows=fixture({kind:'dose'}).map((e,i)=>({...e,seconds:e.seconds===1200?(i%2===0?900:600):300}));
+ const comparisons=methodComparisons(rows,day);
+ assert.ok(comparisons.length>=2);
+ for(const c of comparisons){assert.ok(c.matched.every(x=>doseBand(x.aSeconds)===c.shortSeconds&&doseBand(x.bSeconds)===c.longSeconds));assert.ok(c.pairs<6);}
+ assert.deepEqual(durationReview(comparisons,day),[]);
+ for(const [seconds,band] of [[240,300],[360,300],[361,null],[600,600],[900,900],[1200,1200],[1500,null]])assert.equal(doseBand(seconds),band);
+ assert.equal(methodComparisons(fixture({kind:'dose'}).map(x=>({...x,sessions:2})),day).length,0);
+});
+test('duration preference needs direct evidence against every compared alternative',()=>{
+ const c=methodComparisons(fixture({kind:'dose'}),day)[0];
+ const make=(short,long,status)=>({...c,shortSeconds:short,longSeconds:long,status,matched:c.matched.map(m=>({...m,aSeconds:short,bSeconds:long}))});
+ assert.equal(durationReview([c],day)[0].preferred,600);
+ const a=make(300,600,'second-associated'),b=make(600,900,'first-associated'),r=make(300,900,'first-associated');
+ assert.equal(durationReview([a,b],day)[0].preferred,600);
+ assert.equal(durationReview([a,b,r],day)[0].preferred,600);
+ assert.equal(durationReview([a,make(600,900,'second-associated')],day)[0].preferred,null);
+ assert.equal(durationReview([a,b,make(600,900,'unclear')],day)[0].preferred,null);
+ assert.equal(durationReview([a,b,make(300,600,'first-associated')],day)[0].preferred,null);
+ assert.deepEqual(durationReview([{...c,latest:'2026-11-27'}],day),[]);
+ assert.deepEqual(durationReview([{...c,matched:c.matched.map(m=>({...m,aSessions:2}))}],day),[]);
+ assert.deepEqual(durationReview([{...c,firstSetting:{}}],day),[]);
 });
