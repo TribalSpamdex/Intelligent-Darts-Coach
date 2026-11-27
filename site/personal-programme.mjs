@@ -1,7 +1,7 @@
-import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
+import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate,currentMethodReviews} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes,durationReview,doseBand,delayedMethodCautions} from './training-outcomes.mjs';
-import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
+import {FIXED_PROTOCOLS,recordedConfounder,learningBoundary} from './challenge-episodes.mjs';
 import {validSetting,settingKey} from './challenge-setting.mjs';
 import {eventContext,validateEvents} from './competition-calendar.mjs';
 import {developmentAgenda} from './development-review.mjs';
@@ -46,7 +46,7 @@ export function planPreview(host,state,report,events,day,now=Date.now(),existing
  // Prefer no additional changes while a focus or comparison is active.
  const blocked=open||pending||report?.decision!=='balanced'||report?.verification?.status!=='passed'||(state.trials??[]).some(x=>x.status==='active'&&x.start<=day)||event.phase!=='ordinary';
  if(!blocked){
-  const learning=personalLearning(host,state,day,now),reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
+  const learning=personalLearning(host,state,day,now),reviews=currentMethodReviews(methodReviews(host,state,day,now),learningBoundary(state,day)),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
   for(const row of rows){
    if(awaiting.some(r=>r.skill===row.skill))continue;
    const profile=learning.find(x=>x.skill===row.skill),evidence=profile?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
@@ -112,7 +112,8 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   if(history.some(s=>dayValid(s?.date)&&dayGap(s.date,day)>=0&&dayGap(s.date,day)<7&&s.wholeSessionAudit?.idcMethod?.status==='selected'))return no('One learned method selection per rolling seven days');
   const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
    .map(c=>({...c,favoured:c.status==='first-associated'?c.firstSetting:c.secondSetting,other:c.status==='first-associated'?c.secondSetting:c.firstSetting}));
-  const deferred=methodReviewGate(reviews,day),followup=methodFollowupGate(reviews,day);
+  const currentReviews=currentMethodReviews(reviews,learningBoundary(state,day));
+  const deferred=methodReviewGate(currentReviews,day),followup=methodFollowupGate(currentReviews,day);
   const durationPreferences=durationReview(comparisons,day),cautions=delayedMethodCautions(followups,day);
   const eligible=[];
   for(const o of options){

@@ -51,8 +51,8 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  if(/^(how do nerves and confidence affect my performance|mental performance|does (?:pressure|confidence|nerves) affect my darts|how does match pressure affect my darts)$/.test(q))return reply('mental-evidence',isolatedReadinessLines(isolatedReadiness(state,day)));
  if(/^(do my technique observations match my results|technique evidence|does my technique affect my performance)$/.test(q))return reply('technique-evidence',techniqueEvidenceLines(techniqueEvidence(state,day)));
  if(/^(which methods should we reconsider|review unsuccessful methods|what hasn't worked)$/.test(q)){
-  const r=trainingOutcomes(host,state,day,now),c=delayedMethodCautions(r.followups,day);
-  return reply('method-cautions',[...(c.length?c.map(x=>x.setting.name+' · '+x.protocol+' · '+x.adverse+' adverse and '+x.positive+' positive separate delayed reviews. '+x.reason):['No repeated independent delayed adverse reviews currently justify deferring an exact-setting preference. This does not establish every method is effective.']), 'Ordinary balanced training is unchanged.']);
+  const r=trainingOutcomes(host,state,day,now),c=delayedMethodCautions(r.currentFollowups,day);
+  return reply('method-cautions',[...(r.boundary?['Current review uses evidence after '+r.boundary+'.']:[]),...(c.length?c.map(x=>x.setting.name+' · '+x.protocol+' · '+x.adverse+' adverse and '+x.positive+' positive separate delayed reviews. '+x.reason):['No repeated independent delayed adverse reviews currently justify deferring an exact-setting preference. This does not establish every method is effective.']), 'Ordinary balanced training is unchanged.']);
  }
  const autonomy=autonomyAnswer(host,state,q,day,now,reflections,baselines,events);if(autonomy)return autonomy;
  const tactical=tacticalAnswer(state,q,day);if(tactical)return tactical;

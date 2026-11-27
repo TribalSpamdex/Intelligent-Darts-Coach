@@ -30,7 +30,9 @@ export function compareSettings(episodes,day){
  const reverse=matches.length?matches.filter(m=>m.difference<=-floor).length/matches.length:0;
  const noise=diff.n>=2?2.5*diff.sd/Math.sqrt(diff.n):null;
  const adequate=matches.length>=4&&blocks>=4&&latest&&dayGap(latest,day)<=28;
- const status=!adequate?'insufficient':diff.median>=Math.max(floor,noise)&&lo.median>=floor&&majority>=.75?'lower-favoured':diff.median<=-Math.max(floor,noise)&&hi.median>=floor&&reverse>=.75?'higher-favoured':'unclear';
+ const ordered=[...matches].sort((a,b)=>[a.lower.to,a.higher.to].sort().at(-1).localeCompare([b.lower.to,b.higher.to].sort().at(-1))),recent=ordered.slice(Math.floor(matches.length/2));
+ const recentLower=recent.length?recent.filter(m=>m.difference>=floor).length/recent.length:0,recentHigher=recent.length?recent.filter(m=>m.difference<=-floor).length/recent.length:0;
+ const status=!adequate?'insufficient':diff.median>=Math.max(floor,noise)&&lo.median>=floor&&majority>=.75&&recentLower>=.75?'lower-favoured':diff.median<=-Math.max(floor,noise)&&hi.median>=floor&&reverse>=.75&&recentHigher>=.75?'higher-favoured':'unclear';
  out.push({key:list[0].key,skill:list[0].skill,protocol:list[0].protocol,name:list[0].setting.name,lower:lower[0].setting,higher:higher[0].setting,pairs:matches.length,blocks,latest,endpointAmbiguous,orderBalanced,lowerFirst,higherFirst,difference:diff,lowerChange:lo,higherChange:hi,status,matched:matches.map(m=>({lower:[m.lower.from,m.lower.to],higher:[m.higher.from,m.higher.to],difference:m.difference})),limitation:'Matched observational episodes; remaining confounding and regression to the mean are possible.'});
  }
  }

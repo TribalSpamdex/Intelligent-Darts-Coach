@@ -102,3 +102,12 @@ test('duration preference needs direct evidence against every compared alternati
  assert.deepEqual(durationReview([{...c,matched:c.matched.map(m=>({...m,aSessions:2}))}],day),[]);
  assert.deepEqual(durationReview([{...c,firstSetting:{}}],day),[]);
 });
+
+test('method and dose preferences need recent matched replication as well as aggregate advantage',()=>{
+ // Eight matched pairs; two latest contrasts are flat. Aggregate still has
+ // 75% agreement, but only 50% of the recent half agrees.
+ for(const kind of ['method','dose']){
+  const rows=fixture({kind,count:8}).map((r,i)=>({...r,from:ago(120-i*7),to:ago(117-i*7),...(i>=12?{delta:0,after:60}:{})}));
+  const c=methodComparisons(rows,day)[0];assert.equal(c.pairs,8);assert.equal(c.agreement,.75);assert.equal(c.recentAgreement,.5);assert.equal(c.status,'unclear');
+ }
+});

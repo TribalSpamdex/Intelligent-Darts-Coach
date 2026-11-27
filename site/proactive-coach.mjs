@@ -4,7 +4,7 @@ import {developmentAgenda} from './development-review.mjs';
 import {eventContext,competitionPreparation} from './competition-calendar.mjs';
 import {reflectionInsights} from './reflections.mjs';
 import {learningBoundary} from './challenge-episodes.mjs';
-import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
+import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate,currentMethodReviews} from './coaching-accountability.mjs';
 const same=(a,b)=>a.skill===b.skill&&a.context===b.context&&a.protocol===b.protocol;
 export function coachBrief(host,state,report,events,reflections,day,now=Date.now()){
  if(!dayValid(day))throw Error('Invalid coaching brief date');
@@ -53,6 +53,11 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
    ?i.skill+' ('+i.context+'): '+fmt(a.value)+' to '+fmt(b.value)+' across '+a.days+'/'+b.days+' measured days and '+a.attempts+'/'+b.attempts+' attempts. ':'The independent engine has confirmed a change worth investigating. ';
   return response('focus','Review a supported training focus',measured+'Review the evidence before making an optional adjustment.');
  }
+ const boundary=learningBoundary(state,day),reviews=currentMethodReviews(methodReviews(host,state,day,now),boundary),deferred=methodReviewGate(reviews,day)[0];
+ if(deferred)return response('method-review','Review a personalised drill choice',deferred.reason+' Keep the ordinary planner for this method while its evidence is reviewed.');
+ const waiting=methodFollowupGate(reviews,day)[0];
+ if(waiting)return response('method-followup','Complete your personalised drill review',waiting.reason+' No extra session is required.');
+ if(boundary&&dayGap(boundary,day)<=6)return response('changed-conditions','Establish your new reference measurements','A setup or routine change was recorded on '+boundary+'. Repeat familiar fixed checks during normal training. Earlier results remain in your history, but old learned preferences need fresh post-change evidence.');
  if(report?.verification?.status==='passed'&&report.decision!=='stop'){
   const questions=(report.strategy?.agenda?.questions??[]).filter(q=>{
    const previous=(state.answers??[]).filter(a=>same(a,q.scope)&&a.question===q.id&&dayGap(a.day,day)>=0&&dayGap(a.day,day)<7);
@@ -67,12 +72,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  }
  const concern=reflectionInsights(reflections??[],host,day).repeated[0];
  if(concern)return response('reflection','A recurring practice observation',concern.question+' This is player-reported context, not a diagnosis.');
- const reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day)[0];
- if(deferred)return response('method-review','Review a personalised drill choice',deferred.reason+' Keep the ordinary planner for this method while its evidence is reviewed.');
- const waiting=methodFollowupGate(reviews,day)[0];
- if(waiting)return response('method-followup','Complete your personalised drill review',waiting.reason+' No extra session is required.');
- const boundary=learningBoundary(state,day);
- if(boundary&&dayGap(boundary,day)<=6)return response('changed-conditions','Establish your new reference measurements','A setup or routine change was recorded on '+boundary+'. Repeat familiar fixed checks during normal training. Earlier results remain in your history, but old learned preferences need fresh post-change evidence.');
+
  const lead=agenda.actions.find(a=>['investigate-decline','early-watch','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
  if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}

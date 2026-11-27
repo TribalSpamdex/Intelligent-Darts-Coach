@@ -212,9 +212,20 @@ export function methodFollowupGate(rows,day){
  if(!dayValid(day)||!Array.isArray(rows))throw Error('Invalid follow-up review');
  const result=new Map();
  for(const r of rows){
-  if(!r||!dayValid(r.day)||dayGap(r.day,day)<0||dayGap(r.day,day)>14||r.status!=='eligible-exposure'||r.outcome!=='awaiting-comparable-checks'||!Object.hasOwn(methodMinimum,r.skill)||!FIXED_PROTOCOLS[r.skill]?.includes(r.protocol))continue;
-  const previous=result.get(r.skill);
-  if(!previous||r.day>previous.day)result.set(r.skill,{skill:r.skill,protocol:r.protocol,day:r.day,reviewUntil:new Date(Date.parse(r.day)+14*86400000).toISOString().slice(0,10),reason:'Repeat the same fixed benchmark on separate days before choosing another personalised method for this skill.'});
+  if(!r||!dayValid(r.day)||dayGap(r.day,day)<0||r.status!=='eligible-exposure'||!Object.hasOwn(methodMinimum,r.skill)||!FIXED_PROTOCOLS[r.skill]?.includes(r.protocol))continue;
+  const pending=r.outcome==='awaiting-comparable-checks'&&dayGap(r.day,day)<=14;
+  const end=r.followupDays?.[1],retention=r.outcome==='observed-higher'&&r.retention==='insufficient-delayed-checks'&&Array.isArray(r.followupDays)&&r.followupDays.length===2&&r.followupDays.every(dayValid)&&r.day<r.followupDays[0]&&r.followupDays[0]<end&&dayGap(r.day,end)<=14&&dayGap(end,day)>=0&&dayGap(end,day)<=21;
+  if(!pending&&!retention)continue;
+  const previous=result.get(r.skill),until=new Date(Date.parse(retention?end:r.day)+(retention?21:14)*86400000).toISOString().slice(0,10);
+  if(!previous||until>previous.reviewUntil)result.set(r.skill,{skill:r.skill,protocol:r.protocol,day:r.day,reviewUntil:until,reason:retention?'A short-term gain was observed. Complete the separate delayed benchmark checks within normal practice before choosing another personalised method for this skill.':'Repeat the same fixed benchmark on separate days before choosing another personalised method for this skill.'});
  }
  return [...result.values()].sort((a,b)=>a.skill.localeCompare(b.skill));
 }
+
+ // Review history stays intact; a selection predating a known changed setup
+ // must not be treated as a current failed or pending experiment.
+ export function currentMethodReviews(rows,boundary){
+  if(boundary===null||boundary===undefined)return rows;
+  if(!dayValid(boundary))throw Error('Invalid method review boundary');
+  return rows.filter(r=>dayValid(r.day)&&r.day>boundary&&(!r.baselineDays?.length||r.baselineDays.every(d=>dayValid(d)&&d>boundary)));
+ }

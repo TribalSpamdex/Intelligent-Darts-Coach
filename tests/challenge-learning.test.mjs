@@ -106,3 +106,14 @@ test('four additional exact bull and checkout training settings preserve fixed s
   {name:'170 Challenge',tier:4,remaining:100,maxVisits:3}
  ])assert.equal(settingSnapshot(g,g),null,g.name);
 });
+
+test('a reported change fences old exact-setting learning without deleting historical contrasts',()=>{
+ const {host,state}=fixture(),before=JSON.stringify(host);
+ const old=challengeLearning(host,state,day,now);assert.equal(learnedCap(base,old).maxQuarter,1);
+ state.setups=[{day:ago(9)}];
+ const r=challengeLearning(host,state,day,now);
+ assert.equal(r.comparisons[0].status,'lower-favoured');assert.equal(r.boundary,ago(9));assert.equal(r.currentEpisodes,1);assert.deepEqual(r.currentComparisons,[]);
+ assert.equal(learnedCap(base,r).maxQuarter,3);assert.equal(JSON.stringify(host),before);
+ assert.match(learningLines(r).join(' '),/post-change episodes/);
+ state.setups=[{day:ago(-1)}];assert.equal(learnedCap(base,challengeLearning(host,state,day,now)).maxQuarter,1);
+});
