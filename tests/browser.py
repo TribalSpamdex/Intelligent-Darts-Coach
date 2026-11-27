@@ -27,8 +27,9 @@ with sync_playwright() as p:
     assert 'Maintain your balanced practice' in page.locator('#idcBrief').inner_text()
     # Exercise sparse two-day feedback through both real Coach UI entry points.
     sparse=page.evaluate("""()=>{
-      const saved=clone(data.idcCoachMemory);
+      const saved=data.idcCoachMemory;
       try{
+       data.idcCoachMemory=clone(window.IDCTrainingBridge.memory());
        const today=dateKey(),old=dateKey(Date.now()-26*DAY_MS);
        data.idcCoachMemory.state.observations=[
         {id:'sparse-older',day:old,skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:35},
@@ -41,7 +42,7 @@ with sync_playwright() as p:
        document.getElementById('idcAsk').click();
        const answer=document.getElementById('idcAnswer').innerText;
        return {review,answer};
-      }finally{data.idcCoachMemory=saved;window.IDCPrecision.invalidate()}
+      }finally{if(saved===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=saved;window.IDCPrecision.invalidate()}
     }""")
     assert '35% to 20%' in sparse['review'] and 'Decision: balanced' in sparse['review'] and '-15 percentage points' in sparse['answer'], sparse
     page.locator('#idcExample').click()

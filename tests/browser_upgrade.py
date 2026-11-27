@@ -26,6 +26,19 @@ def run_upgrade_audit(browser):
 
         def do_GET(self):
             path=urlsplit(self.path).path
+            if path=='/observer.html':
+                payload=b'<!doctype html><title>Uncontrolled upgrade observer</title>'
+                self.send_response(200)
+                self.send_header('Content-Type','text/html')
+                self.send_header('Content-Length',str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
+            if not path.startswith('/site/'):
+                self.send_error(404)
+                return
+            self.path=self.path[len('/site'):]
+            path=urlsplit(self.path).path
             with lock:
                 generation=state['generation']
                 fail=state['fail']
@@ -57,7 +70,8 @@ def run_upgrade_audit(browser):
     server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(SITE)))
     thread=Thread(target=server.serve_forever,daemon=True)
     thread.start()
-    url='http://127.0.0.1:'+str(server.server_port)+'/index.html'
+    origin='http://127.0.0.1:'+str(server.server_port)
+    url=origin+'/site/index.html'
     ctx=None
     try:
         ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
@@ -93,14 +107,17 @@ def run_upgrade_audit(browser):
         probe(other,901)
         probe(page,901)
         assert other.evaluate("localStorage.getItem('dartsCoachV4')")== 'LEGACY-UPGRADE-SENTINEL'
+        observer=ctx.new_page()
+        observer.goto(origin+'/observer.html')
+        assert observer.evaluate('navigator.serviceWorker.controller===null')
         other.close()
         page.close()
-        # Release all old controlled clients. The next document must converge
-        # on the new worker/cache; a reload then proves consistent new assets.
+        # Wait from an uncontrolled same-origin page, so opening the next
+        # client cannot race with the old worker's release of its last client.
+        observer.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');const keys=await caches.keys();return !!r?.active&&r.active.state==='activated'&&!r.waiting&&keys.includes('IDC:assets:2.0.0-dev903')&&!keys.includes('IDC:assets:2.0.0-dev901')&&!keys.includes('IDC:assets:2.0.0-dev902')}")
         page=ctx.new_page()
         page.goto(url)
-        page.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration();const keys=await caches.keys();return !!navigator.serviceWorker.controller&&!r.waiting&&keys.includes('IDC:assets:2.0.0-dev903')&&!keys.includes('IDC:assets:2.0.0-dev901')&&!keys.includes('IDC:assets:2.0.0-dev902')}")
-        page.reload()
+        observer.close()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         probe(page,903)
         assert page.evaluate("data.__upgradeAudit==='keep' && localStorage.getItem('dartsCoachV4')==='LEGACY-UPGRADE-SENTINEL'")
