@@ -9,8 +9,24 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(!dayValid(day))throw Error('Invalid coaching brief date');
  const event=eventContext(events,day),agenda=developmentAgenda(host,state,day,{report,now});
  const safety=agenda.wellbeing;
- const response=(kind,title,detail,extra={})=>({kind,title,detail,event,...extra});
+ const basis={
+  wellbeing:'Readiness and safety take priority over performance.',
+  'intervention-review':'Existing consent or delivery evidence requires review.',
+  consent:'A proposal is not permission to alter training.',
+  competition:'Recorded event timing; no performance prediction.',
+  question:'Evidence is incomplete; the answer is optional player-reported context.',
+  active:'Existing consent and independent verification support continuing the agreed adjustment.',
+  goal:'Recorded goal and review date; achievement is not assumed.',
+  focus:'Independent verification supports investigation, not a causal diagnosis.',
+  reflection:'Repeated player reports, not measured mechanics or a diagnosis.',
+  'method-review':'Individual observational evidence requires reassessment.',
+  'method-followup':'A separate measurement is needed to review the previous choice.',
+  development:'Recorded development evidence; strength depends on comparable measurements.',
+  balanced:'No new supported change; this does not establish that performance is stable.'
+ };
+ const response=(kind,title,detail,extra={})=>({kind,title,detail,event,basis:basis[kind],...extra});
  if(safety)return response('wellbeing','Readiness takes priority',agenda.actions[0].next);
+ if(report?.decision==='stop')return response('wellbeing','Readiness takes priority','Do not start or continue an adjustment. Follow the current readiness and recovery guidance.');
  const open=(state.interventions??[]).find(i=>i.proposedDay<=day&&((i.status==='proposed'&&(!i.responseDay||i.responseDay>day))||(i.status==='accepted'&&dayValid(i.responseDay)&&i.responseDay<=day)));
  const shortfall=open?.status==='accepted'?deliveryGate(host,open,day,now):null;
  if(open){
@@ -20,6 +36,21 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
   if(open.status==='proposed')return response('consent','A coaching adjustment is awaiting your decision','Review its current evidence before accepting or declining. Nothing changes without consent.',{intervention:open.id});
  }
  if(event.phase==='competition-day'||event.phase==='near-event')return response('competition','Prepare for '+event.event.name,'Keep the normal comfortable routine and avoid introducing a new experiment just before competition.');
+ if(open?.status==='accepted'){
+  const supported=report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id;
+  return supported?response('active','Continue the agreed training adjustment','Keep the rest of practice stable and review on the agreed date.',{intervention:open.id}):response('intervention-review','Check the existing adjustment','The current independent recommendation does not confirm continued allocation. Keep practice balanced and review the evidence before repeating the change.',{intervention:open.id});
+ }
+ if(report?.verification?.status!=='passed')return response('balanced','Coaching verification incomplete','Review the coaching evidence before adopting any new adjustment.');
+ const due=agenda.actions.find(a=>a.kind==='review-goal');
+ if(due)return response('goal','A measured goal is due for review',due.reason+' '+due.next);
+ if(report?.verification?.status==='passed'&&report.decision==='temporary-focus'){
+  const i=(report.issues??[]).find(i=>i.skill===report.focus&&i.context===report.focusContext&&i.protocol===report.focusProtocol);
+  const a=i?.evidence?.earlier,b=i?.evidence?.recent,scoring=['scoring','firstNine'].includes(i?.skill);
+  const fmt=v=>(scoring?v:v*100).toFixed(1)+(scoring?' average':'%');
+  const measured=a&&b&&Number.isFinite(a.value)&&Number.isFinite(b.value)&&Number.isFinite(a.attempts)&&Number.isFinite(b.attempts)&&Number.isFinite(a.days)&&Number.isFinite(b.days)
+   ?i.skill+' ('+i.context+'): '+fmt(a.value)+' to '+fmt(b.value)+' across '+a.days+'/'+b.days+' measured days and '+a.attempts+'/'+b.attempts+' attempts. ':'The independent engine has confirmed a change worth investigating. ';
+  return response('focus','Review a supported training focus',measured+'Review the evidence before making an optional adjustment.');
+ }
  if(report?.verification?.status==='passed'&&report.decision!=='stop'){
   const questions=(report.strategy?.agenda?.questions??[]).filter(q=>{
    const previous=(state.answers??[]).filter(a=>same(a,q.scope)&&a.question===q.id&&dayGap(a.day,day)>=0&&dayGap(a.day,day)<7);
@@ -32,14 +63,6 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
    const q=questions[0];return response('question','One useful check',q.text,{question:{id:q.id,scope:q.scope,answers:[...q.answers]},why:q.why});
   }
  }
- if(open?.status==='accepted'){
-  const supported=report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id;
-  return supported?response('active','Continue the agreed training adjustment','Keep the rest of practice stable and review on the agreed date.',{intervention:open.id}):response('intervention-review','Check the existing adjustment','The current independent recommendation does not confirm continued allocation. Keep practice balanced and review the evidence before repeating the change.',{intervention:open.id});
- }
- if(report?.verification?.status!=='passed')return response('balanced','Coaching verification incomplete','Review the coaching evidence before adopting any new adjustment.');
- const due=agenda.actions.find(a=>a.kind==='review-goal');
- if(due)return response('goal','A measured goal is due for review',due.reason+' '+due.next);
- if(report?.verification?.status==='passed'&&report.decision==='temporary-focus')return response('focus','Review a supported training focus','The independent engine has confirmed a change worth investigating. Review the evidence before making an optional adjustment.');
  const concern=reflectionInsights(reflections??[],host,day).repeated[0];
  if(concern)return response('reflection','A recurring practice observation',concern.question+' This is player-reported context, not a diagnosis.');
  const reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day)[0];
@@ -51,4 +74,4 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}
  return response('balanced','Maintain your balanced practice','Continue your usual session and record comparable checks when practical. No new adjustment is justified.');
 }
-export function briefLines(b){return [b.title,b.detail,...(b.why?[b.why]:[]),'One priority at a time. The coach has not altered your session or created a new player fact.'];}
+export function briefLines(b){return [b.title,b.detail,...(b.basis?[b.basis]:[]),...(b.why?[b.why]:[]),'One priority at a time. The coach has not altered your session or created a new player fact.'];}
