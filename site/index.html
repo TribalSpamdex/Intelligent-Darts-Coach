@@ -6030,7 +6030,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
    button('Hit','dc23MasteryInput(\'hit\')')+button('Miss','dc23MasteryInput(\'miss\')');break;
  case "High-Low":
   heading=highLowAimHigher(g)?"HIGHER":"LOWER";detail="Previous visit "+g.previous+" · Gap "+g.diff;
-  mini="Won "+g.won+"/4 · Lives "+g.lives+" · Visit "+(g.index+1)+"/"+(g.visitLimit||5);
+  mini="Correct visits "+g.won+"/4 · Lives "+g.lives+" · Visit "+(g.index+1)+"/"+(g.visitLimit||5);
   html=padMarkup()+button("Enter Visit","new40Score()");break;
  case "Split the Difference":
   heading=g.previous===null?"SET A SCORE":"MATCH "+g.previous;detail="Keep next visit within ±"+g.tolerance;
@@ -6477,11 +6477,22 @@ function coach61SessionReport(record){
 }
 
 function renderHome(){coach61Briefing();const s=session(),today=new Date().getDay(),scheduled=data.days.includes(today),needsAssessment=!s&&assessmentDue();$("homeHeading").textContent=needsAssessment?(eligibleForStartChoice()?"Choose How to Start":"Continue Your Assessment"):s?"Training In Progress":scheduled?"Your Training Is Ready":"Today Is a Rest Day";$("homeMessage").textContent=needsAssessment?(eligibleForStartChoice()?"Take the full assessment or select your usual average to begin immediately.":"Continue your measured assessment to unlock training."):s?"Continue where you left off.":scheduled?"Your coach has prepared today's session.":"Rest and recovery are part of your programme.";$("homeDuration").textContent=s?fmt(sessionRemaining()):needsAssessment?(eligibleForStartChoice()?"2 OPTIONS":"6 TESTS"):scheduled?"60 MIN":"60 MIN";let actions="";if(needsAssessment)actions='<button class="primary" onclick="show(&quot;train&quot;)">Choose Starting Method</button>';else if(s)actions='<button class="primary" onclick="show(\'train\')">Continue Training</button>';else{const done=data.sessions.some(x=>x.date===dateKey()&&!x.extra&&x.completed);if(scheduled&&!done)actions='<button class="primary" onclick="beginTraining(false)">Start Training</button>';else if(scheduled)actions='<div class="info">Scheduled training completed today.</div>';actions+='<button class="secondary" style="width:100%;margin-top:10px" onclick="beginTraining(true)">Extra Training</button>';if(reassessmentDue())actions+='<button class="secondary" style="width:100%;margin-top:10px" onclick="startReassessment()">Four-week Assessment Ready</button>'}$("homeAction").innerHTML=actions;$("homeDays").innerHTML=[...data.days].sort((a,b)=>a-b).map(n=>'<span class="tag" style="margin:3px">'+DAY_NAMES[n]+'</span>').join("");if(!blockStart()){$("blockStatus").textContent="Your first training block begins with your first session.";$("blockBar").style.width="0%";$("blockInfo").textContent="Four weeks per block."}else{const i=currentBlockIndex(),begin=blockBoundary(i),end=blockBoundary(i+1),elapsed=Date.now()-begin;$("blockStatus").textContent="Training Block "+(i+1);$("blockBar").style.width=clamp(100*elapsed/(end-begin),0,100)+"%";$("blockInfo").textContent="Week "+clamp(Math.floor(elapsed/(7*DAY_MS))+1,1,4)+" of 4"};renderHomeHighlights()}
+function dcHomeSessionHistory(records,now=Date.now()){
+ const seen=new Map(),conflicts=new Set();
+ for(const s of records){
+  if(!s||typeof s.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!Number.isFinite(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||s.date>dateKey(now)||
+   s.start!=null&&(!Number.isFinite(s.start)||s.start<=0||s.start>now)||s.minutes!=null&&(!['number','string'].includes(typeof s.minutes)||!Number.isFinite(Number(s.minutes))||Number(s.minutes)<0))continue;
+  const key=s.id!=null?String(s.id):JSON.stringify(s);
+  if(seen.has(key)&&JSON.stringify(seen.get(key))!==JSON.stringify(s))conflicts.add(key);
+  else seen.set(key,s);
+ }
+ return [...seen].filter(([key])=>!conflicts.has(key)).map(([,s])=>s);
+}
 function renderHomeHighlights(){
  const area=$("homeHighlights"),chart=$("homeWeekBars");if(!area||!chart)return;
- const sessions=Array.isArray(data.sessions)?data.sessions:[],games=Array.isArray(data.games)?data.games:[];
+ const sessions=dcHomeSessionHistory(Array.isArray(data.sessions)?data.sessions:[]),games=Array.isArray(data.games)?data.games:[];
  const minutes=sessions.reduce((n,x)=>n+(Number(x.minutes)||0),0);
- const good=games.filter(g=>g.completion==="natural"||g.completion==="partial");
+ const good=dcRecordHistory(games).rows;
  const total180=good.reduce((n,g)=>n+(Number(g.oneEighties)||0),0);
  area.innerHTML='<div class="homeKpi"><span class="homeKpiIcon">◎</span><strong>'+sessions.length+'</strong><small>Sessions</small></div><div class="homeKpi"><span class="homeKpiIcon">◷</span><strong>'+Math.round(minutes)+'</strong><small>Minutes trained</small></div><div class="homeKpi"><span class="homeKpiIcon">✦</span><strong>'+total180+'</strong><small>180s recorded</small></div>';
  const now=new Date(),dow=(now.getDay()+6)%7,monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()-dow),days=["M","T","W","T","F","S","S"];

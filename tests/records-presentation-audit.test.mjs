@@ -32,3 +32,15 @@ test('Coach display labels hide tier suffixes while preserving distinct raw prot
  assert.equal(c.label('Preferred double: D16'),'Preferred double: D16');
  assert.match(src,/o\.value=v/); // display is separate from the protocol form value.
 });
+test('Home session counts exclude future and conflicting identities while preserving incomplete actual practice',()=>{
+ const a=html.indexOf('function dcHomeSessionHistory('),b=html.indexOf('function renderHomeHighlights(',a);
+ const c=vm.createContext({Date,dateKey:x=>new Date(x).toISOString().slice(0,10)});
+ vm.runInContext(html.slice(a,b),c);
+ const current={id:1,start:now-3600000,date:'2026-11-27',minutes:30,completed:false};
+ const rows=[current,structuredClone(current),{...current,id:2,start:now+1},{...current,id:3,date:'2026-11-28'},{...current,id:4,date:'2026-02-30'}];
+ const read=rows=>JSON.parse(JSON.stringify(c.dcHomeSessionHistory(rows,now)));
+ assert.deepEqual(read(rows),[current]);
+ assert.deepEqual(read([current,{...current,minutes:99}]),[]);
+ assert.match(html,/const good=dcRecordHistory\(games\)\.rows/);
+ assert.doesNotMatch(html,/mini="Won "/);
+});

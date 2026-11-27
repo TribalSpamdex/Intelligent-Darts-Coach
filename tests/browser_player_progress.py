@@ -83,6 +83,14 @@ def run_player_progress_audit(browser):
         assert 'Invalid or future dates excluded: 1' in records['text'],records
         assert 'Tier ' not in records['text'],records
         assert records['kept']==4,records
+        home=page.evaluate("""()=>{
+          const row={id:'home-audit',start:Date.now()-60000,date:dateKey(),minutes:1,quick:true,completed:true};
+          data.sessions=[row,clone(row),{...clone(row),id:'future',start:Date.now()+DAY_MS,date:dateKey(Date.now()+DAY_MS)}];
+          show('home');return document.getElementById('homeHighlights').innerText;
+        }""")
+        assert home.count('1\n')>=2,home
+        assert '3\nSessions' not in home,home
+        print('Independent rendered Home totals: '+json.dumps(home))
         print('Independent rendered record presentation: '+json.dumps(records))
         print('Independent rendered player-progress audit: '+json.dumps(checks))
     finally:
