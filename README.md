@@ -1,6 +1,6 @@
 # Intelligent Darts Coach (IDC)
 
-V1.9.0-dev candidate: deeper independent learning, verified exposure, match stages and player development priorities; personal testing only after successful verification. Not a production release. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
+V2.0.0-dev audited release candidate: see [V2 release acceptance record](V2-RELEASE-ACCEPTANCE.md) for pinned automated evidence, unresolved WebKit diagnostic, physical-device checklist and licensing limitations. Not a production release. V1.1.0-dev archived on archive/v1.1.0-dev. V1.0.0-dev preserved on archive/v1.0.0-dev.
 
 - Training platform: exact V6.2 source at TribalSpamdex/darts-coach commit b248a1caa169c9a45a6beda3954dc067cbfbe6e1, with separate storage keys, new local Coach panel, share URL and offline asset cache.
 - Independent engine: pinned V0.4.0 at TribalSpamdex/DCI-independent commit a39210419869ecf1160471997b10300d57c93ef1. The original engine regression suite is carried over.

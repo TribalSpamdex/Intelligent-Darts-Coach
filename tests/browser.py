@@ -3,6 +3,13 @@ from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
     browser=getattr(p,os.getenv('IDC_BROWSER','chromium')).launch()
     ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    from urllib.parse import urlsplit
+    external_requests=[]
+    def track_request(request):
+        u=urlsplit(request.url)
+        if u.scheme in ('http','https','ws','wss') and (u.scheme!='http' or u.hostname!='127.0.0.1' or u.port!=8765):
+            external_requests.append((request.method,request.url))
+    ctx.on('request',track_request)
     page=ctx.new_page()
     errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
@@ -598,6 +605,8 @@ with sync_playwright() as p:
     valid_recovery.close()
     print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
+    assert not external_requests,external_requests
+    print('Observed smoke-test requests: no external HTTP(S) or WebSocket destinations')
     from browser_gameplay import run_gameplay_audit
     from browser_upgrade import run_upgrade_audit
     from browser_migration import run_migration_audit
