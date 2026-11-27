@@ -9,7 +9,7 @@ test('retain original V6.2 element ids, named functions and complete Quick Play 
  const fn=new Set([...html.matchAll(/(?:^|\n)(?:async )?function\s+(\w+)\s*\(/g)].map(m=>m[1]));
  for(const id of baseline.ids)assert.ok(ids.has(id),id);
  for(const name of baseline.functions)assert.ok(fn.has(name),name);
- assert.deepEqual(JSON.parse(html.match(/const QUICK_GAMES\s*=\s*(\[[\s\S]*?\]);/)[1]),baseline.games);
+ assert.deepEqual(JSON.parse(html.match(/const QUICK_GAMES\s*=\s*(\[[\s\S]*?\]);/)[1]),['Scoring Challenge',...baseline.games]);
 });
 test('automatic guide never interrupts an existing player or active session',()=>{
  const code=html.match(/function idcWalkthroughShouldAuto\([\s\S]*?\n}/)[0];

@@ -32,6 +32,7 @@ def run_gameplay_audit(browser):
             if(name==='Checkout Poker'&&!g.chosen)new40Choice(g.cards.find(n=>!g.cardsUsed?.includes(n)));
            }
            function miss(name){
+            if(name==='Scoring Challenge'){padSet('0');recordScore();return}
             if(scoring.has(name)){padSet('0');scoringVisit();return}
             if(name==='Double-In 201'){padSet('0');dc591OpeningSubmit();return}
             if(name==='High-Low'||name==='Split the Difference'){padSet('0');new40Score();return}

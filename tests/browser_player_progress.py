@@ -151,6 +151,21 @@ def run_player_progress_audit(browser):
         assert 'Invalid or future dates excluded: 1' in records['text'],records
         assert 'Tier ' not in records['text'],records
         assert records['kept']==4,records
+        # Actual native Quick Play Mastery, saved round, Undo and rendered progress.
+        mastery=page.evaluate("""async()=>{
+          data.activeSession=null;data.game=null;activeGame=null;data.games=[];data.sessions=[];
+          quickChoice='Target Mastery';dc23QuickMode='bull';document.getElementById('quickDuration').value='300';startQuickPlay();playExercise();
+          for(let i=0;i<15;i++)dc23MasteryInput(i<6?'50':i<10?'25':'miss');
+          if(data.games.length!==1||data.games[0].quick!==true)throw Error('Quick Mastery round not saved');
+          undoGame();if(dc24MasteryRows().length!==0)throw Error('Undo left Mastery evidence');
+          dc23MasteryInput('miss');finishSession(false);show('progress');
+          const module=await import('./v62-evidence.mjs?v=2.0.0-dev');
+          const rows=module.masteryRows(window.IDCTrainingBridge.snapshot(),Date.now());
+          return {rows:rows.length,hits:rows.reduce((n,r)=>n+r.hit,0),quick:rows.every(r=>r.quick),text:document.getElementById('dc23MasteryProgress').innerText};
+        }""")
+        assert mastery['rows']==15 and mastery['hits']==10 and mastery['quick'],mastery
+        assert 'Quick Play skill measurements' in mastery['text'] and '66.7%' in mastery['text'],mastery
+        print('Quick Play Mastery saved UI and projection: '+json.dumps(mastery))
         home=page.evaluate("""()=>{
           const row={id:'home-audit',start:Date.now()-60000,date:dateKey(),minutes:1,quick:true,completed:true};
           data.sessions=[row,clone(row),{...clone(row),id:'future',start:Date.now()+DAY_MS,date:dateKey(Date.now()+DAY_MS)}];
