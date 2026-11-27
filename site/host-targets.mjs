@@ -1,4 +1,4 @@
-import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows} from './v62-evidence.mjs';
+import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
@@ -30,12 +30,13 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  const parent=parents.parents.get(String(b.sessionId));if(parent.date!==b.day||!Number.isFinite(parent.start)||parent.start<=0||parent.start>now||recordedDay(parent.start,parent.startOffsetMinutes)!==b.day||b.at!=null&&(recordedDay(b.at,b.offsetMinutes)===null||recordedDay(b.at,b.offsetMinutes)>day))continue;
  record('daily:'+b.day,b.perNumber.map((hits,i)=>row(b.day,'Daily large singles benchmark','S'+(i+1),3,hits)));
  }
- for(const g of host.games){
+ for(const g of canonicalSkillGames(host.games,conflicts)){
  if(!g||!skillPlayEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!eligible(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
- const ring=['Doubles Survival','Doubles Streak'].includes(g.name)&&g.variant==='doubles'?'D':g.name==='Treble Hunt'&&g.variant!=='single'?'T':null;
- if(!ring||!Array.isArray(g.targetLog)||!g.targetLog.length||g.targetLog.length!==g.thrown||!g.targetLog.every(x=>x?.ring===ring&&Number.isInteger(x.target)&&x.target>=1&&x.target<=20&&typeof x.hit==='boolean')||g.targetLog.filter(x=>x.hit).length!==g.hits)continue;
+ const ring=['Doubles Survival','Doubles Streak'].includes(g.name)?(g.variant==='doubles'?'D':g.quick&&g.variant==='singles'?'S':null):g.name==='Treble Hunt'?(g.variant==='treble'?'T':g.quick&&g.variant==='single'?'S':null):g.quick&&['Outside Doubles','Double Double','Dartboard Bingo'].includes(g.name)?(g.details?.variant==='singles'?'S':g.details?.ring??'D'):null;
+ const log=g.targetLog??g.details?.targetLog;
+ if(!['S','D','T'].includes(ring)||!Array.isArray(log)||!log.length||log.length!==g.thrown||!log.every(x=>x?.ring===ring&&Number.isInteger(x.target)&&x.target>=1&&x.target<=20&&typeof x.hit==='boolean')||log.filter(x=>x.hit).length!==g.hits)continue;
  const bins=new Map();
- for(const x of g.targetLog){const t=ring+x.target,v=bins.get(t)??row(g.day,(g.quick?'Quick Play · ':'')+g.name+' · tier '+(g.tierAtStart??'unspecified'),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
+ for(const x of log){const t=ring+x.target,v=bins.get(t)??row(g.day,(g.quick?'Quick Play · ':'')+g.name+' · tier '+(g.tierAtStart??'unspecified')+(g.name==='Doubles Streak'?' · '+(g.ruleVersion==='same-target-streak-v1'?'per-target streak':'legacy advancing targets'):''),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
  record('game:'+g.at+':'+g.name,[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
  const mastery=new Map();
