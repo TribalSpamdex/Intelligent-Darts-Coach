@@ -125,3 +125,11 @@ test('Mixed application cannot be promoted to an isolated measured checkout expo
  const h=empty();h.sessions=[{id:1,date:day,start:now-600000,quick:false,activities:[{name:'301 Pressure',application:true,seconds:600,exerciseIndex:0,at:now}]}];
  const x=projectExposure(h,day,now);assert.equal(x.exposure.length,0);assert.equal(x.unclassifiedSeconds,600);
 });
+
+test('A duplicate identity blocks otherwise valid exposure on both affected dates',()=>{
+ const h=empty(),first=Date.parse('2026-11-14T10:00:00Z'),second=Date.parse(day+'T10:00:00Z');
+ const session=(id,date,start)=>({id,date,start,quick:false,activities:[{name:'Bull Accuracy',seconds:600,exerciseIndex:0,at:start+600000}]});
+ h.sessions=[session(1,'2026-11-14',first),session('1',day,second),session(2,'2026-11-14',first+1200000),session(3,day,second+1200000)];
+ assert.deepEqual(projectExposure(h,day,now).exposure,[]);
+ h.sessions.splice(1,1);assert.equal(projectExposure(h,day,now).exposure.length,2);
+});

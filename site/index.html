@@ -1172,7 +1172,17 @@ function sessionBudget(){
 function sessionRemaining(){return Math.max(0,sessionBudget()-sessionElapsed())}
 /* The canonical record remains IDC:training:v1 across every release.
    A milestone checkpoint is a secondary same-origin safety copy, NOT a file or cloud sync. */
-function isValidPlayerData(d){return !!d&&typeof d==="object"&&!Array.isArray(d)&&Array.isArray(d.sessions)&&Array.isArray(d.games)&&d.assessment&&typeof d.assessment==="object"&&d.skills&&typeof d.skills==="object"}
+function isValidPlayerData(d){
+ const record=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+ if(!record(d)||!Array.isArray(d.sessions)||!Array.isArray(d.games)||!record(d.assessment)||!record(d.skills))return false;
+ // A structurally damaged primary must not win over a valid recovery copy.
+ const s=d.activeSession;
+ if(s!=null){
+  if(!record(s)||!Array.isArray(s.plan)||!s.plan.length||!Number.isInteger(s.index)||s.index<0||s.index>=s.plan.length||s.plan.some(x=>!record(x)||typeof x.name!=='string'||!x.name))return false;
+  if(d.game!=null&&(!record(d.game)||d.game.name!==s.plan[s.index].name))return false;
+ }
+ return true;
+}
 let recoveryNotice="",storageSaveError="";
 /* Lossless compact recovery only; canonical data and exported JSON remain unchanged. */
 /* A single in-memory LZW prefix. Saved bytes retain the original dc-lzw1 formats. */
@@ -1232,6 +1242,7 @@ function dc998Pack(text){
 }
 function dc998Unpack(packed,length){
  if(!Number.isSafeInteger(length)||length<0||length>50000000)throw Error('Invalid recovery length');
+ if(typeof packed!=='string'||packed.length>length||(!packed.length&&length!==0))throw Error('Invalid recovery data');
  const dict=[],bytes=new Uint8Array(length);let pos=0,next=256,prev=null;
  for(let i=0;i<256;i++)dict[i]=[i];
  for(let i=0;i<packed.length;i++){const code=packed.charCodeAt(i)-32;let entry=dict[code];if(!entry&&code===next&&prev&&next<32700)entry=prev.concat(prev[0]);if(!entry||pos+entry.length>length)throw Error('Invalid recovery code');bytes.set(entry,pos);pos+=entry.length;if(prev&&next<32700)dict[next++]=prev.concat(entry[0]);prev=entry}
@@ -1239,13 +1250,13 @@ function dc998Unpack(packed,length){
 }
 function dc998CheckpointPayload(value){
  const fence=localStorage.getItem(RECOVERY_FENCE),savedAt=Date.now(),raw=JSON.stringify(value),plain='{"savedAt":'+savedAt+',"fence":'+JSON.stringify(fence)+',"data":'+raw+'}';
- if(raw.length<100000)return plain;
- try{const encoded=dc63PackSnapshot(raw),compact=JSON.stringify({savedAt,fence,format:'dc-lzw1',length:encoded.length,packed:encoded.packed});return compact.length<plain.length?compact:plain}catch(e){return plain}
+ if(raw.length<100000||raw.length>50000000)return plain;
+ try{const encoded=dc63PackSnapshot(raw);if(encoded.length>50000000)return plain;const compact=JSON.stringify({savedAt,fence,format:'dc-lzw1',length:encoded.length,packed:encoded.packed});return compact.length<plain.length?compact:plain}catch(e){return plain}
 }
 function dc999PrimaryPayload(value){
  const raw=JSON.stringify(value);
- if(raw.length<100000)return raw;
- try{const encoded=dc63PackSnapshot(raw),compact=JSON.stringify({format:'dc-lzw1-primary',length:encoded.length,packed:encoded.packed});return compact.length<raw.length?compact:raw}catch(e){return raw}
+ if(raw.length<100000||raw.length>50000000)return raw;
+ try{const encoded=dc63PackSnapshot(raw);if(encoded.length>50000000)return raw;const compact=JSON.stringify({format:'dc-lzw1-primary',length:encoded.length,packed:encoded.packed});return compact.length<raw.length?compact:raw}catch(e){return raw}
 }
 // One exclusive writer per origin. A read-only tab must never silently overwrite
 // another tab's successful save. Explicit reload is required to acquire a fresh view.

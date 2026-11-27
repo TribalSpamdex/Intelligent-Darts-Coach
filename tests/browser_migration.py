@@ -102,6 +102,13 @@ def run_migration_audit(browser):
         page.reload()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
         assert page.evaluate("data.__migrationProbe==='Résumé 🎯 日本語' && data.activeSession.pausedAt!==null && activeGame.thrown===1 && undoSnapshot?.thrown===0")
+        # A structurally corrupt primary must recover the latest matching
+        # checkpoint, not normalize the broken shape into an empty profile.
+        assert page.evaluate("checkpointData()")
+        page.evaluate("localStorage.setItem(KEY,JSON.stringify({...data,assessment:[]}))")
+        page.reload()
+        page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+        assert page.evaluate("!idcRecoveryBlocked && data.__migrationProbe==='Résumé 🎯 日本語' && data.activeSession.pausedAt!==null && activeGame.thrown===1 && undoSnapshot?.thrown===0")
         print('Synthetic legacy migration, large Unicode backup, atomic rejection and interrupted-session restore audit:',result)
     finally:
         ctx.close()

@@ -3,15 +3,15 @@
 import {validActivityTimeline} from './training-ledger.mjs';
 const fixed=new Map([['Scoring Challenge','scoring'],['Scoring Survival','scoring'],['Scoring Ladder','scoring'],['Bull Accuracy','bull'],['Bull Survival','bull'],['Bull Streak','bull'],['Checkout Climb','checkout'],['Focused Checkouts','checkout'],['Big Singles','singles']]);
 export function projectExposure(host,day,now=Date.now()){
- const totals=new Map(),seen=new Set(),ambiguous=new Set();let unclassifiedSeconds=0;
+ const totals=new Map(),seen=new Map(),ambiguous=new Set(),blockedDays=new Set();let unclassifiedSeconds=0;
  for(const s of host.sessions){
  if(!s||s.quick!==false||!Array.isArray(s.activities)||typeof s.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!Number.isFinite(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||s.date>day||!['number','string'].includes(typeof s.id))continue;
- const id=String(s.id);if(seen.has(id))ambiguous.add(id);seen.add(id);
+ const id=String(s.id);if(seen.has(id)){ambiguous.add(id);blockedDays.add(s.date);blockedDays.add(seen.get(id))}else seen.set(id,s.date);
  }
  seen.clear();
  for(const s of host.sessions){
- if(!s||s.quick!==false||!Array.isArray(s.activities)||typeof s.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!Number.isFinite(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||s.date>day||!['number','string'].includes(typeof s.id)||ambiguous.has(String(s.id))||seen.has(String(s.id)))continue;
- seen.add(String(s.id));const ids=new Set();
+ if(!s||s.quick!==false||!Array.isArray(s.activities)||typeof s.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!Number.isFinite(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||s.date>day||!['number','string'].includes(typeof s.id)||ambiguous.has(String(s.id))||blockedDays.has(s.date)||seen.has(String(s.id)))continue;
+ seen.set(String(s.id),s.date);const ids=new Set();
  // Modern observed exposure requires a physically possible, nonduplicated timeline.
  // Legacy rows without endpoints remain in the player's history, not in reliable dose evidence.
  if(s.activities.length>100||new Set(s.activities.map(a=>a?.exerciseIndex)).size!==s.activities.length||new Set(s.activities.filter(a=>a?.exerciseId!=null).map(a=>String(a.exerciseId))).size!==s.activities.filter(a=>a?.exerciseId!=null).length||s.activities.reduce((n,a)=>n+(Number(a?.seconds)||0),0)>7200||!validActivityTimeline(s.start,s.activities,now))continue;
