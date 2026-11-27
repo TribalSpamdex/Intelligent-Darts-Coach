@@ -33,6 +33,60 @@ export function trainingParentEligible(g,index,requireParent=false){
  return s.quick===false&&!(Number.isFinite(s.start)&&Number.isFinite(g.at)&&g.at<s.start);
 }
 export function recordedDay(at,offset){return localDay(at,offset)}
+// Actual skill measurements in Quick Play are a different source, not
+// scheduled practice dose. Only an explicitly linked single-game session
+// with matching identity, source, chronology and recorded mode qualifies.
+export function skillPlayEligible(g,index){
+ if(!g||g.quick!==true)return trainingParentEligible(g,index);
+ const k=g.sessionId==null?null:String(g.sessionId),s=index.parents.get(k);
+ return !!s&&!index.duplicates.has(k)&&s.quick===true&&
+  (s.quickGame===g.name||s.quickGame==null&&Array.isArray(s.focus)&&s.focus.length===1&&s.focus[0]===g.name)&&
+  Number.isFinite(s.start)&&s.start>0&&Number.isFinite(g.at)&&g.at>=s.start&&
+  dayOK(g.day)&&localDay(g.at,g.offsetMinutes)===g.day&&
+  (!s.date||localDay(s.start,s.startOffsetMinutes)===s.date);
+}
+const masteryModes=new Set(['segment','straight','switch','setup','pressure','scoring','bull','checkout']);
+const bands={'2–40':[2,40],'41–60':[41,60],'61–80':[61,80],'81–100':[81,100],'101+':[101,170]};
+const targetValid=d=>d&&['S','D','T'].includes(d.ring)&&Number.isInteger(d.target)&&d.target>=1&&d.target<=20&&typeof d.hit==='boolean';
+// Rebuild from original natural rounds, not personal bests or round wins.
+// Duplicate mirrors collapse, contradictory identities are discarded.
+export function masteryRows(host,now=Date.now(),windowDays=112){
+ const parents=trainingParentIndex(host.sessions??[]),seen=new Map(),bad=new Set(),out=[];
+ for(const g of host.games??[]){
+  if(!g||g.name!=='Target Mastery'||!Number.isFinite(g.at)||g.at<=0||g.at>now||g.at<now-windowDays*86400000)continue;
+  const k=JSON.stringify([g.at,String(g.sessionId??'')]),value=JSON.stringify([g.quick,g.completion,g.recovery,g.challengeTuning,g.masteryMode,g.thrown,g.hits,g.attempts,g.targetLog,g.attemptLog,g.day,g.offsetMinutes]);
+  if(seen.has(k)){if(seen.get(k).value!==value)bad.add(k)}else seen.set(k,{g,value});
+ }
+ for(const [k,{g}] of seen){
+  if(bad.has(k)||!skillPlayEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!masteryModes.has(g.masteryMode))continue;
+  const day=localDay(g.at,g.offsetMinutes),mode=g.masteryMode,quick=g.quick===true,log=g.targetLog;
+  if(!day||g.day!=null&&g.day!==day)continue;
+  if(mode==='checkout'){
+   const a=g.attemptLog;
+   if(g.attempts!==5||!Array.isArray(a)||a.length!==5||!a.every(x=>x&&Object.hasOwn(bands,x.range)&&Number.isInteger(x.finish)&&x.finish>=bands[x.range][0]&&x.finish<=bands[x.range][1]&&x.allowance===3&&typeof x.success==='boolean'&&legalFinishCount(x.finish,3)&&(!x.success?x.dartsUsed==null:x.dartsUsed==null||[1,2,3].includes(x.dartsUsed)&&legalFinishCount(x.finish,x.dartsUsed)))||a.filter(x=>x.success).length!==g.hits)continue;
+   // A range is a label, not a common checkout probability: keep exact scores.
+   for(const x of a)out.push({kind:'checkout',key:'Checkout '+x.range+' · '+x.finish,day,hit:Number(x.success),darts:x.dartsUsed??null,score:x.finish,quick});
+  }else{
+   if(g.thrown!==15||!Array.isArray(log)||log.length!==15||log.filter(d=>d?.hit===true).length!==g.hits)continue;
+   if(mode==='bull'){
+    if(!log.every(d=>d&&d.ring==='B'&&[25,50,null].includes(d.target)&&d.hit===(d.target!==null)))continue;
+    for(const d of log)out.push({kind:'bull',key:'Bull outcomes',day,hit:Number(d.hit),outcome:d.target,quick});
+   }else{
+    if(!log.every(targetValid)||['segment','straight','pressure'].includes(mode)&&log.some(d=>d.ring!==log[0].ring||d.target!==log[0].target)||mode==='setup'&&log.some(d=>d.ring!=='S')||mode==='scoring'&&log.some(d=>!['S','T'].includes(d.ring)||d.ring!==log[0].ring))continue;
+    for(const d of log)out.push({kind:mode,key:mode+' '+d.ring+d.target,day,hit:Number(d.hit),target:d.ring+d.target,quick});
+   }
+  }
+ }
+ return out;
+}
+export function quickAbilityLines(host,day,now=Date.now()){
+ const rows=masteryRows(host,now).filter(r=>r.quick&&r.day<=day),groups=new Map();
+ for(const r of rows){const x=groups.get(r.key)??{key:r.key,hits:0,attempts:0,days:new Set()};x.hits+=r.hit;x.attempts++;x.days.add(r.day);groups.set(r.key,x)}
+ const benchmarks=projectEvidence(host,{today:day,now}).observations.filter(o=>o.protocol.startsWith('IDC V6.2 Quick Play '));
+ const fixed=new Map();for(const o of benchmarks){const x=fixed.get(o.protocol)??{protocol:o.protocol,skill:o.skill,hits:0,attempts:0,days:new Set()};x.hits+=o.hits;x.attempts+=o.attempts;x.days.add(o.day);fixed.set(o.protocol,x)}
+ return [...(groups.size||fixed.size?[]:['No eligible completed Quick Play Mastery or fixed benchmark rounds recorded yet.']),...[...groups.values()].sort((a,b)=>b.attempts-a.attempts||a.key.localeCompare(b.key)).slice(0,35).map(x=>x.key+': '+x.hits+'/'+x.attempts+' ('+(100*x.hits/x.attempts).toFixed(1)+'%) across '+x.days.size+' measured days.'),...[...fixed.values()].map(x=>x.protocol+': '+(x.skill==='scoring'?3*x.hits/x.attempts:100*x.hits/x.attempts).toFixed(1)+(x.skill==='scoring'?' average':'%')+' across '+x.days.size+' measured days and '+x.attempts+' darts.'),'Quick Play skill results are kept separate from scheduled training. Comparable fixed benchmarks can inform calibration; no recreational wins, scheduled completion credit or training-dose evidence is inferred.'];
+}
+
 
 export function projectEvidence(host,{today,now=Date.now()}={}){
  if(!host||typeof host!=='object'||!Array.isArray(host.games)||!Array.isArray(host.sessions)||!dayOK(today)||!Number.isFinite(now))throw Error('Invalid V6.2 snapshot or date');
@@ -71,9 +125,9 @@ export function projectEvidence(host,{today,now=Date.now()}={}){
  for(const g of host.games){
   if(!g||!['Scoring Challenge','Bull Accuracy'].includes(g.name))continue;
   const source='game:'+g.at+':'+g.name,day=g.day;
-  if(g.completion!=='natural'||g.benchmark!==true||!trainingParentEligible(g,parents)||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)||localDay(g.at,g.offsetMinutes)!==day){skip(source,'not a comparable fixed training game');continue}
-  if(g.name==='Scoring Challenge'&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((s,n)=>s+n,0)===g.points)add(source,day,'scoring','Scoring Challenge fixed 30 darts',30,g.points);
-  else if(g.name==='Bull Accuracy'&&g.thrown===30&&count(g.outer,30)&&count(g.inner,30)&&g.outer+g.inner<=30&&count(g.misses,30)&&g.outer+g.inner+g.misses===30)add(source,day,'bull','Bull Accuracy any bull 30',30,g.outer+g.inner);
+  if(g.completion!=='natural'||g.benchmark!==true||!skillPlayEligible(g,parents)||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayOK(day)||localDay(g.at,g.offsetMinutes)!==day){skip(source,'not a comparable fixed training game');continue}
+  if(g.name==='Scoring Challenge'&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((s,n)=>s+n,0)===g.points)add(source,day,'scoring',(g.quick?'Quick Play ':'')+'Scoring Challenge fixed 30 darts',30,g.points);
+  else if(g.name==='Bull Accuracy'&&g.thrown===30&&count(g.outer,30)&&count(g.inner,30)&&g.outer+g.inner<=30&&count(g.misses,30)&&g.outer+g.inner+g.misses===30)add(source,day,'bull',(g.quick?'Quick Play ':'')+'Bull Accuracy any bull 30',30,g.outer+g.inner);
   else skip(source,'invalid game counts');
  }
  return {observations:rows.filter(o=>!ambiguous.has(o.id)).sort((a,b)=>a.day.localeCompare(b.day)||a.id.localeCompare(b.id)),skipped};

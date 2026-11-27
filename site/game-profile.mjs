@@ -1,4 +1,4 @@
-import {trainingParentIndex,trainingParentEligible,recordedDay} from './v62-evidence.mjs';
+import {trainingParentIndex,skillPlayEligible,recordedDay,masteryRows} from './v62-evidence.mjs';
 import {legalFinishCount} from './finish-validation.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {routes,mean,sd} from './engine/engine.mjs';
@@ -18,18 +18,20 @@ export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  put('assessment:'+a.completedAt,{day:d,protocol:'Fixed checkout assessment',rows});
  }
  for(const g of host.games){
- if(!g||!trainingParentEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!within(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
+ if(!g||!skillPlayEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!within(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
  if(g.name==='Checkout Climb'&&Array.isArray(g.attemptLog)&&g.attemptLog.length>0&&g.attemptLog.length===g.success+g.fail){
  const rows=g.attemptLog.map(x=>{
  if(x&&Number.isInteger(x.target)&&(x.hit===0||x.hit===1))return {score:x.target,success:x.hit===1,allowance:3,used:x.hit===0?3:null};
  if(x&&Number.isInteger(x.finish)&&typeof x.success==='boolean'&&x.allowance===3&&[1,2,3].includes(x.dartsUsed))return {score:x.finish,success:x.success,allowance:3,used:x.dartsUsed};
  return null;
  });
- if(rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(x.used===null?routes(x.score,3).length>0:legalFinishCount(x.score,x.used)):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:'Checkout Climb (adaptive)',rows});
+ if(rows.every(x=>x&&x.score>=2&&x.score<=170&&(x.success?(x.used===null?routes(x.score,3).length>0:legalFinishCount(x.score,x.used)):x.used===3))&&rows.filter(x=>x.success).length===g.success)put('checkout:'+g.at,{day:g.day,protocol:(g.quick?'Quick Play · ':'')+'Checkout Climb (adaptive)',rows});
  }
- if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+g.at,{day:g.day,protocol:'Scoring Challenge fixed 30',scores:[...g.scores]});
+ if(g.name==='Scoring Challenge'&&g.benchmark===true&&g.visits===10&&Array.isArray(g.scores)&&g.scores.length===10&&g.scores.every(n=>possible.has(n))&&g.scores.reduce((a,b)=>a+b,0)===g.points)put('scoring:'+g.at,{day:g.day,protocol:(g.quick?'Quick Play · ':'')+'Scoring Challenge fixed 30',scores:[...g.scores]});
  }
  const byFinish=new Map(),scoring=[];
+ const mastery=new Map();for(const r of masteryRows(host,now,84)){if(r.kind!=='checkout'||!within(r.day))continue;const protocol=(r.quick?'Quick Play · ':'Training · ')+'Target Mastery checkout',k=JSON.stringify([r.day,protocol]),x=mastery.get(k)??{day:r.day,protocol,rows:[]};x.rows.push({score:r.score,success:!!r.hit,allowance:3,used:r.darts});mastery.set(k,x)}
+ for(const [k,r] of mastery)put('mastery:'+k,r);
  for(const r of map.values()){if(r.scores){scoring.push(r);continue}for(const o of r.rows){const key=JSON.stringify([r.protocol,o.score]),g=byFinish.get(key)??{protocol:r.protocol,score:o.score,attempts:0,hits:0,days:new Set(),used:0,knownSuccessDarts:0};g.attempts++;g.hits+=Number(o.success);if(o.success&&o.used!==null){g.used+=o.used;g.knownSuccessDarts++}g.days.add(r.day);byFinish.set(key,g)}}
  const checkout=[...byFinish.values()].map(g=>({...g,days:g.days.size,rate:g.hits/g.attempts,meanDartsOnSuccess:g.hits&&g.knownSuccessDarts===g.hits?g.used/g.hits:null})).sort((a,b)=>a.protocol.localeCompare(b.protocol)||a.score-b.score);
  const visits=scoring.flatMap(x=>x.scores),daily=new Map();for(const r of scoring){const v=daily.get(r.day)??[];v.push(...r.scores);daily.set(r.day,v)}

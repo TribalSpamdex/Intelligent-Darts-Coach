@@ -1,3 +1,4 @@
+import {quickAbilityLines} from './v62-evidence.mjs';
 import {autonomyAnswer,AUTONOMY_QUESTIONS} from './autonomy-dialogue.mjs';
 import {intelligenceAnswer,INTELLIGENCE_QUESTIONS} from './coaching-intelligence.mjs';
 import {tacticalAnswer} from './tactical-learning.mjs';
@@ -20,7 +21,7 @@ import {fullReport} from './engine/executive.mjs';
 import {asOfState} from './engine/context.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?','Has my equipment change helped?','How do nerves and confidence affect my performance?','Do my technique observations match my results?','Which methods should we reconsider?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?','Has my equipment change helped?','How do nerves and confidence affect my performance?','Do my technique observations match my results?','Which methods should we reconsider?','How am I doing in Quick Play?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
 // Verbal figures remain supplied information, never silently logged practice.
@@ -47,6 +48,7 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
  const q=normaliseQuestion(text);
  const comparison=reportedComparison(q);if(comparison)return comparison;
+ if(/^(how am i doing in quick play|quick play ability|quick play stats|quick play performance)$/.test(q))return reply('quick-ability',quickAbilityLines(host,day,now));
  if(/^(has my equipment change helped|equipment (?:review|performance)|did changing my darts help|how did my new darts affect my performance)$/.test(q))return reply('equipment-evidence',equipmentLines(equipmentReviews(state,day)));
  if(/^(how do nerves and confidence affect my performance|mental performance|does (?:pressure|confidence|nerves) affect my darts|how does match pressure affect my darts)$/.test(q))return reply('mental-evidence',isolatedReadinessLines(isolatedReadiness(state,day)));
  if(/^(do my technique observations match my results|technique evidence|does my technique affect my performance)$/.test(q))return reply('technique-evidence',techniqueEvidenceLines(techniqueEvidence(state,day)));
