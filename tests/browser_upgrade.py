@@ -86,9 +86,20 @@ def run_upgrade_audit(browser):
         page=ctx.new_page()
         page.goto(url)
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
+        def cache_probe(p,gen):
+            result=p.evaluate("""async gen=>{
+              const scope=new URL('/site/',location.origin),cache=await caches.open('IDC:assets:2.0.0-dev'+gen);
+              const shell=await cache.match(new URL('index.html',scope).href),mod=await cache.match(new URL('idc.mjs?v=2.0.0-dev',scope).href);
+              const html=shell?await shell.text():'',js=mod?await mod.text():'';
+              return {shell:html.match(/name="idc-audit-generation" content="(\d+)"/)?.[1]??null,module:js.includes('IDC_GENERATION_PROBE_'+gen),keys:(await cache.keys()).length};
+            }""",gen)
+            assert result['shell']==str(gen) and result['module'] and result['keys']>=160, (gen,result)
         def probe(p,gen):
-            assert p.locator('meta[name=idc-audit-generation]').get_attribute('content')==str(gen)
-            assert p.evaluate("async g=>(await fetch('./idc.mjs?v=2.0.0-dev').then(r=>r.text())).includes('IDC_GENERATION_PROBE_'+g)",gen)
+            actual=p.locator('meta[name=idc-audit-generation]').get_attribute('content')
+            module=p.evaluate("async g=>(await fetch('./idc.mjs?v=2.0.0-dev',{cache:'no-store'}).then(r=>r.text())).includes('IDC_GENERATION_PROBE_'+g)",gen)
+            assert actual==str(gen) and module, {'expected':gen,'shell':actual,'module':module,'url':p.url}
+
+        cache_probe(page,901)
         probe(page,901)
         page.evaluate("()=>{data.__upgradeAudit='keep';if(!save(false)||!checkpointData())throw Error('Could not save synthetic profile');localStorage.setItem('dartsCoachV4','LEGACY-UPGRADE-SENTINEL')}")
         page.evaluate("async()=>{const c=await caches.open('OTHER:unrelated');await c.put('./unrelated',new Response('keep'))}")
@@ -111,8 +122,9 @@ def run_upgrade_audit(browser):
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         page.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration();return !!r.waiting&&r.waiting.state==='installed'}")
         assert page.evaluate("async()=>{const keys=await caches.keys();return keys.includes('IDC:assets:2.0.0-dev901')&&keys.includes('IDC:assets:2.0.0-dev903')}")
+        cache_probe(page,903)
         other=ctx.new_page()
-        other.goto(url)
+        other.goto(url+'?audit=old-client')
         other.wait_for_function("navigator.serviceWorker.controller!==null")
         probe(other,901)
         probe(page,901)
@@ -125,8 +137,9 @@ def run_upgrade_audit(browser):
         # Wait from an uncontrolled same-origin page, so opening the next
         # client cannot race with the old worker's release of its last client.
         observer.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');const keys=await caches.keys();return !!r?.active&&r.active.state==='activated'&&!r.waiting&&keys.includes('IDC:assets:2.0.0-dev903')&&!keys.includes('IDC:assets:2.0.0-dev901')&&!keys.includes('IDC:assets:2.0.0-dev902')}")
+        cache_probe(observer,903)
         page=ctx.new_page()
-        page.goto(url)
+        page.goto(url+'?audit=activated-generation')
         observer.close()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         probe(page,903)

@@ -56,8 +56,8 @@ test('offline worker serves an internally consistent cached shell while a later 
  const cached={'./index.html':'old shell','./idc.mjs?v=2.0.0-dev':'old module'};
  vm.runInNewContext(sw,{
   self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn},
-  caches:{open:async name=>({match:async request=>cached[typeof request==='string'?request:'./'+new URL(request.url).pathname.split('/').at(-1)+new URL(request.url).search]})},
-  fetch:async req=>{calls.push(req.url);return 'new network release'},URL,Set,Promise
+  caches:{open:async name=>({match:async request=>cached['./'+new URL(typeof request==='string'?request:request.url,scope).pathname.split('/').at(-1)+new URL(typeof request==='string'?request:request.url,scope).search]})},
+  fetch:async req=>{calls.push(req.url);return 'new network release'},URL,Set,Promise,Response
  });
  const dispatch=async (url,mode='navigate',method='GET')=>{let response;handlers.fetch({request:{url,mode,method},respondWith:p=>response=p});return response};
  assert.equal(await dispatch(scope+'index.html'),'old shell');
@@ -79,4 +79,15 @@ test('failed install cannot activate, claim clients or delete the previous compl
  let install;handlers.install({waitUntil:p=>install=p});
  await assert.rejects(install,/simulated precache failure/);
  assert.deepEqual(effects,[]);
+});
+
+test('missing shell or required module fails closed instead of mixing installed and network generations',async()=>{
+ const handlers={},calls=[],scope='https://example.test/site/';
+ vm.runInNewContext(sw,{self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn},
+ caches:{open:async()=>({match:async()=>undefined})},fetch:async r=>{calls.push(r);return new Response('new generation')},URL,Response,Set,Promise});
+ for(const [url,mode] of [[scope,'navigate'],[scope+'index.html?fresh=1','navigate'],[scope+'idc.mjs?v=2.0.0-dev','cors'],[scope+'engine/engine.mjs','cors']]){
+  let result;handlers.fetch({request:{url,mode,method:'GET'},respondWith:p=>result=p});
+  const r=await result;assert.equal(r.status,503);assert.match(await r.text(),/IDC/);
+ }
+ assert.deepEqual(calls,[]);
 });

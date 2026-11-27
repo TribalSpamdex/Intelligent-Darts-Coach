@@ -589,10 +589,16 @@ with sync_playwright() as p:
     print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
     from browser_gameplay import run_gameplay_audit
-    run_gameplay_audit(browser)
     from browser_upgrade import run_upgrade_audit
-    run_upgrade_audit(browser)
     from browser_migration import run_migration_audit
-    run_migration_audit(browser)
+    import traceback
+    audit_errors=[]
+    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit):
+        try:
+            audit(browser)
+        except Exception as exc:
+            audit_errors.append((audit.__name__,str(exc)))
+            traceback.print_exc()
     browser.close()
+    assert not audit_errors,audit_errors
     print('IDC browser smoke and storage isolation passed')
