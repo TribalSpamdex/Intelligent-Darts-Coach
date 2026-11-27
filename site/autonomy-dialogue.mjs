@@ -16,7 +16,7 @@ export function reviewForAutonomy(state,baselines,day,host=null,now=Date.now()){
 }
 const reply=(type,lines)=>({kind:'answer',type,lines});
 export function autonomyAnswer(host,state,q,day,now=Date.now(),reflections=[],baselines={},events=[]){
- if(/^(what performance range is realistic|performance forecast|predict my performance)$/.test(q))return reply('performance-forecast',forecastLines(performanceForecasts(currentConditionRows(state.observations,state,day),day)));
+ if(/^(what performance range is realistic|performance forecast|predict my performance)$/.test(q))return reply('performance-forecast',forecastLines(performanceForecasts(currentConditionRows(state.observations,state,day,host,now),day)));
  if(/^(how accurate are your predictions|forecast validation|test your predictions)$/.test(q))return reply('forecast-validation',forecastValidationLines(forecastValidation(state.observations,day)));
  if(/^(how do i learn best|my learning profile|personal learning profile)$/.test(q))return reply('personal-learning',learningLines(personalLearning(host,state,day,now)));
  if(q==='upcoming competitions')return reply('competition-preparation',eventLines(events,day));

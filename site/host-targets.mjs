@@ -1,3 +1,4 @@
+import {currentReferenceBoundary} from './adaptive-review.mjs';
 import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames,extraQuickRounds,roundIdentity,quickProtocolConfig} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
@@ -93,9 +94,9 @@ export function targetProfile(rows){const groups=summaries(rows),doubles=groups.
 // use the existing serial-form trend screen, never a pooled accuracy score.
 export function targetDevelopment(host,state,day,now=Date.now(),checks=[]){
  const boundary=learningBoundary(state,day),assessment=host.assessment;
- const assessmentAt=assessment?.finished&&Number.isFinite(assessment.completedAt)&&assessment.completedAt<=now?assessment.completedAt:null;
- const current={...host,games:(host.games??[]).filter(g=>(!boundary||g?.day>boundary)&&(!assessmentAt||g?.at>=assessmentAt))};
- const rows=projectTargets(current,day,now,checks.filter(c=>!boundary||c.day>boundary),{includeConfiguration:true}).rows.filter(r=>(!boundary||r.day>boundary)&&(!assessmentAt||r.day>recordedDay(assessmentAt,assessment.offsetMinutes)));
+ const reassessed=currentReferenceBoundary({assessment},{},day,now);
+ const current={...host,games:(host.games??[]).filter(g=>(!boundary||g?.day>boundary)&&(!reassessed||g?.day>reassessed))};
+ const rows=projectTargets(current,day,now,checks.filter(c=>!boundary||c.day>boundary),{includeConfiguration:true}).rows.filter(r=>(!boundary||r.day>boundary)&&(!reassessed||r.day>reassessed));
  const groups=new Map();
  for(const r of rows){const key=JSON.stringify([r.protocol,r.target,r.config??null]),group=groups.get(key)??[];group.push(r);groups.set(key,group)}
  const profiles=[...groups.values()].map(group=>{
