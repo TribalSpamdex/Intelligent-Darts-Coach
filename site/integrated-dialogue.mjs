@@ -51,7 +51,7 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  if(/^(how am i doing in quick play|quick play ability|quick play stats|quick play performance)$/.test(q)){
   const targets=summaries(projectTargets(host,day,now,checks).rows).filter(x=>x.protocol.startsWith('Quick Play · ')&&!x.protocol.includes('Target Mastery'));
   const finishes=gameProfile(host,day,now).checkout.filter(x=>x.protocol.startsWith('Quick Play · ')&&!x.protocol.includes('Target Mastery'));
-  return reply('quick-ability',[...quickAbilityLines(host,day,now),...targets.slice(0,24).map(describe),...finishes.slice(0,24).map(x=>x.protocol+' · '+x.score+': '+x.hits+'/'+x.attempts+' finishes ('+pct(x.rate)+') across '+x.days+' days.')]);
+  return reply('quick-ability',[...quickAbilityLines(host,day,now).filter(x=>!(targets.length||finishes.length)||!x.startsWith('No eligible completed Quick Play')),...targets.map(describe),...finishes.map(x=>x.protocol+' · '+x.score+': '+x.hits+'/'+x.attempts+' finishes ('+pct(x.rate)+') across '+x.days+' days.')]);
  }
  if(/^(has my equipment change helped|equipment (?:review|performance)|did changing my darts help|how did my new darts affect my performance)$/.test(q))return reply('equipment-evidence',equipmentLines(equipmentReviews(state,day)));
  if(/^(how do nerves and confidence affect my performance|mental performance|does (?:pressure|confidence|nerves) affect my darts|how does match pressure affect my darts)$/.test(q))return reply('mental-evidence',isolatedReadinessLines(isolatedReadiness(state,day)));
