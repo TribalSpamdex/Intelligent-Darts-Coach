@@ -24,8 +24,8 @@ def run_sol55_audit(browser):
         verify_file()
         page.evaluate("data.__retentionProbe='changed';save(false)");page.locator('#idcRetentionApply').click();assert page.evaluate('data.games.length===13 && !data.idcHistoryRetention')
         verify_file()
-        page.evaluate("window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===KEY)throw Error('synthetic quota');return originalSetItem.call(this,k,v)}")
-        page.locator('#idcRetentionApply').click();page.evaluate('Storage.prototype.setItem=originalSetItem');assert page.evaluate('data.games.length===13 && !data.idcHistoryRetention')
+        page.evaluate("()=>{window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===KEY)throw Error('synthetic quota');return window.originalSetItem.call(this,k,v)};}")
+        page.locator('#idcRetentionApply').click();page.evaluate('()=>{Storage.prototype.setItem=window.originalSetItem;}');assert page.evaluate('data.games.length===13 && !data.idcHistoryRetention')
         verify_file();page.locator('#idcRetentionApply').click();page.wait_for_function("$('idcRetentionStatus').textContent.includes('consolidation saved')")
         assert page.evaluate("data.games.length===1 && data.sessions.length===1 && data.idcHistoryRetention.months[0].counts.games===12 && data.__retentionProbe==='changed'")
         assert page.evaluate('ym=>reportSnapshot(ym)',ym)==before
