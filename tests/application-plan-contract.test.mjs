@@ -29,3 +29,18 @@ test('Verifier rejects a proposed or active plan without the reserved applicatio
  assert.ok(checkDecision(m,{...r,plan:wrong}).faults.includes('invalid-proposed-plan'));
  assert.ok(checkDecision(m,{...r,active:{...r.active,plan:wrong}}).faults.includes('invalid-active-plan'));
 });
+
+test('Five-day rotation keeps setup plus all core skills within the revised budget',()=>{
+ const covered=new Set();
+ for(let i=0;i<5;i++){
+  const d='2026-11-'+String(20+i),p=drillPlan(emptyMemory(),d);
+  shape(p);
+  for(const skill of ['scoring','doubles','checkout','singles','bull','setup'])assert.ok(p.some(x=>x.skill===skill),skill);
+  for(const x of p)covered.add(x.skill);
+ }
+ for(const skill of SKILLS)assert.ok(covered.has(skill),skill);
+ for(const skill of SKILLS){
+  const base=plan().find(x=>x.skill===skill)?.minutes??0;
+  assert.equal(plan(skill).find(x=>x.skill===skill).minutes,base+5,skill);
+ }
+});

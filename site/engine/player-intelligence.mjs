@@ -55,7 +55,7 @@ export function evidenceReview(memory,day){
  return {day,profiles,issues,focus:focus?.skill??null,focusProtocol:focus?.protocol??null,wellbeing,exposure,decision:wellbeing.decision==='stop'?'stop':wellbeing.decision==='reduce-load'?'reduce-load':focus?'consider-focus':issues.length?'investigate':'balanced',limitations:['Priority is magnitude relative to provisional practical threshold, not a scientific probability.','Long-window assessment is intentionally conservative; it does not replace a fixed benchmark.','Reported conditions are associations, never diagnoses.']};
 }
 export function drillPlan(memory,day,focus=null){
- const records=memory.difficulty??[],chosen=plan(focus),extras=['switching','setup','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!chosen.some(x=>x.skill===skill));
+ const records=memory.difficulty??[],chosen=plan(focus),extras=['switching','firstNine','trebles','pressure','grouping'].filter(skill=>skill==='switching'||!chosen.some(x=>x.skill===skill));
  // Rotate optional skills without claiming equivalence of their measurements.
  const rotation=Math.floor(Date.parse(day)/86400000)%extras.length;
  const optional=extras[(rotation+extras.length)%extras.length];
