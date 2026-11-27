@@ -975,6 +975,7 @@ html[data-appearance=light] body nav[aria-label="Main navigation"]:not(#dc590a):
 <details class="techTopic"><summary><span class="techTopicIcon">◷</span><span><strong>Rhythm & match pressure</strong><small>Maintain the same routine under jeopardy</small></span></summary><div class="techContent"><div class="rhythmDiagram"><span>Settle</span><b>›</b><span>Focus</span><b>›</b><span>Throw</span><b>›</b><span>Reset</span></div><p>Pressure changes attention. Keep your routine short and repeatable: settle your feet, pick the target, throw at your normal pace, then reset for the next dart.</p><p>A failed visit doesn't mean the routine was wrong. Judge changes over many sessions, especially when pressure differs.</p><div class="techExercise"><b>Try it:</b> Give yourself three darts at a double for five rounds. Use the exact same pre-throw routine whether the previous round met the target or not.</div></div></details>
 </div></div></section>
 <section id="settings" class="hidden">
+<div class="card"><h2>Walkthrough Guide</h2><p class="muted">Learn how to use your coach, training, games, progress and backups. Reopen the guide whenever you need it.</p><button id="idcWalkthroughSettings" class="secondary" type="button" style="width:100%" onclick="idcWalkthroughOpen()">Open Walkthrough Guide</button></div>
 <div class="card"><h2>Weekly Training Days</h2><p class="muted">Select five days. The coach handles the training on those days.</p><div class="dayRow" id="days"></div><p id="dayStatus" class="muted"></p></div><div class="card"><h2>Training Data</h2><p class="muted">Data is stored in this browser or Home Screen app, not on GitHub. Updates at the same address should preserve it. Safari and a Home Screen app may have different saved data. Keep an external backup.</p><h3>1. Protect Your Training</h3>
 <p class="muted">An extra recovery copy is saved automatically in this browser after each finished assessment or session. This is not a backup in iPhone Files. For protection against browser data loss, save a file as well.</p>
 <div id="autoBackupStatus" class="backupStatus">Checking local recovery copy…</div><div id="storageHealth" class="backupStatus" aria-live="polite">Checking saved-data size…</div>
@@ -8185,9 +8186,68 @@ performCoachReview();checkCompletedBlocks();setInterval(trainingTimer,500);setIn
    <div class="dc36InfoFeature"><span class="dc36InfoIcon">◷</span><div><strong>Build a repeatable throw</strong><p>Use Rhythm Coach and the technique library for tempo, stance, grip, setup, release and finishing ideas.</p></div></div>
   </div>
   <div class="dc36InfoTrust"><strong>Honest coaching. Your data stays yours.</strong><p>Training works offline. Records are stored on this device, not shared through GitHub. Export JSON backups in Settings. The coach makes evidence-based recommendations, not guarantees of improvement.</p></div>
+  <button class="secondary" id="idcWalkthroughAbout" type="button" style="width:100%;margin:12px 0" onclick="idcWalkthroughOpen()">Walkthrough Guide</button>
   <button class="primary dc36InfoClose" type="button" onclick="closeWelcome()">LET'S TRAIN <span aria-hidden="true">→</span></button>
  </div>
 </div>
+<style>
+#idcWalkthrough{box-sizing:border-box;width:min(460px,calc(100% - 24px));max-width:calc(100% - 24px);max-height:calc(100% - 32px);overflow:auto;padding:20px;background:var(--panel,#101915);color:var(--text,#fff);border:1px solid var(--line,#365448);border-radius:20px;box-shadow:0 16px 44px #0008}
+#idcWalkthrough::backdrop{background:rgba(1,7,14,.85)}
+#idcWalkthrough h2{font-size:23px;margin:14px 0;line-height:1.2}
+#idcWalkthrough p{line-height:1.55;overflow-wrap:anywhere}
+#idcWalkthrough .idcGuideNav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+#idcWalkthrough button{min-height:44px;width:100%}
+#idcWalkthrough .idcGuideCount{color:var(--green);font-size:12px;font-weight:800;letter-spacing:.08em}
+#idcWalkthroughSkip{margin-top:10px}
+</style>
+<dialog id="idcWalkthrough" aria-labelledby="idcWalkthroughTitle" aria-describedby="idcWalkthroughBody">
+ <div id="idcWalkthroughCount" class="idcGuideCount" aria-live="polite"></div>
+ <h2 id="idcWalkthroughTitle" tabindex="-1"></h2>
+ <p id="idcWalkthroughBody"></p>
+ <div class="idcGuideNav"><button id="idcWalkthroughBack" type="button" class="secondary" onclick="idcWalkthroughMove(-1)">Back</button><button id="idcWalkthroughNext" type="button" class="primary" onclick="idcWalkthroughMove(1)">Next</button></div>
+ <button id="idcWalkthroughSkip" type="button" class="secondary" onclick="idcWalkthroughClose()">Skip / Close guide</button>
+</dialog>
+<script>
+/* Walkthrough preference is local UI state, not coaching memory or player data. */
+const IDC_WALKTHROUGH_KEY='IDC:walkthrough:v1';
+const IDC_WALKTHROUGH_STEPS=[["Welcome to Intelligent Darts Coach","Home is your starting point. See today's recommended training, weekly schedule and recent practice. Use the tabs along the bottom to move around the app."],["Set your starting ability","Open Train and choose a full assessment or Quick Start using your usual three-dart average. The full assessment measures scoring, doubles, checkouts and bull. Quick Start is provisional and improves with measured practice."],["Follow your training plan","Choose your training days in Settings. A normal scheduled session lasts 60 minutes, with a 10-minute warm-up and practical finishing or match application. The daily Big Singles benchmark is separate. Read each game's instructions, tap Play, then enter what you actually throw."],["Play, pause and correct","Use the question-mark button for the rules, Undo to correct the last recorded input, and Pause Session when taking a break. Timed games can restart automatically without resetting exercise time. Hits, checkouts and streaks show real practice progress."],["Quick Play and casual games","Pick a challenge and a duration, or choose Random. Quick Play results stay separate from coaching evidence. Casual games are for fun and do not count toward training. 501 Pressure requires current evidence of an average of 80 or more."],["Your personal Coach","Open Coach to review performance, ask about checkouts or practice, record relevant facts and goals, and explore technique. Readiness checks can prevent unsafe training. The coach learns cautiously from recorded evidence; it cannot see your throw or guarantee improvement."],["Progress, records and rhythm","Progress shows measurable changes and assessments over time. Records shows personal achievements; incomplete evidence is not invented. Use the Rhythm Coach from the metronome button to practise consistent timing."],["Settings and protecting your data","Set training days and your throwing hand in Settings. Export a JSON backup to Files regularly, especially before updates. Your records are stored locally. After the app has cached successfully it can work offline. Reopen this guide from Settings or the information button."]];
+let idcWalkthroughIndex=0,idcWalkthroughReturn=null;
+function idcWalkthroughShouldAuto(profile,seen){
+ return !seen&&!!profile&&!profile.activeSession&&!profile.baseline&&!profile.assessment?.finished&&!(profile.sessions||[]).length&&!(profile.games||[]).length;
+}
+function idcWalkthroughRender(){
+ const step=IDC_WALKTHROUGH_STEPS[idcWalkthroughIndex];
+ $('idcWalkthroughCount').textContent='STEP '+(idcWalkthroughIndex+1)+' OF '+IDC_WALKTHROUGH_STEPS.length;
+ $('idcWalkthroughTitle').textContent=step[0];$('idcWalkthroughBody').textContent=step[1];
+ $('idcWalkthroughBack').disabled=idcWalkthroughIndex===0;
+ $('idcWalkthroughNext').textContent=idcWalkthroughIndex===IDC_WALKTHROUGH_STEPS.length-1?'Finish':'Next';
+}
+function idcWalkthroughOpen(){
+ const dialog=$('idcWalkthrough'),ss=session();
+ if(dialog.open)return false;
+ if(ss?.phase==='playing'&&!ss.pausedAt||data.assessment?.warmup?.startedAt){alert('Pause your current practice before opening the walkthrough.');return false}
+ idcWalkthroughReturn=document.activeElement;
+ if(!$('welcomeOverlay').classList.contains('hidden')){closeWelcome();idcWalkthroughReturn=$('headerInfo')}
+ idcWalkthroughIndex=0;idcWalkthroughRender();dialog.showModal();$('idcWalkthroughTitle').focus();return true;
+}
+function idcWalkthroughMove(delta){
+ if(!$('idcWalkthrough').open||![-1,1].includes(delta))return;
+ if(delta===1&&idcWalkthroughIndex===IDC_WALKTHROUGH_STEPS.length-1){idcWalkthroughClose();return}
+ idcWalkthroughIndex=Math.max(0,Math.min(IDC_WALKTHROUGH_STEPS.length-1,idcWalkthroughIndex+delta));idcWalkthroughRender();$('idcWalkthroughTitle').focus();
+}
+function idcWalkthroughClose(){
+ if(!$('idcWalkthrough').open)return;
+ try{localStorage.setItem(IDC_WALKTHROUGH_KEY,'1')}catch(_){}
+ $('idcWalkthrough').close();
+ if(idcWalkthroughReturn?.isConnected)idcWalkthroughReturn.focus();
+ idcWalkthroughReturn=null;
+}
+$('idcWalkthrough').addEventListener('cancel',event=>{event.preventDefault();idcWalkthroughClose()});
+document.addEventListener('DOMContentLoaded',()=>{
+ let seen=false;try{seen=localStorage.getItem(IDC_WALKTHROUGH_KEY)==='1'}catch(_){}
+ if(idcWalkthroughShouldAuto(data,seen)&&eligibleForStartChoice()&&currentTab==='home')idcWalkthroughOpen();
+},{once:true});
+</script>
 <div id="rhythmOverlay" class="rhythmOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="rhythmTitle">
   <div class="rhythmCard"><div class="rhythmTop"><h2 id="rhythmTitle"><svg class="metronomeIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.4 5.3h7.2l4.1 15H4.3l4.1-15Z"/><path d="M12 5.3V2.7M11.7 12.8l6.8-8.9"/><circle cx="11.7" cy="12.8" r="1"/></svg><span>Rhythm Coach</span></h2><button type="button" class="rhythmClose" id="rhythmCloseButton" aria-label="Close Rhythm Coach">✕</button></div>
     <p>Find your own relaxed throwing rhythm. This tool is separate from your training timer.</p>

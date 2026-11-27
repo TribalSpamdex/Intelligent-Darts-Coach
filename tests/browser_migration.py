@@ -12,6 +12,8 @@ def run_migration_audit(browser):
     try:
         page=ctx.new_page()
         page.goto(URL)
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
         fixture=page.evaluate("""()=>{
           document.getElementById('quickStartAverage').value='q60';
@@ -35,6 +37,8 @@ def run_migration_audit(browser):
                 payload=json.dumps(json.dumps(legacy,ensure_ascii=True))
                 mp.add_init_script("if(!localStorage.getItem('IDC:training:v1'))localStorage.setItem("+json.dumps(key)+","+payload+");localStorage.setItem('dartsCoachV4','CONTROL-MIGRATION-SENTINEL');")
                 mp.goto(URL)
+                if mp.locator('#idcWalkthrough').is_visible():
+                    mp.locator('#idcWalkthroughSkip').click()
                 mp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
                 check=mp.evaluate("""()=>({marker:data.__migrationProbe,assessment:data.assessment.finished,carried:data.assessment.carriedForward===true,history:data.assessmentHistory.filter(x=>x.migrationOriginal).length,game:data.games[0]?.marker,stored:!!localStorage.getItem(KEY),control:localStorage.getItem('dartsCoachV4')})""")
                 assert check=={'marker':'Résumé 🎯 日本語','assessment':True,'carried':True,'history':1,'game':'historical','stored':True,'control':'CONTROL-MIGRATION-SENTINEL'}, check

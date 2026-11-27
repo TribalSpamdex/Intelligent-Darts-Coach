@@ -7,6 +7,8 @@ def run_player_progress_audit(browser):
     checks=[]
     try:
         page.goto('http://127.0.0.1:8765/index.html')
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
         page.evaluate("document.getElementById('quickStartAverage').value='q60';startQuickFromAverage()")
         # Doubles Streak now ends by lives, not by attaining its streak milestone.

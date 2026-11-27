@@ -9,6 +9,8 @@ def run_gameplay_audit(browser):
     try:
         page=ctx.new_page()
         page.goto('http://127.0.0.1:8765/index.html')
+        if page.locator('#idcWalkthrough').is_visible():
+            page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
         result=page.evaluate("""()=>{
           const oldSave=save,oldAlert=window.alert,oldAnnounce=announceRound;
