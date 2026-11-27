@@ -43,6 +43,14 @@ function match(candidates){
  return out;
 }
 const settingLabel=s=>s.name+' ('+s.field+' '+(Array.isArray(s.after)?s.after.join('/'):s.after)+')';
+// A single-exercise duration is not interchangeable with the same total
+// spread across multiple sessions. Keep 5/10/15/20-minute elapsed-time
+// comparisons separate; one-minute tolerance accommodates timer rounding.
+export function doseBand(seconds){
+ if(!Number.isFinite(seconds))return null;
+ const band=[300,600,900,1200].find(n=>Math.abs(n-seconds)<=60);
+ return band??null;
+}
 export function methodComparisons(episodes,day){
  if(!dayValid(day)||!Array.isArray(episodes))throw Error('Invalid training comparison');
  const scopes=new Map(),out=[];
@@ -52,16 +60,16 @@ export function methodComparisons(episodes,day){
   for(const e of list){const k=exact(e),g=groups.get(k)??[];g.push(e);groups.set(k,g)}
   const settings=[...groups.keys()].sort();
   for(let i=0;i<settings.length;i++){
-   const group=groups.get(settings[i]),first=group[0],dose=[];
+   const group=groups.get(settings[i]),first=group[0],doses=new Map();
    for(const a of group)for(const b of group){
-    if(a.seconds>=b.seconds||b.seconds-a.seconds<300||b.seconds/a.seconds<1.3||!compatible(a,b))continue;
-    // Different numbers of rounds are allowed for a dose comparison;
-    // duration is the recorded exposure, not throws or time at one exact setting.
-    dose.push({a,b});
+    const short=doseBand(a.seconds),long=doseBand(b.seconds);
+    if(short===null||long===null||short>=long||a.sessions!==1||b.sessions!==1||b.seconds-a.seconds<180||!compatible(a,b))continue;
+    const k=JSON.stringify([short,long]),pairs=doses.get(k)??[];
+    pairs.push({a,b});doses.set(k,pairs);
    }
-   if(dose.length){
-    const matches=match(dose),s=summary(matches,day,first.skill);
-    out.push({kind:'dose',skill:first.skill,protocol:first.protocol,first:settingLabel(first.setting)+' · shorter recorded exercise',second:settingLabel(first.setting)+' · longer recorded exercise',firstSetting:first.setting,secondSetting:first.setting,...s});
+   for(const [k,dose] of doses){
+    const [short,long]=JSON.parse(k),matches=match(dose),s=summary(matches,day,first.skill);
+    out.push({kind:'dose',skill:first.skill,protocol:first.protocol,shortSeconds:short,longSeconds:long,first:settingLabel(first.setting)+' · around '+short/60+' minutes',second:settingLabel(first.setting)+' · around '+long/60+' minutes',firstSetting:first.setting,secondSetting:first.setting,...s});
    }
    for(let j=i+1;j<settings.length;j++){
     const other=groups.get(settings[j]),second=other[0];
