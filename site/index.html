@@ -5225,7 +5225,7 @@ function newGameDart(action){
   g.visits++;g.thrown+=3;if(action===0){g.points=Math.floor(g.points/2);g.halves++}else g.points+=base*action;
   if(label==="T20"&&action===3)g.oneEighties=num(g.oneEighties)+1;g.index++;if(g.index>=g.targets.length){endRound();return}
  }else if(name==="Outside Doubles"){
-  g.thrown++;if(action==="double"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
+  (g.targetLog||(g.targetLog=[])).push({target:g.targets[g.index],ring:g.variant==='singles'?'S':'D',hit:action==='double'});g.thrown++;if(action==="double"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
   else if(action==="inside"){g.inside++;g.lives--}else g.outside++;
   if(g.lives<=0||g.thrown>=g.allowed){endRound();return}
  }else if(name==="101 Sprint"){
@@ -5239,7 +5239,7 @@ function newGameDart(action){
   g.thrown++;g.hits+=action?1:0;g.marks[g.index]=Math.min(3,g.marks[g.index]+action);
   if(g.marks[g.index]>=3)g.index++;if(g.index>=g.targets.length||g.thrown>=g.allowed){endRound();return}
  }else if(name==="Double Double"){
-  g.thrown++;if(action==="hit"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
+  (g.targetLog||(g.targetLog=[])).push({target:g.targets[g.index],ring:'D',hit:action==='hit'});g.thrown++;if(action==="hit"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
   if(g.thrown>=g.allowed){endRound();return}
  }else if(name==="Double-In 201"){
   // Entry is handled by doubleInEntrySubmit(), never a native phone prompt.
@@ -5445,8 +5445,8 @@ function checkoutHit(){if(session()?.phase!=="playing")return;const g=activeGame
  askCheckoutDarts({score:g.target,maxDarts:3-g.attempt,onFinish:darts=>{snapshot();g.dartsUsed+=g.attempt+darts;g.success++;(g.attemptLog||(g.attemptLog=[])).push({target:g.target,hit:1});g.highest=Math.max(g.highest,g.target);g.target+=5;g.attempt=0;if(climbWon(g)){endRound();return}data.game=g;save()}});
 }
 function bullDart(value){if(![0,25,50].includes(value)||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Accuracy"||session().pausedAt)return;snapshot();g.thrown++;if(value===50)g.inner++;else if(value===25)g.outer++;else g.misses++;if(g.thrown>=30){endRound();return}data.game=g;save()}
-function bullSurvival(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Survival"||session().pausedAt)return;snapshot();g.used++;g.thrown++;if(hit){g.hits++;g.wins++;endRound();return}if(g.used>=g.allowed){endRound();return}data.game=g;save()}
-function bullStreak(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Streak"||session().pausedAt)return;snapshot();g.thrown++;if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(g.streak>=g.goal){endRound();return}}else{g.streak=0;g.misses=num(g.misses)+1;if(g.misses>=num(g.allowedMisses||7)){endRound();return}}data.game=g;save()}
+function bullSurvival(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Survival"||session().pausedAt)return;snapshot();(g.targetLog||(g.targetLog=[])).push({target:g.target,hit});g.used++;g.thrown++;if(hit){g.hits++;g.wins++;endRound();return}if(g.used>=g.allowed){endRound();return}data.game=g;save()}
+function bullStreak(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Streak"||session().pausedAt)return;snapshot();(g.targetLog||(g.targetLog=[])).push({target:g.target,hit});g.thrown++;if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(g.streak>=g.goal){endRound();return}}else{g.streak=0;g.misses=num(g.misses)+1;if(g.misses>=num(g.allowedMisses||7)){endRound();return}}data.game=g;save()}
 function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.practiceBlock?clone(g.practiceBlock):undefined,name:g.name,mode:g.name,...(currentExercise()?.application===true?{application:true}:{}),at,day:dateKey(at),offsetMinutes:new Date(at).getTimezoneOffset(),date:new Date(at).toLocaleString(),extra:!!session()?.extra,sessionId:session()?.id||null,exerciseId:currentExercise()?.provenanceId||null,exerciseIndex:Number.isInteger(session()?.index)?session().index:null,quick:!!session()?.quick,quickMinutes:session()?.quick?Math.round(num(session().quickSeconds)/60):0,completion,benchmark:completion==="natural"||completion==="timed",version:"6.1-RC16",ruleVersion:g.ruleVersion||null,result:"Activity completed",oneEighties:num(g.oneEighties),recovery:!!g.recovery,challengeTuning:g.challengeTuning||null,challengeTuningVersion:g.challengeTuningVersion||null,
  prospectiveForecast:g.prospectiveForecast&&completion==='natural'&&
  !g.recovery&&!g.challengeTuning&&!session()?.quick?clone(g.prospectiveForecast):null};
@@ -5478,6 +5478,7 @@ function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.p
  if(g.name==="Staying Straight"){normaliseStraightGame(g);Object.assign(e,{points:g.points,targets:[...STRAIGHT_TARGETS],counts:[...g.counts],hits:[...g.hits],misses:[...g.misses],successfulDarts:g.hits.reduce((a,b)=>a+b,0),missedDarts:g.misses.reduce((a,b)=>a+b,0),darts:g.darts,complete:g.index>=5});e.result=g.points+" points · "+STRAIGHT_TARGETS.map((n,i)=>n+"s: "+g.counts[i]).join(", ")}
  if(g.name==="Checkout Climb"){Object.assign(e,{success:g.success,fail:g.fail,attempts:g.success+g.fail,dartsUsed:g.dartsUsed,highest:g.highest,attemptLog:[...(g.attemptLog||[])]});e.result=g.success+" successful checkouts";if(completion==="natural"&&g.success>0)data.bestCheckout=Math.max(num(data.bestCheckout),g.highest)}
  if(g.name==="Bull Accuracy"){Object.assign(e,{thrown:g.thrown,outer:g.outer,inner:g.inner,misses:g.misses});e.benchmark=g.thrown>=30;e.result=(g.outer+g.inner)+"/"+g.thrown+" bull hits · "+g.inner+" bullseyes"}
+ if(["Bull Survival","Bull Streak"].includes(g.name))e.targetLog=Array.isArray(g.targetLog)?clone(g.targetLog):[];
  if(g.name==="Bull Survival"){Object.assign(e,{target:g.target,allowed:g.allowed,hits:g.hits,thrown:g.thrown,wins:g.wins});e.result=(g.hits?"Success":"Round ended")+" · "+g.thrown+" dart(s)"}
  if(g.name==="Bull Streak"){Object.assign(e,{target:g.target,goal:g.goal,hits:g.hits,thrown:g.thrown,best:g.best});e.result="Best streak "+g.best+"/"+g.goal}
  if(g.name==="Shanghai Combo"){
@@ -5584,14 +5585,29 @@ function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.p
 /* Player-facing progress only: use actual chronological logs, never infer a streak from totals. */
 function dcVisibleProgress(g,s,exercise,history){
  const checkout=['Checkout Climb','Focused Checkouts'].includes(g?.name);
- if(!checkout&&!['Doubles Survival','Doubles Streak','Treble Hunt'].includes(g?.name))return null;
- let hits=0,streak=0,best=0;
+ const bull=['Bull Survival','Bull Streak'].includes(g?.name);
+ if(!checkout&&!bull&&!['Doubles Survival','Doubles Streak','Treble Hunt','Outside Doubles','Double Double'].includes(g?.name))return null;
+ let hits=0,streak=0,best=0,incomplete=false;
+ const count=v=>(typeof v==='number'||typeof v==='string'&&v.trim()!=='')&&Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):null;
+ const gap=()=>{streak=null;incomplete=true};
  const consume=r=>{
-  const log=checkout?r.attemptLog:r.targetLog;
-  const expected=checkout?(r.success+r.fail):r.thrown;
-  if(!Number.isSafeInteger(expected)||expected<0||(!Array.isArray(log)&&expected!==0)||(Array.isArray(log)&&log.length!==expected)){streak=0;return}
+  const log=checkout?r.attemptLog:(r.targetLog??r.details?.targetLog);
+  const successes=count(checkout?r.success:r.hits),failures=count(r.fail);
+  const expected=checkout?(successes!==null&&failures!==null?successes+failures:null):count(r.thrown);
+  if(expected===null||(!Array.isArray(log)&&expected!==0)||(Array.isArray(log)&&log.length!==expected)){
+   // Old saves may contain honest totals without a complete chronology.
+   // Preserve those totals, but never present a guessed zero or streak.
+   if(expected!==null&&successes!==null&&successes<=expected)hits+=successes;
+   gap();return;
+  }
+  const ring=g.name==='Treble Hunt'?(g.variant==='single'?'S':'T'):(g.variant==='singles'?'S':'D');
   for(const entry of log||[]){
-   if(entry?.hit===true||entry?.hit===1){hits++;streak++;best=Math.max(best,streak)}
+   const targetValid=entry?.target===undefined||(bull?entry.target===g.target:
+    Number.isInteger(entry.target)&&entry.target>=(checkout?2:1)&&entry.target<=(checkout?170:20));
+   const valid=entry&&[true,false,0,1].includes(entry.hit)&&
+    targetValid&&(checkout||bull||entry.ring===undefined||entry.ring===ring);
+   if(!valid){gap();continue}
+   if(entry.hit===true||entry.hit===1){hits++;streak=(streak??0)+1;best=Math.max(best,streak)}
    else streak=0;
   }
  };
@@ -5600,12 +5616,12 @@ function dcVisibleProgress(g,s,exercise,history){
   for(let i=history.length-1;i>=0;i--){
    const r=history[i];
    if(r?.sessionId!==s.id||r.exerciseId!==exercise.provenanceId)break;
-   rows.push(r.name===g.name&&r.variant===g.variant&&r.completion==='natural'?r:null);
+   rows.push(r.name===g.name&&r.variant===g.variant&&(!bull||r.target===g.target)&&r.completion==='natural'?r:null);
   }
-  for(let i=rows.length-1;i>=0;i--){if(rows[i])consume(rows[i]);else streak=0}
+  for(let i=rows.length-1;i>=0;i--){if(rows[i])consume(rows[i]);else gap()}
  }
  consume(g);
- return {hits,streak,best,checkout};
+ return {hits,streak,best,checkout,...(incomplete?{incomplete:true}:{})};
 }
 function dcVisibleRoundResult(value){
  return String(value||'Activity completed').replace(/\b(?:WIN|LOSE)\s*·\s*/gi,'');
@@ -6127,8 +6143,8 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  if(phase==="playing"){
   const progress=dcVisibleProgress(g,s,e,data.games);
   if(progress){
-   $('roundFlash').textContent='STREAK '+progress.streak;
-   const metric=(progress.checkout?'Checkouts: ':'Hits: ')+progress.hits+' · Best streak: '+progress.best;
+   $('roundFlash').textContent=(progress.checkout?'CHECKOUT STREAK ':'STREAK ')+(progress.streak===null?'—':progress.streak);
+   const metric=(progress.checkout?'Checkouts: ':'Hits: ')+progress.hits+(progress.incomplete?' · Best recorded streak: ':' · Best streak: ')+progress.best+(progress.incomplete?' · Earlier chronology unavailable':'');
    const host=$('miniMetrics'),prior=host.textContent;
    host.textContent=metric+(prior?' · '+prior:'');
   }

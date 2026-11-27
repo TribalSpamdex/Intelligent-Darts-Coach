@@ -22,9 +22,9 @@ test('real dart streak crosses completed rounds, resets on miss and follows Undo
 });
 test('exercise identity, different rings, missing logs and incomplete rounds never fabricate streaks',()=>{
  assert.deepEqual(progress(dart([true]),s,e,[past([true,true],{exerciseId:'other'})]),expected(1,1,1));
- assert.deepEqual(progress(dart([true]),s,e,[past([true,true],{variant:'singles'})]),expected(1,1,1));
- assert.deepEqual(progress(dart([true]),s,e,[past([true,true]),past([true],{thrown:5})]),expected(3,1,2));
- assert.deepEqual(progress(dart([true]),s,e,[past([true,true]),past([true],{completion:'partial'})]),expected(3,1,2));
+ assert.deepEqual(progress(dart([true]),s,e,[past([true,true],{variant:'singles'})]),{...expected(1,1,1),incomplete:true});
+ assert.deepEqual(progress(dart([true]),s,e,[past([true,true]),past([true],{thrown:5})]),{...expected(3,1,2),incomplete:true});
+ assert.deepEqual(progress(dart([true]),s,e,[past([true,true]),past([true],{completion:'partial'})]),{...expected(3,1,2),incomplete:true});
 });
 test('checkout streak measures completed attempts, not missed individual darts',()=>{
  const checkout=(values,extra={})=>({name:'Checkout Climb',success:values.filter(Boolean).length,fail:values.filter(x=>!x).length,attemptLog:values.map(hit=>({hit})),...extra});
