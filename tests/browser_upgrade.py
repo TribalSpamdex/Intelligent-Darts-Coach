@@ -88,7 +88,9 @@ def run_upgrade_audit(browser):
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         def cache_probe(p,gen):
             result=p.evaluate("""async gen=>{
-              const scope=new URL('/site/',location.origin),cache=await caches.open('IDC:assets:2.0.0-dev'+gen);
+              const scope=new URL('/site/',location.origin),name='IDC:assets:2.0.0-dev'+gen,names=await caches.keys();
+              if(!names.includes(name))return {shell:null,module:false,keys:0,names};
+              const cache=await caches.open(name);
               const shell=await cache.match(new URL('index.html',scope).href),mod=await cache.match(new URL('idc.mjs?v=2.0.0-dev',scope).href);
               const html=shell?await shell.text():'',js=mod?await mod.text():'';
               return {shell:html.match(/name="idc-audit-generation" content="(\d+)"/)?.[1]??null,module:js.includes('IDC_GENERATION_PROBE_'+gen),keys:(await cache.keys()).length};
@@ -122,6 +124,14 @@ def run_upgrade_audit(browser):
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         page.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration();return !!r.waiting&&r.waiting.state==='installed'}")
         assert page.evaluate("async()=>{const keys=await caches.keys();return keys.includes('IDC:assets:2.0.0-dev901')&&keys.includes('IDC:assets:2.0.0-dev903')}")
+        waiting=page.evaluate("""async()=>{
+          const r=await navigator.serviceWorker.getRegistration(),w=r.waiting;
+          const channel=new MessageChannel();
+          const answer=new Promise(resolve=>channel.port1.onmessage=e=>resolve(e.data));
+          w.postMessage({type:'IDC_ASSET_STATUS'},[channel.port2]);
+          return await Promise.race([answer,new Promise(resolve=>setTimeout(()=>resolve({error:'No worker inventory response',state:w.state,url:w.scriptURL}),5000))]);
+        }""")
+        assert waiting.get('generation')=='IDC:assets:2.0.0-dev903' and waiting.get('stored',0)>=160 and not waiting.get('missing'), waiting
         cache_probe(page,903)
         other=ctx.new_page()
         other.goto(url+'?audit=old-client')

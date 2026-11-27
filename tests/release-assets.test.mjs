@@ -45,7 +45,9 @@ test('activated offline generation retires old IDC caches without touching unrel
  const active=sw.match(/const CACHE='([^']+)'/)[1];
  const old=['IDC:assets:1.9.0-dev','IDC:assets:2.0.0-dev2','IDC:assets:2.0.0-dev3'].filter(n=>n!==active);
  const names=[...old,active,'dartsCoachV4','IDC:player-backups','other-app:assets:1.0.0'];
- vm.runInNewContext(sw,{self:{addEventListener:(name,fn)=>{handlers[name]=fn},clients:{claim:async()=>events.push('claimed')}},caches:{keys:async()=>names,delete:async n=>{deleted.push(n);events.push(n);return true}},Set,Promise});
+ const scope='https://example.test/site/';
+ const keys=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))].map(a=>({url:new URL(a,scope).href}));
+ vm.runInNewContext(sw,{self:{registration:{scope},addEventListener:(name,fn)=>{handlers[name]=fn},clients:{claim:async()=>events.push('claimed')}},caches:{keys:async()=>names,open:async()=>({keys:async()=>keys}),delete:async n=>{deleted.push(n);events.push(n);return true}},URL,Set,Promise});
  let task;handlers.activate({waitUntil:p=>task=p});await task;
  assert.deepEqual(deleted.sort(),old.sort());
  assert.equal(events.at(-1),'claimed');
@@ -90,4 +92,17 @@ test('missing shell or required module fails closed instead of mixing installed 
   const r=await result;assert.equal(r.status,503);assert.match(await r.text(),/IDC/);
  }
  assert.deepEqual(calls,[]);
+});
+
+test('incomplete new generation never deletes previous caches or claims clients',async()=>{
+ const handlers={},effects=[],scope='https://example.test/site/',active=sw.match(/const CACHE='([^']+)'/)[1];
+ const urls=[...new Set(assets.flatMap(a=>[a,a.split('?')[0]]))].map(a=>new URL(a,scope).href);
+ const keys=urls.slice(1).map(url=>({url}));
+ vm.runInNewContext(sw,{self:{registration:{scope},addEventListener:(n,fn)=>handlers[n]=fn,clients:{claim:async()=>effects.push('claim')}},
+ caches:{keys:async()=>[active,'IDC:assets:1.9.0-dev'],open:async()=>({keys:async()=>keys,addAll:async()=>{}}),delete:async name=>effects.push(name)},URL,Request,Set,Promise});
+ let task;handlers.install({waitUntil:p=>task=p});await assert.rejects(task,/Incomplete IDC asset generation/);
+ handlers.activate({waitUntil:p=>task=p});await assert.rejects(task,/Incomplete IDC asset generation/);
+ assert.deepEqual(effects,[]);
+ let status;handlers.message({data:{type:'IDC_ASSET_STATUS'},ports:[{postMessage:x=>status=x}],waitUntil:p=>task=p});await task;
+ assert.equal(status.generation,active);assert.equal(status.expected,urls.length);assert.equal(status.stored,urls.length-1);assert.equal(status.missing.length,1);assert.equal(status.missing[0],urls[0]);
 });
