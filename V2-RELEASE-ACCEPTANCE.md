@@ -28,3 +28,12 @@ The production website is unchanged. The candidate is suitable for controlled pe
 8. Record device model, iOS version, exact runtime, result and any screenshot/error. Do not declare stable production readiness until failures are resolved.
 
 Repository metadata reports no license. The integrated V6.2 and independent-engine source provenance is documented in README, but commercial redistribution permissions are not established by this technical audit. Do not assume an open-source or commercial license from public GitHub access. Owner must confirm rights and choose licensing before commercial distribution. Real prospective player validation and a comparative coaching-effectiveness study remain outstanding; software tests and simulated trajectories do not establish superiority over a human coach or general-purpose AI.
+
+## Physical acceptance return — 2026-11-27
+
+- User-reported physical iPhone 15 acceptance on the GitHub Pages preview deployed by main commit `9da5c4caabdde1e830601c189cff03e709f7fc21`, runtime tree `71b6dc1cbee02af146d8db89628cd54814269b25` (pinned runtime above).
+- Final automated verification at `4143ab523c20757fe44d34adbca7de35dabf0e9a`: 499/499 Node tests, mandatory Chromium and WebKit verification passed. https://github.com/TribalSpamdex/Intelligent-Darts-Coach/actions/runs/45977836340
+- All 13 submitted physical checks passed: Quick Start and player setup; Home Screen install and launch; scoring and Undo; doubles and checkout game; training timer; background pause; completed exercise/statistics; Coach responses; close/reopen persistence; backup export to Files; airplane mode with Wi-Fi disabled and full closure; offline relaunch/checkout question; offline gameplay followed by reconnection and persisted results.
+- The initial preview safety gate blocked a repeat visit (existing data detected); this was reported and the user subsequently submitted the above passes. The gate is not part of the frozen app runtime. No data deletion was requested.
+- Evidence is user-reported, not remotely observed. Exact iOS version during the test, actual backup restore, original profile comparison, and controlled update survival remain unconfirmed. Real offline relaunch passed according to the user; the Playwright WebKit emulation diagnostic remains unresolved as a tooling issue.
+- No claim of prospective coaching effectiveness or commercial rights. Stable publication remains gated on remaining checks.
