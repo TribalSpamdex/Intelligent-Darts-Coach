@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>IDC V2 iPhone acceptance</title>
+<style>body{font:17px system-ui;background:#101010;color:#eee;max-width:38rem;margin:2rem auto;padding:0 1.2rem;line-height:1.5}button{font:inherit;padding:.8rem 1rem;border-radius:10px}button:disabled{opacity:.5}#status{white-space:pre-wrap}a{color:#9ecaff}</style>
+<h1>IDC V2.0 test candidate</h1>
+<p>Use a new, dedicated Safari profile named IDC Test. Do not use your normal playing profile or an existing home screen installation. Export a backup of your existing app first. This is not the production release.</p>
+<p>The candidate uses the original, unchanged runtime from commit b36a310b1c0a334debc5ddb2839a6785d1601f2e. Do not use its Share App button to return to this preview.</p>
+<label><input type="checkbox" id="confirmed"> I have backed up my existing app and opened this page in a fresh dedicated Safari profile.</label>
+<p id="status" role="status">Checking for existing website data...</p><button id="launch" disabled>Open test candidate</button>
+<p>This page only reads storage metadata. It never clears or changes existing data. If it detects existing data, do not clear it: use another fresh profile. After launching, return to the same test tab or the separate test home screen icon instead of this initial gate.</p>
+<script>
+const status=document.getElementById('status'), button=document.getElementById('launch'), confirmed=document.getElementById('confirmed');
+async function check(){
+ button.disabled=true;
+ try{
+  if(!isSecureContext||!('caches' in window)||!('serviceWorker' in navigator))throw Error('Required secure browser features unavailable.');
+  const keys=localStorage.length+sessionStorage.length;
+  const cacheNames=await caches.keys();
+  const workers=await navigator.serviceWorker.getRegistrations();
+  if(keys||cacheNames.length||workers.length)throw Error('Existing website data or service workers detected. Use a fresh Safari profile. Do not delete anything.');
+  status.textContent='No existing local/session storage entries, caches or registered service workers detected. Confirm the dedicated profile before continuing.';
+  button.disabled=!confirmed.checked;
+  return true;
+ }catch(e){status.textContent='Blocked: '+e.message;return false;}
+}
+confirmed.addEventListener('change',check);
+button.addEventListener('click',async()=>{if(await check()&&confirmed.checked)location.assign('./preview-v2/index.html');});
+check();
+</script></html>

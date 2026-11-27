@@ -1,0 +1,84 @@
+// DCI independent foundation; no runtime dependencies.
+const VERSION="0.4.0";
+// Runtime-only provenance: JSON imports cannot grant a learning permission.
+export const ALLOCATION_PROOF=Symbol('IDC independently reconstructed allocation');
+export const REVIEW_UNVERIFIED=Symbol('IDC historical review requires correction');
+const SKILLS=["scoring","firstNine","singles","doubles","checkout","trebles","bull","switching","setup","pressure","grouping"];
+const SEGMENTS=["S1","D1","T1","S2","D2","T2","S3","D3","T3","S4","D4","T4","S5","D5","T5","S6","D6","T6","S7","D7","T7","S8","D8","T8","S9","D9","T9","S10","D10","T10","S11","D11","T11","S12","D12","T12","S13","D13","T13","S14","D14","T14","S15","D15","T15","S16","D16","T16","S17","D17","T17","S18","D18","T18","S19","D19","T19","S20","D20","T20","25","50"];
+function invariant(ok,msg){if(!ok)throw new Error(msg)}
+
+function integer(n,min,max){return Number.isSafeInteger(n)&&n>=min&&n<=max}
+
+function points(s){if(s==="MISS")return 0;if(s==="25"||s==="50")return Number(s);invariant(SEGMENTS.includes(s),"Invalid segment");return Number(s.slice(1))*({S:1,D:2,T:3}[s[0]])}
+
+function isDouble(s){return s==="50"||(/^D/.test(s)&&SEGMENTS.includes(s))}
+
+function visit(score,darts,{doubleIn=false,opened=!doubleIn}={}){invariant(integer(score,2,1001)&&Array.isArray(darts)&&darts.length<=3,"Invalid visit");darts.forEach(points);let left=score,active=opened,used=0;for(const s of darts){used++;if(!active){if(!isDouble(s))continue;active=true}const next=left-points(s);if(next<0||next===1||(next===0&&!isDouble(s)))return {remaining:score,bust:true,finished:false,opened,used};left=next;if(!left)return {remaining:0,bust:false,finished:true,opened:active,used}}return {remaining:left,bust:false,finished:false,opened:active,used}}
+
+function routes(score,darts=3){invariant(integer(score,2,1001)&&integer(darts,1,3),"Invalid checkout query");if(score>60*(darts-1)+50)return [];const out=[];function walk(left,path){for(const s of SEGMENTS){const n=left-points(s);if(n===0&&isDouble(s))out.push([...path,s]);else if(n>=2&&path.length+1<darts&&n<=60*(darts-path.length-2)+50)walk(n,[...path,s])}}walk(score,[]);return out}
+
+function rankedRoutes(score,darts=3,accuracy={},preferred=["D20","D16","D18","D10","D8"]){const all=routes(score,darts);function metric(path){const a=path.map(s=>accuracy[s]);return a.every(v=>v&&integer(v.hits,0,v.attempts)&&integer(v.attempts,60,100000))?a.reduce((p,v)=>p*(v.hits+1)/(v.attempts+2),1):null}const scored=all.map(path=>({path,estimate:metric(path)}));const comparable=scored.length>0&&scored.every(x=>x.estimate!==null);const pref=s=>{const i=preferred.indexOf(s);return i<0?preferred.length:i};return scored.sort((a,b)=>(comparable?b.estimate-a.estimate:0)||a.path.length-b.path.length||pref(a.path.at(-1))-pref(b.path.at(-1))||a.path.join().localeCompare(b.path.join())).map(x=>({...x,estimate:comparable?x.estimate:null}))}
+
+function setup(score,darts=1){invariant(integer(score,2,1001)&&integer(darts,1,3),"Invalid setup query");const out=[];for(const s of SEGMENTS){const left=score-points(s);if(left<2)continue;const available=routes(left,Math.max(1,darts-1));const next=routes(left,3);out.push({target:s,remaining:left,finishThisVisit:darts>1&&available.length>0,nextVisit:next.length>0,directDouble:routes(left,1).length>0})}return out.sort((a,b)=>Number(b.finishThisVisit)-Number(a.finishThisVisit)||Number(b.directDouble)-Number(a.directDouble)||Number(b.nextVisit)-Number(a.nextVisit)||a.remaining-b.remaining)}
+
+function mean(xs){return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null}
+
+function sd(xs){if(xs.length<2)return null;const m=mean(xs);return Math.sqrt(xs.reduce((a,b)=>a+(b-m)**2,0)/(xs.length-1))}
+
+function wilson(h,n){invariant(integer(n,1,1e9)&&integer(h,0,n),"Invalid binomial counts");const z=1.96,p=h/n,k=1+z*z/n,c=(p+z*z/(2*n))/k,w=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/k;return [Math.max(0,c-w),Math.min(1,c+w)]}
+
+function validObservation(o){invariant(o&&SKILLS.includes(o.skill)&&typeof o.id==="string"&&o.id.length>0&&o.id.length<=100&&/^\d{4}-\d{2}-\d{2}$/.test(o.day)&&Number.isFinite(Date.parse(o.day))&&new Date(o.day).toISOString().slice(0,10)===o.day,"Invalid observation identity");invariant(["practice","competition"].includes(o.context)&&typeof o.protocol==="string"&&o.protocol.trim().length>0&&o.protocol.length<=100,"Invalid context/protocol");invariant(integer(o.attempts,1,100000)&&integer(o.hits,0,["scoring","firstNine"].includes(o.skill)?o.attempts*60:o.attempts),"Invalid counts");return {id:o.id,day:o.day,skill:o.skill,context:o.context,protocol:o.protocol,attempts:o.attempts,hits:o.hits}}
+
+function emptyMemory(){return {schema:1,namespace:"DCI-independent",facts:[],observations:[],exposure:[],interventions:[]}}
+
+function validMemory(s){invariant(s&&s.schema===1&&s.namespace==="DCI-independent","Unsupported or foreign backup");invariant(["facts","observations","exposure","interventions"].every(k=>Array.isArray(s[k])&&s[k].length<=50000),"Invalid memory arrays");const seen=new Set();for(const o of s.observations){validObservation(o);invariant(!seen.has(o.id),"Duplicate observation");seen.add(o.id)}for(const f of s.facts){invariant(f&&typeof f.key==="string"&&f.key.length<=80&&f.key.trim()&&typeof f.value==="string"&&f.value.length<=2000&&["reported","confirmed"].includes(f.kind)&&typeof f.at==="string"&&Number.isFinite(Date.parse(f.at)),"Invalid fact")}for(const e of s.exposure){invariant(e&&SKILLS.includes(e.skill)&&/^\d{4}-\d{2}-\d{2}$/.test(e.day)&&integer(e.minutes,1,600),"Invalid exposure")}for(const i of s.interventions){invariant(i&&SKILLS.includes(i.skill)&&typeof i.id==="string"&&typeof i.action==="string"&&["proposed","accepted","declined","completed","unsuccessful"].includes(i.status),"Invalid intervention")}return JSON.parse(JSON.stringify(s))}
+
+function addObservation(s,o){o=validObservation(o);invariant(!s.observations.some(x=>x.id===o.id),"Duplicate observation");return {...s,observations:[...s.observations,o]}}
+
+function setFact(s,key,value,kind="reported",at=new Date().toISOString()){invariant(typeof key==="string"&&key.trim().length>0&&key.length<=80&&typeof value==="string"&&value.trim()&&value.length<=2000&&["reported","confirmed"].includes(kind)&&typeof at==="string"&&Number.isFinite(Date.parse(at)),"Invalid player fact");return {...s,facts:[...s.facts,{key:key.trim(),value:value.trim(),kind,at}]}}
+
+function currentFacts(s){const map=new Map();for(const f of s.facts){const prev=map.get(f.key);if(!prev||Date.parse(f.at)>=Date.parse(prev.at))map.set(f.key,f)}return [...map.values()]}
+
+function removeFact(s,key){return {...s,facts:s.facts.filter(f=>f.key!==key)}}
+
+function summarise(obs){if(!obs.length)return null;const n=obs.reduce((a,o)=>a+o.attempts,0),h=obs.reduce((a,o)=>a+o.hits,0),scale=["scoring","firstNine"].includes(obs[0].skill)?3:1;const days=new Map();for(const o of obs){const d=days.get(o.day)||[0,0];d[0]+=o.hits;d[1]+=o.attempts;days.set(o.day,d)}const daily=[...days].sort().map(([day,[hits,attempts]])=>({day,value:scale*hits/attempts}));return {attempts:n,hits:h,value:scale*h/n,days:daily.length,daily,dayMean:mean(daily.map(x=>x.value)),daySD:sd(daily.map(x=>x.value)),interval:null}}
+
+// Engineering uncertainty margin for correlated form. Do not count consecutive
+// practice days as independent replications. Cap effective daily observations
+// at one per five measured days (rounded up). This is not a confidence interval.
+export function serialMargin(a,b,multiplier=2.5){
+ if(!a||!b||a.days<2||b.days<2)return Infinity;
+ const effective=n=>Math.max(1,Math.ceil(n/5));
+ return multiplier*Math.sqrt(a.daySD**2/effective(a.days)+b.daySD**2/effective(b.days));
+}
+function compare(obs){
+ const sorted=[...obs].sort((a,b)=>a.day.localeCompare(b.day)),days=[...new Set(sorted.map(o=>o.day))];
+ const a=summarise(sorted.filter(o=>days.slice(0,-7).includes(o.day))),b=summarise(sorted.filter(o=>days.slice(-7).includes(o.day)));
+ if(!a||!b||a.days<7||b.days<7||a.attempts<60||b.attempts<60)return {status:"insufficient",earlier:a,recent:b};
+ const change=b.dayMean-a.dayMean,scoring=["scoring","firstNine"].includes(obs[0].skill),floor=scoring?3:.05,noise=serialMargin(a,b);
+ const status=Math.abs(change)>=Math.max(floor,noise)?change>0?"improving":"declining":"unclear";
+ // The last seven days can already belong to a sustained lower plateau.
+ // Also compare disjoint fourteen-measurement blocks when both are complete.
+ // A recovering recent week cannot be classified by an older decline.
+ if(status==="unclear"&&days.length>=28&&Date.parse(days.at(-1))-Date.parse(days.at(-14))<=35*86400000){
+  const old=new Set(days.slice(-28,-14)),recent=new Set(days.slice(-14));
+  const u=summarise(sorted.filter(o=>old.has(o.day))),v=summarise(sorted.filter(o=>recent.has(o.day)));
+  const delta=v.dayMean-u.dayMean,margin=serialMargin(u,v),threshold=scoring?5:.08;
+  const halves=[v.daily.slice(0,7),v.daily.slice(7)].map(x=>mean(x.map(d=>d.value))-u.dayMean);
+  if(u.attempts>=60&&v.attempts>=60&&Math.abs(delta)>=Math.max(threshold,margin)&&halves.every(h=>Math.sign(delta)*h>=threshold))
+   return {status:delta>0?"improving":"declining",earlier:u,recent:v,change:delta,noise:margin,method:"Sustained contrast between distinct fourteen-measurement blocks; not a significance test."};
+  // A meaningful repeated deficit can merit a question even if the
+  // uncertainty margin prevents assigning extra practice. Never promote
+  // this diagnostic-only state directly into a focus intervention.
+  if(u.attempts>=60&&v.attempts>=60&&delta<=-(scoring?7:.10)&&halves.every(h=>h<=-threshold))
+   return {status:"watch",earlier:u,recent:v,change:delta,noise:margin,method:"Repeated lower measurements; uncertainty too large for automatic focus."};
+ }
+ return {status,earlier:a,recent:b,change,noise,method:"Exploratory daily comparison with conservative dependence allowance; not a significance test."};
+}
+
+function assessments(s){const groups=new Map();for(const o of s.observations){const k=JSON.stringify([o.skill,o.context,o.protocol]);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)}return [...groups.values()].map(obs=>({skill:obs[0].skill,context:obs[0].context,protocol:obs[0].protocol,summary:summarise(obs),trend:compare(obs)}))}
+
+function plan(focus=null){const groups=[["scoring",10],["doubles",5],["checkout",5],["singles",5],["switching",5],["bull",5],["setup",5]];if(focus){const g=groups.find(x=>x[0]===focus);if(g){const donor=groups.find(x=>x[0]!==focus&&x[1]>=10);if(donor){donor[1]-=5;g[1]+=5}else if(focus==="scoring"){const optional=groups.findIndex(x=>x[0]==="setup");if(optional>=0){groups.splice(optional,1);g[1]+=5}}}else if(SKILLS.includes(focus)){const donor=groups.find(x=>x[1]>=10);if(donor){donor[1]-=5;groups.push([focus,5])}}}return [{skill:"warmup",minutes:10},...groups.map(([skill,minutes])=>({skill,minutes})),{skill:"application",minutes:10}]}
+
+function investigate(s){const a=assessments(s),declines=a.filter(x=>x.trend.status==="declining"||x.trend.status==="watch"),issues=[];for(const x of declines){const alternatives=a.filter(y=>y.skill===x.skill&&y.trend.status==="improving");const prior=s.interventions.filter(i=>i.skill===x.skill&&i.protocol===x.protocol&&i.context===x.context&&(i.status==="accepted"||i.status==="unsuccessful"&&i[ALLOCATION_PROOF]===true||i[REVIEW_UNVERIFIED]===true));const recentStart=x.trend.recent.daily[0].day,exposure=s.exposure.filter(e=>e.day>=recentStart),total=exposure.reduce((n,e)=>n+e.minutes,0),share=total?exposure.filter(e=>e.skill===x.skill).reduce((n,e)=>n+e.minutes,0)/total:null;issues.push({skill:x.skill,context:x.context,protocol:x.protocol,evidence:x.trend,alternatives:alternatives.map(y=>({context:y.context,protocol:y.protocol})),hypotheses:[{idea:"Practice allocation",support:share!==null&&share<0.1?"Low recorded share in recent window; incomplete logging is possible.":"Not established."},{idea:"Fatigue, pressure or temporary variation",support:"Requires comparable readiness and match observations."},{idea:"Technique or equipment",support:"No causal inference from scores alone."}],share,action:x.trend.status==="watch"||alternatives.length||prior.length||x.context!=="practice"?"investigate":"temporary-focus",review:"Repeat the same benchmark on seven further days; review adherence and confounders."})}const priority=issues.find(i=>i.action==="temporary-focus"&&["scoring","doubles","checkout","singles","switching","bull","setup"].includes(i.skill));return {assessments:a,issues,decision:priority?"temporary-focus":issues.length?"investigate":"balanced",focus:priority?.skill??null,plan:plan(priority?.skill),limitations:["No diagnosis from a miss pattern.","Reported facts and measured evidence remain separate.","Training thresholds are provisional engineering policies, not validated coaching cutoffs."]}}
+export {VERSION,SKILLS,SEGMENTS,points,isDouble,visit,routes,rankedRoutes,setup,mean,sd,wilson,validObservation,emptyMemory,validMemory,addObservation,setFact,currentFacts,removeFact,summarise,compare,assessments,plan,investigate};
