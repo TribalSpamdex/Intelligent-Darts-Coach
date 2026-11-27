@@ -4267,7 +4267,7 @@ function allocateRemaining(s){
  // where time permits. Other games absorb the scheduling surplus.
  const mastery=queue.find(e=>e.name==='Target Mastery');
  const review=reserve??queue.find(e=>e.name==='Review');
- const reservedSeconds=review?(reserve?Math.min(600,available):300):0;
+ const reservedSeconds=review?(reserve?Math.min(600,remaining):300):0;
  if(review)review.seconds=reservedSeconds;
  const ordinary=queue.filter(e=>e.name!=='Target Mastery'&&e!==review);
  let keep=mastery?Math.max(300,Math.floor(num(mastery.seconds)/60)*60):0;

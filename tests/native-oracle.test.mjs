@@ -44,3 +44,32 @@ test('Native legacy allocation ledger blocks overlapping, duplicate and malforme
  }
  assert.deepEqual(read([row,{...row,id:'1',start:start-day,activities:row.activities.map(a=>({...a,at:a.at-day}))}]),[]);
 });
+
+const isolatedAllocation=seconds=>new Function('sessionRemaining','const num=x=>Number(x)||0;const window={};const data={sessions:[]};const DAY_MS=86400000;const QUICK_GAMES=[];const DC10_MEASUREMENT_GAMES=new Set();const dc43LearningTransfer=()=>({status:"no-transfer"});const dc22GamesPlayedToday=()=>new Set();const dc45LockAllocation=s=>{s.provenanceLocked={exercises:s.plan.map(e=>({name:e.name,plannedSeconds:e.seconds}))}};\n'+extract('allocateRemaining')+'\nreturn allocateRemaining')(()=>seconds);
+function allocationBoundaryChecks(allocate){
+ let count=0;
+ for(let seconds=0;seconds<=3600;seconds++){
+  for(let drills=1;drills<=6;drills++)for(const mastery of [false,true]){
+   const warm={name:'Warm-up',mode:'timed',seconds:600};
+   const plan=[warm,...Array.from({length:drills},(_,i)=>({name:mastery&&i===0?'Target Mastery':'Drill '+i,mode:'timed',seconds:600,wholeCoach:{category:'scoring'}})),{name:'301 Pressure',mode:'timed',seconds:600,application:true}];
+   const s={plan,index:1,allocated:false,quick:false,extra:false,wholeSessionAudit:{}};
+   allocate(seconds)(s);
+   const remaining=s.plan.slice(1),sum=remaining.reduce((n,e)=>n+e.seconds,0);
+   if(!s.allocated||s.plan[0]!==warm||!s.provenanceLocked)throw Error('Lock or warm-up changed');
+   if(seconds<300){if(remaining.length)throw Error('Subminimum time admitted')}
+   else{
+    if(!remaining.at(-1)?.application||remaining.at(-1).seconds!==Math.min(seconds,600))throw Error('Application reserve changed at '+seconds);
+    if(remaining.some(e=>!Number.isInteger(e.seconds)||e.seconds<300)||sum>seconds)throw Error('Overtime or subminimum exercise');
+    if(seconds>=900&&sum!==seconds)throw Error('Lost usable time at '+seconds);
+    if(seconds<900&&sum!==Math.min(seconds,600))throw Error('Short session time mismatch');
+   }
+   count++;
+  }
+ }
+ return count;
+}
+test('Actual post-warm-up allocator handles every second of the remaining clock',()=>{
+ const count=allocationBoundaryChecks(isolatedAllocation);
+ assert.equal(count,43212);
+ console.log('Native remaining-clock boundary cases: '+count);
+});
