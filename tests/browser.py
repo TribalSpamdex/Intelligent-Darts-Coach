@@ -622,6 +622,28 @@ with sync_playwright() as p:
     assert all(gates.values()), gates
     safety.close()
     print('Physical readiness mid-session and resume audit:',gates)
+    # Quick Play Mastery is visible and Undo immediately removes its result.
+    mastery_ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
+    mp=mastery_ctx.new_page()
+    mp.goto('http://127.0.0.1:8765/index.html')
+    if mp.locator('#idcWalkthrough').is_visible():
+        mp.locator('#idcWalkthroughSkip').click()
+    mp.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
+    mastery=mp.evaluate("""()=>{
+      document.getElementById('quickStartAverage').value='q60';startQuickFromAverage();
+      quickChoice='Target Mastery';dc23QuickMode='segment';document.getElementById('quickDuration').value='300';startQuickPlay();playExercise();
+      if(session()?.phase!=='playing'||activeGame?.name!=='Target Mastery')throw Error('Mastery control did not start');
+      for(let i=0;i<15;i++)dc23MasteryInput(i<9?'hit':'miss');
+      const measured=dc24MasteryRows(Date.now(),true).filter(r=>r.quick);
+      dc23RenderMasteryProgress();
+      const visible=document.getElementById('dc23MasteryProgress').textContent.includes('Quick Play');
+      const isolated=dc24MasteryRows().length===0;
+      undoGame();
+      return {measured:measured.length===15,visible,isolated,undo:dc24MasteryRows(Date.now(),true).filter(r=>r.quick).length===0};
+    }""")
+    assert all(mastery.values()), mastery
+    mastery_ctx.close()
+    print('Quick Play Mastery display and Undo:',mastery)
     # Real player-visible progress, not outcome overlays, across native round restart and Undo.
     progress_ctx=browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
     pp=progress_ctx.new_page()
