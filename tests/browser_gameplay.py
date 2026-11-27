@@ -90,6 +90,20 @@ def run_gameplay_audit(browser):
              checks.push({name,tier,mode,completed,steps});
             }
            }
+           // Checkout buttons and handlers must use real double-out mathematics.
+           data.activeSession.plan=[{name:'Target Mastery',mode:'timed',seconds:600,mastery:{mode:'checkout',band:'101+'}}];
+           data.activeSession.phase='playing';data.activeSession.pausedAt=null;data.activeSession.activityStarted=Date.now();
+           activeGame=buildGame('Target Mastery');data.game=activeGame;activeGame.checkoutExample=101;renderTraining();
+           const beforeCheckout=JSON.stringify(activeGame);
+           dc23MasteryInput('finish1');
+           if(JSON.stringify(activeGame)!==beforeCheckout)throw Error('Impossible one-dart mastery finish accepted');
+           if(document.querySelector('[onclick="dc23MasteryInput(\'finish1\')"]'))throw Error('Impossible mastery finish button rendered');
+           dc23MasteryInput('finish2');
+           if(activeGame.attempts!==1||activeGame.attemptLog[0].dartsUsed!==2||activeGame.hits!==1)throw Error('Legal two-dart mastery finish rejected');
+           undoGame();if(JSON.stringify(activeGame)!==beforeCheckout)throw Error('Mastery checkout Undo mismatch');
+           // The target sequence cannot invite extra darts after the rival wins.
+           const duel={name:'Double Duel',tier:4,opponentEvery:2,turn:1,player:0,opponent:3,sequence:[20,16,8,10,12,6]};
+           if(dcVisitSpec(duel).targets.length!==1)throw Error('Personalised rival boundary is not reflected in visit display');
            if(alerts.length)throw Error('Unexpected game alert: '+alerts.join('; '));
            return {names:new Set(checks.map(x=>x.name)).size,configurations:checks.length,naturalRounds:checks.filter(x=>x.completed).length,actions:checks.reduce((n,x)=>n+x.steps+1,0)};
           }finally{save=oldSave;window.alert=oldAlert;announceRound=oldAnnounce;hideRoundAnnouncement()}

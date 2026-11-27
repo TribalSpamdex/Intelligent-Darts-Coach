@@ -4684,6 +4684,7 @@ function dc23MasteryInput(value){
  const mode=g.mode;
  if(mode==='bull'&&!['25','50','miss'].includes(value))return;
  if(mode==='checkout'&&!['finish','finish1','finish2','finish3','miss'].includes(value))return;
+ if(mode==='checkout'&&/^finish[123]$/.test(value)&&!possibleCheckoutIn(g.checkoutExample,Number(value.slice(-1))))return;
  if(!['bull','checkout'].includes(mode)&&!['hit','miss'].includes(value))return;
  snapshot();
  let correct=false,ring=g.ring,target=g.target;
@@ -4720,7 +4721,7 @@ function dcVisitSpec(g){
  if(g.name==='Big Singles')return {targets:Array(3-g.darts.length%3).fill('S'+(Math.floor(g.darts.length/3)+1)),kind:'big'};
  if(g.name==='Bull Accuracy'||(g.name==='Target Mastery'&&g.mode==='bull'))return {targets:Array(Math.min(3-g.thrown%3,(g.goal||30)-g.thrown)).fill('BULL'),kind:'bull'};
  if(g.name==='Double Duel'){
-  const interval=[2,2,3,3,4,5,6][g.tier-1],route=g.sequence||[20,16,8,10,12,6];
+  const interval=(Number.isInteger(g.opponentEvery)&&g.opponentEvery>=2&&g.opponentEvery<=6)?g.opponentEvery:[2,2,3,3,4,5,6][g.tier-1],route=g.sequence||[20,16,8,10,12,6];
   const n=Math.min(3-g.turn%3,4-g.player,(4-g.opponent)*interval-g.turn%interval,12-g.turn);
   return {targets:Array.from({length:n},(_,i)=>(g.tier>=6?'S':'D')+route[(g.turn+i)%route.length]),kind:'duel'};
  }
@@ -5946,7 +5947,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
    g.mode==='straight'?'Streak '+g.streak+' · Best '+g.best:
    'Hits '+g.hits+'/'+g.thrown)+' · '+(g.goal-(g.mode==='checkout'?g.attempts:g.thrown))+(g.mode==='checkout'?' attempts remaining':' darts remaining');
   html=g.mode==='bull'?button('25','dc23MasteryInput(\'25\')')+button('50','dc23MasteryInput(\'50\')')+button('Miss','dc23MasteryInput(\'miss\')'):
-   g.mode==='checkout'?button('Finished · 1 dart',"dc23MasteryInput('finish1')")+button('Finished · 2 darts',"dc23MasteryInput('finish2')")+button('Finished · 3 darts',"dc23MasteryInput('finish3')")+button('Not finished',"dc23MasteryInput('miss')"):
+   g.mode==='checkout'?[1,2,3].filter(n=>possibleCheckoutIn(g.checkoutExample,n)).map(n=>button('Finished · '+n+' dart'+(n===1?'':'s'),"dc23MasteryInput('finish"+n+"')")).join('')+button('Not finished',"dc23MasteryInput('miss')"):
    button('Hit','dc23MasteryInput(\'hit\')')+button('Miss','dc23MasteryInput(\'miss\')');break;
  case "High-Low":
   heading=highLowAimHigher(g)?"HIGHER":"LOWER";detail="Previous visit "+g.previous+" · Gap "+g.diff;

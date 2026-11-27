@@ -26,10 +26,11 @@ with sync_playwright() as p:
     assert 'Eligible measurements: 0' in page.locator('#idcReport').inner_text()
     assert 'Maintain your balanced practice' in page.locator('#idcBrief').inner_text()
     # Exercise sparse two-day feedback through both real Coach UI entry points.
-    sparse=page.evaluate("""()=>{
+    sparse=page.evaluate("""async()=>{
       const saved=data.idcCoachMemory;
       try{
-       data.idcCoachMemory=clone(window.IDCTrainingBridge.memory());
+       const {newMemory}=await import('./coach-memory.mjs?v=2.0.0-dev');
+       data.idcCoachMemory=clone(window.IDCTrainingBridge.memory()??newMemory());
        const today=dateKey(),old=dateKey(Date.now()-26*DAY_MS);
        data.idcCoachMemory.state.observations=[
         {id:'sparse-older',day:old,skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:35},
