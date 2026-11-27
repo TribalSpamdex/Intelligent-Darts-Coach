@@ -73,15 +73,28 @@ def run_sol51_audit(browser):
     finally:ctx.close()
 
 def run_pinned51_upgrade_audit(browser):
-    import os, re
+    run_pinned_upgrade(browser, "dev50", BASELINE)
+
+def run_pinned52_upgrade_audit(browser):
+    run_pinned_upgrade(browser, "dev51", "3fa01585ae05384f468746f083d9994d9fa63e9c")
+
+def run_pinned_upgrade(browser, source_version, source_commit):
+    import os, re, socket
     version=re.search(r"IDC:assets:2\.0\.0-(dev\d+)",(SITE/'sw.js').read_text()).group(1)
-    state={'candidate':False}
+    state={'candidate':False,'disconnect':False,'dropped':0}
     @lru_cache(maxsize=None)
     def baseline(path):
-        return (Path(os.environ['IDC_ARCHIVED_BASELINE'])/'site'/path).read_bytes() if os.environ.get('IDC_ARCHIVED_BASELINE') else subprocess.check_output(['git','show',BASELINE+':site/'+path],cwd=SITE.parent)
+        archive=os.environ.get('IDC_ARCHIVED_BASELINE' if source_version=='dev50' else 'IDC_ARCHIVED_DEV51')
+        return (Path(archive)/'site'/path).read_bytes() if archive else subprocess.check_output(['git','show',source_commit+':site/'+path],cwd=SITE.parent)
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
         def do_GET(self):
+            if state['disconnect']:
+                state['dropped']+=1
+                self.close_connection=True
+                try:self.connection.shutdown(socket.SHUT_RDWR)
+                except OSError:pass
+                return
             path=urlsplit(self.path).path
             if path=='/observer.html':
                 payload=b'<!doctype html><title>Upgrade observer</title>'
@@ -101,20 +114,21 @@ def run_pinned51_upgrade_audit(browser):
     try:
         page=ctx.new_page();page.goto(url);ready(page)
         page.wait_for_function('navigator.serviceWorker.controller!==null')
-        assert 'dev50' in page.title()
+        assert source_version in page.title()
         page.evaluate("""()=>{$('quickStartAverage').value='q60';startQuickFromAverage();data.__sol51Upgrade='keep';localStorage.setItem('dartsCoachV4','SOL51-LEGACY');quickChoice='Shanghai Combo';$('quickDuration').value='300';startQuickPlay();playExercise();shanghaiDart(true)}""")
-        assert page.evaluate('activeGame.skillTrace.length===1 && activeGame.skillTraceVersion===undefined')
+        trace_version='undefined' if source_version=='dev50' else '1'
+        assert page.evaluate('activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==='+trace_version+' && activeGame.skillProtocol===undefined')
         state['candidate']=True
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
-        wait_async(page,"async()=>!!(await navigator.serviceWorker.getRegistration()).waiting",'actual dev51 waiting')
-        assert page.evaluate("async v=>{const c=await caches.keys();return c.includes('IDC:assets:2.0.0-dev50') && c.includes('IDC:assets:2.0.0-'+v)}",version)
+        wait_async(page,"async()=>!!(await navigator.serviceWorker.getRegistration()).waiting",'actual '+version+' waiting')
+        assert page.evaluate("async vs=>{const c=await caches.keys();return vs.every(v=>c.includes('IDC:assets:2.0.0-'+v))}",[source_version,version])
         observer=ctx.new_page();observer.goto(url.replace('/site/index.html','/observer.html'))
         assert observer.evaluate('navigator.serviceWorker.controller===null')
         page.close()
-        wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');return !!r.active&&!r.waiting&&!(await caches.keys()).includes('IDC:assets:2.0.0-dev50')}",'actual dev51 activation')
+        wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');const keys=await caches.keys();return !!r.active&&!r.waiting&&keys.includes('IDC:assets:2.0.0-"+version+"')&&!keys.includes('IDC:assets:2.0.0-"+source_version+"')}",'actual '+version+' activation')
         page=ctx.new_page();page.goto(url);observer.close();ready(page)
         assert version in page.title()
-        assert page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillTrace.length===1 && activeGame.skillTraceVersion===undefined && localStorage.getItem('dartsCoachV4')==='SOL51-LEGACY'")
+        assert page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillTrace.length===1 && activeGame.skillTraceVersion==="+trace_version+" && activeGame.skillProtocol===undefined && localStorage.getItem('dartsCoachV4')==='SOL51-LEGACY'")
         page.evaluate("show('train')")
         # Reopen pause is native behavior; resume, then finish using controls.
         if page.evaluate('!!session().pausedAt'):page.locator('#pauseButton').click()
@@ -122,6 +136,19 @@ def run_pinned51_upgrade_audit(browser):
         page.locator('#gameControls').get_by_role('button',name='Hit',exact=True).click()
         assert page.evaluate("data.games.length===1 && activeGame.skillTraceVersion===1 && activeGame.skillStartLives>0")
         assert page.evaluate("async()=>{const m=await import('./v62-evidence.mjs?v=2.0.0-dev');return m.extraQuickRounds(window.IDCTrainingBridge.snapshot(),dateKey()).length===1}")
-        print('SOL51 actual pinned dev50-to-current worker upgrade: exact production assets, waiting activation, existing player state, legacy sentinel, old active trace completion and new-round metadata passed; baseline='+BASELINE)
+        if version=='dev52':
+            assert page.evaluate("activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo' && data.games[0].skillProtocol===undefined")
+        if source_version=='dev51':
+            state['disconnect']=True
+            assert page.evaluate("async()=>{try{await fetch('./transport-disconnected-probe',{cache:'no-store'});return false}catch(e){return true}}")
+            assert state['dropped']>0
+            page.goto(url+'?audit=dev52-transport-disconnected');ready(page)
+            assert version in page.title() and page.evaluate("data.__sol51Upgrade==='keep' && activeGame.skillProtocol?.version===1")
+            page.locator('#navTechnique').click();page.locator('#idcQuestion').fill('Are any weaknesses emerging?');page.locator('#idcAsk').click()
+            assert 'warning' in page.locator('#idcAnswer').inner_text().lower()
+            assert page.evaluate("async()=>{const m=await import('./storage-vault.mjs');const json=JSON.stringify({games:[],sessions:[],probe:'offline'});await m.saveArchive(json);return (await m.readArchive()).json===json}")
+            print('SOL52 actual pinned dev51-to-dev52 worker upgrade and disconnected Coach/IndexedDB passed; baseline='+source_commit)
+        else:
+            print('SOL51 actual pinned dev50-to-current worker upgrade: exact production assets, waiting activation, existing player state, legacy sentinel, old active trace completion and new-round metadata passed; baseline='+source_commit)
     finally:
         ctx.close();server.shutdown();server.server_close();thread.join(timeout=5)

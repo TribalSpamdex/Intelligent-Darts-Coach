@@ -1,4 +1,5 @@
 """Rendered Dev52 archive, coaching and actual fixed-check controls."""
+import os
 from browser_sol51 import ready
 
 def run_sol52_audit(browser):
@@ -15,7 +16,7 @@ def run_sol52_audit(browser):
         page.wait_for_function("$('idcArchiveStatus').textContent.includes('Verified local archive')")
         with page.expect_download() as info:page.locator('#idcArchiveExport').click()
         assert info.value.suggested_filename.endswith('.json')
-        assert page.evaluate("async()=>{const m=await import('./storage-vault.mjs');const s=localStorage.getItem('dartsCoachV4');const j=JSON.stringify({games:[],sessions:[],synthetic:'x'.repeat(7600000)});await m.saveArchive(j);const r=await m.readArchive();return r.json===j&&localStorage.getItem('dartsCoachV4')===s}")
+        assert page.evaluate("async()=>{const m=await import('./storage-vault.mjs');const s=localStorage.getItem(KEY);const j=JSON.stringify({games:[],sessions:[],synthetic:'x'.repeat(7600000)});await m.saveArchive(j);const r=await m.readArchive();return r.json===j&&localStorage.getItem(KEY)===s}")
         page.locator('#idcArchiveDelete').click();page.wait_for_function("$('idcArchiveStatus').textContent.includes('Local archive deleted')")
         assert page.evaluate("async()=>!(await (await import('./storage-vault.mjs')).readArchive())")
         page.evaluate("show('technique')")
@@ -26,7 +27,11 @@ def run_sol52_audit(browser):
         page.locator('#exerciseIntro').get_by_role('button',name='Play',exact=True).click()
         assert page.evaluate('!!activeGame.skillProtocol.rules')
         page.reload();ready(page);assert page.evaluate("activeGame.skillProtocol.name==='Scoring Challenge'")
-        page.wait_for_function('navigator.serviceWorker.controller!==null');ctx.set_offline(True);page.reload();ready(page);assert 'dev52' in page.title();ctx.set_offline(False)
+        page.wait_for_function('navigator.serviceWorker.controller!==null')
+        # Chromium's network-emulation gate is supplementary; both engines
+        # must pass actual socket-disconnection in the pinned Dev51 upgrade.
+        if os.getenv('IDC_BROWSER','chromium')=='chromium':
+            ctx.set_offline(True);page.reload();ready(page);assert 'dev52' in page.title();ctx.set_offline(False)
         assert not errors,errors
-        print('DEV52 rendered Chromium: archive save/readback/reload/export/delete, 7.6 MB IndexedDB copy, Coach watch, native fixed-check start/metadata/reload and offline navigation passed')
+        print('DEV52 rendered '+os.getenv('IDC_BROWSER','chromium')+': archive save/readback/reload/export/delete, 7.6 MB IndexedDB copy, Coach watch, native fixed-check start/metadata/reload passed')
     finally:ctx.close()
