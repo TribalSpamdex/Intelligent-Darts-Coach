@@ -2243,14 +2243,14 @@ const DC12_RECOVERY_GAMES=new Set([
 function dc12RecoveryState(name, games=data.games, now=Date.now()){
  const p=dc10ChallengeProfile(name,games,now);
  const supported=DC12_RECOVERY_GAMES.has(name),cutoff=now-45*DAY_MS;
- const previous=(games||[]).filter(e=>e&&e.name===name&&e.completion==='natural'&&
+ const previous=(games||[]).filter(e=>e&&e.name===name&&!e.quick&&(name!=='Doubles Streak'||e.ruleVersion==='same-target-streak-v1')&&e.completion==='natural'&&
    e.recovery===true&&typeof e.win==='boolean'&&Number.isFinite(e.at)&&e.at>=cutoff&&e.at<=now);
  const wins=previous.filter(e=>e.win).length;
  const earned=supported&&p.evidence>=8&&p.effectiveDays>=5&&p.probability<.30&&p.reliability>=.5;
  // A recovered game must periodically be played at normal rules. If standard
  // performance improves, the need for a softer round disappears automatically.
  const attempt=previous.length;
- const latest=(games||[]).filter(e=>e&&e.name===name&&e.completion==='natural'&&
+ const latest=(games||[]).filter(e=>e&&e.name===name&&!e.quick&&(name!=='Doubles Streak'||e.ruleVersion==='same-target-streak-v1')&&e.completion==='natural'&&
   typeof e.win==='boolean'&&Number.isFinite(e.at)&&e.at>=cutoff&&e.at<=now)
   .sort((a,b)=>a.at-b.at).at(-1);
  const trial=!!latest?.recovery&&attempt>0&&(attempt%4===3||wins>=3&&attempt%2===1);
@@ -2314,7 +2314,7 @@ function dc19Decision(name,games=data.games,now=Date.now()){
  const config=DC19_TUNABLE[name];
  if(!config)return {mode:'standard',reason:'unsupported'};
  const p=dc10ChallengeProfile(name,games,now);
- const recent=(games||[]).filter(e=>e&&e.name===name&&
+ const recent=(games||[]).filter(e=>e&&e.name===name&&(name!=='Doubles Streak'||e.ruleVersion==='same-target-streak-v1')&&
   e.completion==='natural'&&e.quick!==true&&e.recovery!==true&&
   Number(e.tierAtStart)===p.tier&&Number.isFinite(e.at)&&
   e.at>=now-60*DAY_MS&&e.at<=now&&typeof e.win==='boolean');
@@ -2748,6 +2748,7 @@ function dc16PressureEvidence(player=data,now=Date.now()){
  const cutoff=now-56*DAY_MS,groups=new Map();
  for(const g of player.games||[]){
   if(!g||g.completion!=='natural'||g.quick||g.recovery||g.challengeTuning||typeof g.win!=='boolean'||!Number.isFinite(g.at)||g.at<cutoff||g.at>now||!Number.isInteger(Number(g.tierAtStart)))continue;
+  if(g.name==='Doubles Streak'&&g.ruleVersion!=='same-target-streak-v1')continue;
   const key=g.name+':'+Number(g.tierAtStart),d=dateKey(g.at);
   const row=groups.get(key)||{name:g.name,tier:Number(g.tierAtStart),days:new Map()};
   const day=row.days.get(d)||{at:g.at,w:0,n:0};day.at=Math.max(day.at,g.at);day.w+=g.win?1:0;day.n++;row.days.set(d,day);groups.set(key,row);
@@ -4040,7 +4041,7 @@ const QUICK_DESCRIPTIONS={
  "Scoring Ladder":"Climb a sequence of targets. Missing a target knocks you down.",
  "Treble Hunt":"Hit changing trebles within your lives allowance. Beginners aim at singles using measured targets when available.",
  "Doubles Survival":"Clear doubles before your darts run out.",
- "Doubles Streak":"Build consecutive target hits. Misses break your run and cost lives.",
+ "Doubles Streak":"Keep hitting the same target. A miss breaks the streak, costs one life and moves to the next target.",
  "Staying Straight":"Keep scoring in each numbered segment. The first miss ends that segment.",
  "Checkout Climb":"Finish in three darts. Success raises the score; failure lowers it.",
  "Focused Checkouts":"Clear an adaptive range before your lives run out.",
@@ -4619,9 +4620,13 @@ function trebleDart(hit){if(typeof hit!=="boolean")return;
 function doublesStreakDart(hit){if(typeof hit!=="boolean")return;
  const g=activeGame,s=session();if(!g||g.name!=="Doubles Streak"||!s||s.pausedAt||s.phase!=="playing")return;
  snapshot();(g.targetLog||(g.targetLog=[])).push({target:g.targets[g.targetIndex],hit:!!hit,ring:g.variant==="singles"?"S":"D"});g.thrown++;
- if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);g.targetIndex=(g.targetIndex+1)%g.targets.length}
- else{g.misses++;g.streak=0;g.lives--}
- if(g.best>=g.goal||g.lives<=0){endRound();return}
+ const sameTarget=g.ruleVersion==='same-target-streak-v1';
+ if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(!sameTarget)g.targetIndex=(g.targetIndex+1)%g.targets.length}
+ else{g.misses++;g.streak=0;g.lives--;if(sameTarget&&g.lives>0)g.targetIndex=(g.targetIndex+1)%g.targets.length}
+ // New rounds end only on exhausted lives or exercise time. The streak
+ // goal remains an internal milestone, not a forced interruption.
+ // A restored pre-upgrade round retains its original target progression.
+ if(g.lives<=0||!sameTarget&&g.best>=g.goal){endRound();return}
  data.game=g;save();
 }
 
@@ -4765,10 +4770,11 @@ function dc22MasteryDart(hit){dc23MasteryInput(hit?'hit':'miss')}
 /* RC2 variation: state belongs to the player record, never the clock or render.
    Benchmarks, named-score games and deliberate mastery keep their protocols. */
 function dcRC2Memory(){
- const m=data.targetVariation;
- if(!m||m.version!==2||typeof m.history!=='object'||!m.history||Array.isArray(m.history)||typeof m.exposure!=='object'||!m.exposure||Array.isArray(m.exposure))data.targetVariation={version:2,history:{},exposure:{S:[],D:[],T:[]}};
- for(const r of ['S','D','T'])if(!Array.isArray(data.targetVariation.exposure[r]))data.targetVariation.exposure[r]=[];
- return data.targetVariation;
+ const holder=data.activeSession?.quick?data.activeSession:data;
+ const m=holder.targetVariation;
+ if(!m||m.version!==2||typeof m.history!=='object'||!m.history||Array.isArray(m.history)||typeof m.exposure!=='object'||!m.exposure||Array.isArray(m.exposure))holder.targetVariation={version:2,history:{},exposure:{S:[],D:[],T:[]}};
+ for(const r of ['S','D','T'])if(!Array.isArray(holder.targetVariation.exposure[r]))holder.targetVariation.exposure[r]=[];
+ return holder.targetVariation;
 }
 let dcRC2EvidenceCache=null;
 function dcRC2WeakTargets(ring){
@@ -4883,6 +4889,7 @@ function applyRoundBalance(g){
  return g;
 }
 function dcRC2ExpectedRules(name,tier){
+ if(name==='Doubles Streak')return 'same-target-streak-v1';
  if(name==='Double Double')return 'rc2-four-doubles';
  const novice=tier===7||tier===6&&data.assessment?.quickStart&&(window.IDCPrecision?.isFoundationAverage(data.assessment.quickBand)??(['30','under30'].includes(data.assessment.quickBand)||(/^[pq](?:0|20|22\\.5|25|27\\.5|30|32\\.5|35|37\\.5)$/.test(data.assessment.quickBand))));
  const changed=['Treble Hunt','Doubles Streak','Number Lock','Shanghai Combo','Bull Streak','Bull Survival','Bull Bank','Bull Blackjack','Outside Doubles','Double Bull Bridge','101 Sprint','Double-In 201','Last Dart Rescue','Last Dart Standing','Checkout Poker','Cricket Countdown','Pressure Cricket','Switchback','Dartboard Bingo','Risk or Reward','Scoring Survival','Scoring Ladder','First Nine Siege','Focused Checkouts','High-Low'];
@@ -5162,6 +5169,7 @@ function buildGame(name,previous=null){const g=name==="Focused Checkouts"?focuse
   const tier=pressureTier("doubles");Object.assign(g,{tier,target:20,player:0,opponent:0,turn:0,thrown:0,matchDone:false,opponentEvery:[2,2,3,3,4,5,6][tier-1]});
  }
  const standard=dc80Block(dcRC2Beginner(dc19ApplyTuning(dc12ApplyRecovery(applyRoundBalance(g)))),previous);
+ if(name==='Doubles Streak')standard.ruleVersion='same-target-streak-v1';
  const ss=session(),tier=Number(standard.tier)||dc9GameTier(name);
  if(window.IDCPrecision&&ss&&!ss.quick&&!ss.extra&&!standard.recovery&&!standard.challengeTuning&&!DC10_MEASUREMENT_GAMES.has(name)&&window.IDCPrecision.supported(name)){
   if(!Number.isInteger(standard.tier))standard.tier=tier;
@@ -5575,9 +5583,10 @@ function dcVisibleProgress(g,s,exercise,history){
  const checkout=['Checkout Climb','Focused Checkouts'].includes(g?.name);
  const bull=['Bull Survival','Bull Streak'].includes(g?.name);
  if(!checkout&&!bull&&!['Doubles Survival','Doubles Streak','Treble Hunt','Outside Doubles','Double Double'].includes(g?.name))return null;
- let hits=0,streak=0,best=0,incomplete=false;
+ const sameTarget=g.name==='Doubles Streak'&&g.ruleVersion==='same-target-streak-v1';
+ let hits=0,streak=0,best=0,incomplete=false,lastTarget=null;
  const count=v=>(typeof v==='number'||typeof v==='string'&&v.trim()!=='')&&Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):null;
- const gap=()=>{streak=null;incomplete=true};
+ const gap=()=>{streak=null;lastTarget=null;incomplete=true};
  const consume=r=>{
   const log=checkout?r.attemptLog:(r.targetLog??r.details?.targetLog);
   const successes=count(checkout?r.success:r.hits),failures=count(r.fail);
@@ -5595,8 +5604,12 @@ function dcVisibleProgress(g,s,exercise,history){
    const valid=entry&&[true,false,0,1].includes(entry.hit)&&
     targetValid&&(checkout||bull||entry.ring===undefined||entry.ring===ring);
    if(!valid){gap();continue}
-   if(entry.hit===true||entry.hit===1){hits++;streak=(streak??0)+1;best=Math.max(best,streak)}
-   else streak=0;
+   if(entry.hit===true||entry.hit===1){
+    hits++;
+    if(sameTarget&&!Number.isInteger(entry.target)){gap();continue}
+    if(sameTarget&&lastTarget!==null&&lastTarget!==entry.target)streak=0;
+    streak=(streak??0)+1;best=Math.max(best,streak);lastTarget=entry.target??null;
+   }else{streak=0;lastTarget=null}
   }
  };
  if(s?.id&&exercise?.provenanceId&&Array.isArray(history)){
@@ -5785,7 +5798,7 @@ const EXTRA_RULES={
  "Scoring Survival":"Throw THREE darts and enter your total. Reach the target score or lose a life. When lives reach zero, the round ends and restarts until time expires.",
  "Scoring Ladder":"Throw THREE darts and enter your total. Beat the target to climb. Fail and lose a life and a step. Clear four steps to win a round.",
  "Treble Hunt":"Hit the displayed target with each dart. A miss costs a life. Clear the hit goal before your lives run out; then repeat.",
- "Doubles Streak":"Hit the displayed target to build a streak. A miss breaks it and costs a life. Reach the target streak before lives run out.",
+ "Doubles Streak":"Keep hitting the displayed target. On the first miss, lose one life and move to the next target. The streak goal is a milestone; keep going until lives or exercise time run out.",
  "501 Pressure":"Start on 501. Record three-dart visit totals; finish exactly on a double within your adaptive dart allowance. A bust does not reduce your remaining score.",
  "Setup Shot":"Five attempts at each starting score, then a new random score. Each attempt is one three-dart visit. Aim to leave the displayed range. Finishing (zero), leaving one, going below zero or outside the range ends the attempt. Do not check out.",
  "Last Dart Rescue":"Five one-dart checkout situations. First CHOOSE the correct finishing target; a wrong route costs a life. Then record Hit or Miss for the dart.",
@@ -5824,7 +5837,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  if(g?.stageLength&&g.name==='Doubles Survival')rule='Hit each of the '+g.stageLength+' doubles in order. You have '+g.allowed+' darts per double. Clear the route to win.';
  if(g?.holdPosition&&g.name==='Switchback')rule='Hit the displayed target, then switch to the next. Each miss uses a dart. Clear all seven targets before the dart allowance runs out.';
  if(g?.name==='Switchback'&&g.beginner)rule='Hit the displayed SINGLE, then switch to the next target. A miss uses a dart but keeps your position. Complete the sequence before your total darts run out.';
- if(g&&g.name==="Doubles Streak"&&g.variant==="singles")rule="Hit the SINGLE shown to build a streak. A miss breaks it and costs a life. Reach the goal before lives run out.";
+ if(g?.name==="Doubles Streak")rule=g.ruleVersion==="same-target-streak-v1"?"Keep hitting the "+(g.variant==="singles"?"SINGLE":"DOUBLE")+" shown. A miss ends that target’s streak, costs one life and moves to the next target. Aim for "+g.goal+" consecutive hits, then keep going. Lives exhausted or exercise time ends the round.":"Legacy round: a hit moves to the next target. A miss breaks the streak and costs a life. Reach the goal before lives run out. New rounds use the same-target rule.";
  if(g&&["Bull Survival","Bull Streak"].includes(g.name))rule=(g.target==="CENTRE"?"CENTRE = anywhere INSIDE the inner edge of the treble ring, including the bull. ":g.target==="50"?"Only the red bullseye (50) counts. ":"Either outer bull (25) or bullseye (50) counts. ")+rule;
  if(g&&g.name==='Target Mastery')rule=dc23MasteryDescriptor(g)+': '+(g.mode==='bull'?'Aim at the bull and record 25, 50 or Miss for every dart.':g.mode==='checkout'?'Attempt the displayed finish within three darts, ending on a double. Record the actual number thrown on success, or Not finished. No dart locations are inferred.':g.mode==='straight'?'Aim at the same exact segment and build a streak. Record every dart.':g.mode==='switch'?'Switch to each displayed target after every dart, recording Hit or Miss.':g.mode==='setup'?'Hit each nominated single to practise controlled setup targets.':g.mode==='pressure'?'Hit the nominated '+(g.ring==='S'?'single':'double')+' with three darts per visit. Record each dart.':g.mode==='scoring'?'Rotate through nominated scoring '+(g.ring==='S'?'singles':'trebles')+', recording each dart.':'Hit the nominated exact segment. Record every dart.');
  if(g?.name==='Shanghai Combo')rule=g.variant==='singles'?'Hit the displayed single three times. Each miss costs one life. Complete all three stages before lives run out.':'Hit the displayed single, then double, then treble of the same number. Each miss costs one life. Complete all three stages before lives run out.';
@@ -5878,7 +5891,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Lives: "+g.lives+" · Miss = lose a life";
   html=button("Hit","trebleDart(true)")+button("Miss","trebleDart(false)");break;
  case "Doubles Streak":
-  heading=(g.variant==="singles"?"S":"D")+g.targets[g.targetIndex];detail="Round goal: "+g.goal+" consecutive hits";
+  heading=(g.variant==="singles"?"S":"D")+g.targets[g.targetIndex];detail=(g.ruleVersion==="same-target-streak-v1"?"Streak milestone: ":"Round goal: ")+g.goal+" consecutive hits";
   mini="Lives: "+g.lives;
   html=button("Hit","doublesStreakDart(true)")+button("Miss","doublesStreakDart(false)");break;
  case "301 Pressure":
@@ -6054,7 +6067,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  'Scoring Survival':['SCORE '+g.target+' OR MORE','5 successful visits · low score costs a life'],
  'Scoring Ladder':['SCORE '+g.target+' OR MORE','Clear 4 steps · failure costs a life and a step'],
  'Treble Hunt':['REACH '+g.goal+' HITS','Miss costs a life · no lives = loss'],
- 'Doubles Streak':['BUILD '+g.goal+' CONSECUTIVE HITS','Miss breaks streak and costs a life'],
+ 'Doubles Streak':[g.ruleVersion==='same-target-streak-v1'?'SAME TARGET · AIM FOR '+g.goal+' IN A ROW':'BUILD '+g.goal+' CONSECUTIVE HITS',g.ruleVersion==='same-target-streak-v1'?'First miss moves on and costs one life':'Miss breaks streak and costs a life'],
  '301 Pressure':['CHECK OUT '+heading,'Double-out · bust costs a life · darts or lives exhausted = loss'],
  '501 Pressure':['CHECK OUT '+heading,'Double-out · bust restores score · darts exhausted = loss'],
  '170 Challenge':['CHECK OUT '+heading,'Double-out · bust restores score · visits exhausted = loss'],

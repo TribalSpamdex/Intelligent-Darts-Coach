@@ -153,6 +153,7 @@ export function precisionOptions(games,name,day,tier,now=Date.now(),game=null){
  const unique=new Map(),conflicts=new Set();
  for(const g of games){
  if(!g||g.name!==name||g.extra||g.recovery||!Number.isFinite(g.at)||g.at<=0||g.at>now||!dayValid(g.day)||g.day>day||dayGap(g.day,day)>=84||g.quick!==false||g.completion!=='natural'||g.tierAtStart!==tier||typeof g.win!=='boolean')continue;
+ if(name==='Doubles Streak'&&game?.ruleVersion==='same-target-streak-v1'&&g.ruleVersion!==game.ruleVersion)continue;
  const id=g.at,signature=JSON.stringify([g.day,g.win,g.challengeTuning,g.precision??null]);
  if(unique.has(id)&&unique.get(id).signature!==signature)conflicts.add(id);
  else unique.set(id,{g,signature});

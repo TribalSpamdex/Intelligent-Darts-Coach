@@ -9,9 +9,75 @@ def run_player_progress_audit(browser):
         page.goto('http://127.0.0.1:8765/index.html')
         page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
         page.evaluate("document.getElementById('quickStartAverage').value='q60';startQuickFromAverage()")
+        # Doubles Streak now ends by lives, not by attaining its streak milestone.
+        page.evaluate("""()=>{
+          data.activeSession=null;data.game=null;activeGame=null;data.games=[];
+          quickChoice='Doubles Streak';document.getElementById('quickDuration').value='300';startQuickPlay();
+        }""")
+        page.locator('#exerciseIntro button[onclick="playExercise()"]').click()
+        hit=page.locator('#gameControls button[onclick="doublesStreakDart(true)"]')
+        miss=page.locator('#gameControls button[onclick="doublesStreakDart(false)"]')
+        initial=page.evaluate("({target:activeGame.targets[0],goal:activeGame.goal,lives:activeGame.lives,start:session().activityStarted,version:activeGame.ruleVersion})")
+        assert initial['version']=='same-target-streak-v1' and initial['lives']>=2,initial
+        for n in range(initial['goal']+2):
+            hit.click()
+            assert page.evaluate('activeGame.targetIndex')==0
+            assert page.evaluate('session().roundsCompleted')==0
+            assert page.locator('#roundFlash').inner_text()=='STREAK '+str(n+1)
+        count=initial['goal']+2
+        miss.click()
+        assert page.evaluate('activeGame.targetIndex')==1
+        assert page.evaluate('activeGame.lives')==initial['lives']-1
+        assert page.locator('#roundFlash').inner_text()=='STREAK 0'
+        page.locator('#undoButton').click()
+        assert page.evaluate('activeGame.targetIndex')==0
+        assert page.locator('#roundFlash').inner_text()=='STREAK '+str(count)
+        miss.click()
+        hit.click()
+        hit.click()
+        assert page.evaluate('activeGame.targetIndex')==1
+        assert page.locator('#roundFlash').inner_text()=='STREAK 2'
+        for _ in range(initial['lives']-1):
+            miss.click()
+        assert page.evaluate('session().roundsCompleted')==1
+        assert page.evaluate('session().activityStarted')==initial['start']
+        assert page.evaluate("data.games.at(-1).win && data.games.at(-1).ruleVersion==='same-target-streak-v1'")
+        assert page.locator('#roundFlash').inner_text()=='STREAK 0'
+        assert 'Hits: '+str(count+2) in page.locator('#miniMetrics').inner_text()
+        assert 'Best streak: '+str(count) in page.locator('#miniMetrics').inner_text()
+        assert not page.locator('#roundAnnouncement').is_visible()
+        page.reload()
+        page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held' && !!window.IDCPolicy")
+        page.evaluate("show('train')")
+        assert page.evaluate('!!session().pausedAt')
+        page.locator('#pauseButton').click()
+        page.locator('#undoButton').click()
+        assert page.evaluate('session().roundsCompleted')==0
+        assert page.evaluate('activeGame.lives')==1
+        miss.click()
+        assert page.evaluate('session().roundsCompleted')==1
+        # Exhaust an entirely unsuccessful round, retaining the real best run.
+        lives=page.evaluate('activeGame.lives')
+        for _ in range(lives):
+            miss.click()
+        assert page.evaluate('session().roundsCompleted')==2
+        assert page.evaluate('data.games.at(-1).win===false')
+        assert 'Best streak: '+str(count) in page.locator('#miniMetrics').inner_text()
+        geometry=[]
+        for width in [320,390,430]:
+            page.set_viewport_size({"width":width,"height":844})
+            page.evaluate('window.scrollTo(0,0)')
+            boxes=page.evaluate("""()=>['gameTarget','gameControls','undoButton'].map(id=>{
+              const b=document.getElementById(id).getBoundingClientRect();return {id,x:b.x,y:b.y,w:b.width,h:b.height,bottom:b.bottom};
+            })""")
+            for b in boxes:
+                assert b['w']>0 and b['x']>=-1 and b['x']+b['w']<=width+1,boxes
+                assert b['y']>=0 and b['bottom']<=844,boxes
+            geometry.append({"width":width,"boxes":boxes})
+        page.set_viewport_size({"width":390,"height":844})
+        checks.append({"name":"Doubles Streak","successDarts":count+2,"naturalRounds":2,"reloadUndo":True,"geometry":geometry})
         cases=[
             ('Doubles Survival','survivalDart(true)','survivalDart(false)'),
-            ('Doubles Streak','doublesStreakDart(true)','doublesStreakDart(false)'),
             ('Treble Hunt','trebleDart(true)','trebleDart(false)'),
             ('Bull Survival','bullSurvival(true)','bullSurvival(false)'),
             ('Bull Streak','bullStreak(true)','bullStreak(false)'),
