@@ -39,7 +39,7 @@ export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[
   const episodes=report.profiles.some(p=>p.context==='competition')?learningEpisodes(host,state,day,now).episodes:[];
   return answer('match-transfer',[...transferSignalLines(transferSignals(state,day)),...transferLines(transfer),...methodCompetitionLines(methodCompetitionReview(report,episodes,state,day))]);
  }
- if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',[...competitionStageDevelopmentLines(competitionStageDevelopment(state,day)),...competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day))]);
+ if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',[...competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day)),...competitionStageDevelopmentLines(competitionStageDevelopment(state,day))]);
  if(/^(how far am i from my goals|goal runway|goal gaps)$/.test(q))return answer('goal-runway',goalRunwayLines(developmentAgenda(host,state,day,{now})));
  if(/^(do i lose consistency during practice|early versus late rounds|within exercise performance)$/.test(q))return answer('exercise-sequence',sequenceLines(exerciseSequences(host,state,reflections,day,now)));
  if(/^(what should i test next|next training comparison|comparison plan)$/.test(q))return answer('comparison-plan',comparisonPlanLines(nextComparison(host,state,day,now)));
