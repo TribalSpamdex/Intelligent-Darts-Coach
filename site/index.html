@@ -1397,7 +1397,7 @@ function show(id){
 }
 /* Evidence is aggregated by calendar day: many rounds cannot create many promotion days. */
 function gameTime(g){if(num(g.at)>0)return num(g.at);if(g.day){const t=new Date(g.day+"T12:00:00").getTime();if(Number.isFinite(t))return t}const t=new Date(g.date||"").getTime();return Number.isFinite(t)?t:0}
-/* Recreational Quick Play is retained for records, never for coaching evidence. */
+/* Legacy training-only evidence. Verified Quick Play skills use separate measurement protocols. */
 function quickEvidenceEligible(g,context=null){
  if(!g||g.quick)return false;
  const evidence=context||dc63QuickEvidence();
@@ -3532,7 +3532,13 @@ function dc23MasteryDescriptor(g){
    dates and split-period replication. A failed diagnosis is not a negative mark. */
 function dc25Mean(records){return records.length?records.reduce((a,x)=>a+Number(x.hit),0)/records.length:0}
 function dc25MasteryDiagnoses(){
- const all=dc24MasteryEvidence().filter(g=>g.days>=8&&g.tries>=40&&
+ const training=dc25MasteryDiagnosesFor('training'),quick=dc25MasteryDiagnosesFor('quick'),primary=dc24MasteryEvidence('training');
+ // Never replace a supported training diagnosis with a contradictory
+ // recreational-source diagnosis. Each comparison has its own daily cap.
+ return training.concat(quick.filter(q=>!primary.some(p=>p.key===q.mode+' '+q.ring+q.target&&p.days>=8&&p.tries>=40)).map(q=>({...q,basis:q.basis+' · Quick Play skill measurements'}))).sort((a,b)=>b.priority-a.priority||b.gap-a.gap||a.target-b.target);
+}
+function dc25MasteryDiagnosesFor(source){
+ const all=dc24MasteryEvidence(source).filter(g=>g.days>=8&&g.tries>=40&&
   ['segment','straight','switch','setup','pressure','scoring'].includes(g.kind)&&
   /^(segment|straight|switch|setup|pressure|scoring) [SDT](?:[1-9]|1\d|20)$/.test(g.key));
  const capped=g=>{const byDay=new Map();for(const r of g.records||[]){if(!r||typeof r.day!=='string'||!Number.isFinite(r.hit)||![0,1].includes(r.hit))continue;
@@ -4051,7 +4057,7 @@ function checkCompletedBlocks(){
 
 /* QUICK PLAY: one game for chosen duration, same underlying rules and hidden tiers. */
 const QUICK_GAMES=[
- "Scoring Survival","Scoring Ladder","Treble Hunt","Doubles Survival",
+ "Scoring Challenge","Scoring Survival","Scoring Ladder","Treble Hunt","Doubles Survival",
  "Doubles Streak","Staying Straight","Checkout Climb","Focused Checkouts",
  "301 Pressure","Bull Accuracy","Bull Survival","Bull Streak",
  "Shanghai Combo","Bull Bank","Number Lock","Halve It","Outside Doubles",
@@ -4059,6 +4065,7 @@ const QUICK_GAMES=[
  "Last Dart Standing","Pressure Cricket","Bull Blackjack","Neighbour Trap","Double Jackpot","Dartboard Bingo","High-Low","Split the Difference","Checkout Poker","Double Bull Bridge","Double Duel","Target Mastery"
 ];
 const QUICK_DESCRIPTIONS={
+ "Scoring Challenge":"Measure your scoring average over ten three-dart visits. Completed fixed rounds contribute to your ability profile.",
  "Scoring Survival":"Meet your score target every visit. A failure costs a life.",
  "Scoring Ladder":"Climb a sequence of targets. Missing a target knocks you down.",
  "Treble Hunt":"Hit changing trebles within your lives allowance. Beginners aim at singles using measured targets when available.",
@@ -4177,7 +4184,7 @@ function renderQuick(){
  $("dc23MasteryOptions").classList.toggle("hidden",randomQuickPending||quickChoice!=="Target Mastery");
  $("dc23MasterySelect").value=dc23QuickMode;
  document.querySelectorAll("#quickDurationOptions button").forEach(b=>{const on=Number(b.dataset.seconds)===duration;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on))});
- $("quickEvidence").textContent='Quick Play is recorded separately for your enjoyment and personal records. It does not contribute to coaching decisions.';
+ $("quickEvidence").textContent='Quick Play skill measurements contribute to your ability profile and Darts Mastery. They do not complete scheduled training or count towards its workload.';
  const unavailable=!randomQuickPending&&!dcGameEligible(quickChoice);
  $("quickStart").disabled=needs||!!session()||unavailable;
  $("quickStart").textContent=session()?'Session in progress':needs?'Complete assessment first':unavailable?'Requires 80+ average':randomQuickPending?'Play Random Game':'Play Game';
@@ -7578,6 +7585,11 @@ function dc24Wilson(h,n,z=1.96){
  return {low:Math.max(0,(p+z2/(2*n)-z*Math.sqrt(p*(1-p)/n+z2/(4*n*n)))/den),high:Math.min(1,(p+z2/(2*n)+z*Math.sqrt(p*(1-p)/n+z2/(4*n*n)))/den)};
 }
 function dc24MasteryRows(now=Date.now()){
+ if(typeof window!=='undefined'&&window.IDCPrecision?.masteryRows){
+  const sessions=[...(data.sessions||[])];if(data.activeSession&&!sessions.some(s=>String(s.id)===String(data.activeSession.id)))sessions.push(data.activeSession);
+  return window.IDCPrecision.masteryRows({games:data.games||[],sessions},now);
+ }
+ // Legacy fallback before the independent module initializes; never admit unverified Quick Play.
  const cutoff=now-112*DAY_MS,out=[];
  for(const g of (data.games||[])){
   if(!g||g.name!=='Target Mastery'||g.completion!=='natural'||!Number.isFinite(g.at)||g.at>now||g.at<cutoff||g.challengeTuning||g.recovery||g.quick)continue;
@@ -7592,17 +7604,20 @@ function dc24MasteryRows(now=Date.now()){
  }
  return out;
 }
-function dc24MasteryEvidence(){
- const rows=dc24MasteryRows(),groups=new Map();
+function dc24MasteryEvidence(source='training'){
+ const rows=dc24MasteryRows().filter(r=>source==='all'||(source==='quick')===!!r.quick),groups=new Map();
  for(const r of rows){const g=groups.get(r.key)||{key:r.key,kind:r.kind,hits:0,tries:0,days:new Set(),records:[],darts:[]};g.hits+=r.hit;g.tries++;g.days.add(r.day);g.records.push(r);if(r.kind==='checkout'&&r.hit&&[1,2,3].includes(r.darts))g.darts.push(r.darts);groups.set(r.key,g)}
  return [...groups.values()].map(g=>({...g,days:g.days.size,rate:g.hits/Math.max(1,g.tries),interval:dc24Wilson(g.hits,g.tries),ready:g.days.size>=5&&g.tries>=30}));
 }
 function dc24Metric(label,value,sub){return '<div class="recordMetric"><span>'+esc(label)+'<small style="display:block;color:var(--muted)">'+esc(sub)+'</small></span><strong>'+esc(String(value))+'</strong></div>'}
 function dc23RenderMasteryProgress(){
  const box=$('dc23MasteryProgress');if(!box)return;
- const evidence=dc24MasteryEvidence();
- if(!evidence.length){box.innerHTML='<p class="muted">Your focused Mastery results will appear as comparable exercises are completed. Quick Play is excluded from coach diagnosis.</p>';return}
- const rows=dc24MasteryRows(),bull=rows.filter(r=>r.kind==='bull'),out=[];
+ const all=dc24MasteryRows();
+ if(!all.length){box.innerHTML='<p class="muted">Complete a Target Mastery round in training or Quick Play to start building your skill profile.</p>';return}
+ const out=[];
+ for(const source of ['training','quick']){
+ const rows=all.filter(r=>(source==='quick')===!!r.quick),evidence=dc24MasteryEvidence(source),bull=rows.filter(r=>r.kind==='bull');if(!rows.length)continue;
+ out.push('<h3>'+ (source==='quick'?'Quick Play skill measurements':'Training skill measurements')+'</h3><p class="muted">'+rows.length+' measured attempts · '+new Set(rows.map(r=>r.day)).size+' days</p>');
  if(bull.length){const outer=bull.filter(r=>r.outcome===25).length,inner=bull.filter(r=>r.outcome===50).length,days=new Set(bull.map(r=>r.day)).size;
   out.push('<h3>Bull outcomes</h3>');out.push(dc24Metric('Outer bull (25)',(100*outer/bull.length).toFixed(1)+'%',outer+' / '+bull.length+' darts · '+days+' days'));
   out.push(dc24Metric('Bullseye (50)',(100*inner/bull.length).toFixed(1)+'%',inner+' / '+bull.length+' darts · same attempts'));
@@ -7614,7 +7629,8 @@ function dc23RenderMasteryProgress(){
   const darts=g.kind==='checkout'&&g.darts.length?' · '+(g.darts.reduce((a,b)=>a+b,0)/g.darts.length).toFixed(2)+' darts per measured finish':'';
   out.push(dc24Metric(g.key,(100*g.rate).toFixed(1)+'%',g.hits+' / '+g.tries+' · '+g.days+' days'+interval+darts));
  }
- box.innerHTML='<p class="muted">Separate targets and checkout ranges are never pooled for accuracy. Confidence ranges are descriptive, not proof of skill improvement. Dart counts include only reported successful checkouts.</p>'+out.join('');
+ }
+ box.innerHTML='<p class="muted">Training and Quick Play both count towards Mastery. Sources, exact targets and checkout scores remain separate for fair comparisons. Confidence ranges are descriptive, not proof of improvement. Quick Play never completes scheduled training.</p>'+out.join('');
 }
 
 /* V5.63 read-only protocol evidence map. Distinguishes differing bull target rules
@@ -8231,7 +8247,7 @@ performCoachReview();checkCompletedBlocks();setInterval(trainingTimer,500);setIn
 <script>
 /* Walkthrough preference is local UI state, not coaching memory or player data. */
 const IDC_WALKTHROUGH_KEY='IDC:walkthrough:v1';
-const IDC_WALKTHROUGH_STEPS=[["Welcome to Intelligent Darts Coach","Home is your starting point. See today's recommended training, weekly schedule and recent practice. Use the tabs along the bottom to move around the app."],["Set your starting ability","Open Train and choose a full assessment or Quick Start using your usual three-dart average. The full assessment measures scoring, doubles, checkouts and bull. Quick Start is provisional and improves with measured practice."],["Follow your training plan","Choose your training days in Settings. A normal scheduled session lasts 60 minutes, with a 10-minute warm-up and practical finishing or match application. The daily Big Singles benchmark is separate. Read each game's instructions, tap Play, then enter what you actually throw."],["Play, pause and correct","Use the question-mark button for the rules, Undo to correct the last recorded input, and Pause Session when taking a break. Timed games can restart automatically without resetting exercise time. Hits, checkouts and streaks show real practice progress."],["Quick Play and casual games","Pick a challenge and a duration, or choose Random. Quick Play results stay separate from coaching evidence. Casual games are for fun and do not count toward training. 501 Pressure requires current evidence of an average of 80 or more."],["Your personal Coach","Open Coach to review performance, ask about checkouts or practice, record relevant facts and goals, and explore technique. Readiness checks can prevent unsafe training. The coach learns cautiously from recorded evidence; it cannot see your throw or guarantee improvement."],["Progress, records and rhythm","Progress shows measurable changes and assessments over time. Records shows personal achievements; incomplete evidence is not invented. Use the Rhythm Coach from the metronome button to practise consistent timing."],["Settings and protecting your data","Set training days and your throwing hand in Settings. Export a JSON backup to Files regularly, especially before updates. Your records are stored locally. After the app has cached successfully it can work offline. Reopen this guide from Settings or the information button."]];
+const IDC_WALKTHROUGH_STEPS=[["Welcome to Intelligent Darts Coach","Home is your starting point. See today's recommended training, weekly schedule and recent practice. Use the tabs along the bottom to move around the app."],["Set your starting ability","Open Train and choose a full assessment or Quick Start using your usual three-dart average. The full assessment measures scoring, doubles, checkouts and bull. Quick Start is provisional and improves with measured practice."],["Follow your training plan","Choose your training days in Settings. A normal scheduled session lasts 60 minutes, with a 10-minute warm-up and practical finishing or match application. The daily Big Singles benchmark is separate. Read each game's instructions, tap Play, then enter what you actually throw."],["Play, pause and correct","Use the question-mark button for the rules, Undo to correct the last recorded input, and Pause Session when taking a break. Timed games can restart automatically without resetting exercise time. Hits, checkouts and streaks show real practice progress."],["Quick Play and casual games","Pick a challenge and a duration, or choose Random. Verified Quick Play skill results contribute to Mastery and your ability profile. They stay separate from scheduled training and its workload. Casual games are for fun and do not count toward training. 501 Pressure requires current evidence of an average of 80 or more."],["Your personal Coach","Open Coach to review performance, ask about checkouts or practice, record relevant facts and goals, and explore technique. Readiness checks can prevent unsafe training. The coach learns cautiously from recorded evidence; it cannot see your throw or guarantee improvement."],["Progress, records and rhythm","Progress shows measurable changes and assessments over time. Records shows personal achievements; incomplete evidence is not invented. Use the Rhythm Coach from the metronome button to practise consistent timing."],["Settings and protecting your data","Set training days and your throwing hand in Settings. Export a JSON backup to Files regularly, especially before updates. Your records are stored locally. After the app has cached successfully it can work offline. Reopen this guide from Settings or the information button."]];
 let idcWalkthroughIndex=0,idcWalkthroughReturn=null;
 function idcWalkthroughShouldAuto(profile,seen){
  return !seen&&!!profile&&!profile.activeSession&&!profile.baseline&&!profile.assessment?.finished&&!(profile.sessions||[]).length&&!(profile.games||[]).length;

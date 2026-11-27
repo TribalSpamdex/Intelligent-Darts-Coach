@@ -32,6 +32,7 @@ def run_gameplay_audit(browser):
             if(name==='Checkout Poker'&&!g.chosen)new40Choice(g.cards.find(n=>!g.cardsUsed?.includes(n)));
            }
            function miss(name){
+            if(name==='Scoring Challenge'){padSet('0');recordScore();return}
             if(scoring.has(name)){padSet('0');scoringVisit();return}
             if(name==='Double-In 201'){padSet('0');dc591OpeningSubmit();return}
             if(name==='High-Low'||name==='Split the Difference'){padSet('0');new40Score();return}
@@ -167,7 +168,7 @@ def run_gameplay_audit(browser):
            return {names:new Set(checks.map(x=>x.name)).size,configurations:checks.length,naturalRounds:checks.filter(x=>x.completed).length,actions:checks.reduce((n,x)=>n+x.steps+1,0)};
           }finally{save=oldSave;window.alert=oldAlert;announceRound=oldAnnounce;hideRoundAnnouncement()}
         }""")
-        assert result['names']==41 and result['configurations']==336 and result['naturalRounds']==336, result
+        assert result['names']==42 and result['configurations']==343 and result['naturalRounds']==343, result
         print('Native gameplay action, round, Undo and timer matrix:',result)
     finally:
         ctx.close()
