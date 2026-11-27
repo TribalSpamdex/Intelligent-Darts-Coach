@@ -97,7 +97,7 @@ def run_gameplay_audit(browser):
            const beforeCheckout=JSON.stringify(activeGame);
            dc23MasteryInput('finish1');
            if(JSON.stringify(activeGame)!==beforeCheckout)throw Error('Impossible one-dart mastery finish accepted');
-           if(document.querySelector('[onclick="dc23MasteryInput(\'finish1\')"]'))throw Error('Impossible mastery finish button rendered');
+           if([...document.querySelectorAll('button')].some(b=>b.getAttribute('onclick')==="dc23MasteryInput('finish1')"))throw Error('Impossible mastery finish button rendered');
            dc23MasteryInput('finish2');
            if(activeGame.attempts!==1||activeGame.attemptLog[0].dartsUsed!==2||activeGame.hits!==1)throw Error('Legal two-dart mastery finish rejected');
            undoGame();if(JSON.stringify(activeGame)!==beforeCheckout)throw Error('Mastery checkout Undo mismatch');

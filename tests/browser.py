@@ -580,5 +580,7 @@ with sync_playwright() as p:
     run_gameplay_audit(browser)
     from browser_upgrade import run_upgrade_audit
     run_upgrade_audit(browser)
+    from browser_migration import run_migration_audit
+    run_migration_audit(browser)
     browser.close()
     print('IDC browser smoke and storage isolation passed')

@@ -7964,6 +7964,18 @@ function validateRestore(json){
  if(s!=null&&(!isRecord(s)||!Array.isArray(s.plan)||!s.plan.length||s.plan.some(x=>!isRecord(x)||typeof x.name!=='string')||!Number.isInteger(s.index)||s.index<0||s.index>=s.plan.length||!Array.isArray(s.completed)||!['rules','playing','complete'].includes(s.phase)||!Number.isFinite(s.start))){
   throw Error("Backup contains an invalid active session. Your existing data was not replaced.");
  }
+ // Historical game records remain untouched. Only an ACTIVE plan must be
+ // executable: never replace a good profile with a broken running exercise.
+ if(s!=null){
+  const known=new Set(['Warm-up','Review','Big Singles','Scoring Challenge',...QUICK_GAMES]);
+  if(s.plan.some(x=>!known.has(x.name)||!['timed','benchmark'].includes(x.mode)||
+      (x.mode==='benchmark'?x.name!=='Big Singles':!Number.isFinite(x.seconds)||x.seconds<=0||x.seconds>7200))||
+      s.completed.some(x=>!isRecord(x))||!isRecord(restored.game)||restored.game.name!==s.plan[s.index].name||
+      ['pausedTotal','activityAccumulated','benchmarkSeconds'].some(k=>s[k]!=null&&(!Number.isFinite(s[k])||s[k]<0))||
+      ['pausedAt','activityStarted','lastActiveSaveAt'].some(k=>s[k]!=null&&(!Number.isFinite(s[k])||s[k]<0))){
+   throw Error("Backup contains an invalid active exercise or clock. Your existing data was not replaced.");
+  }
+ }
  // Individual legacy game measurements are kept, but invalid entries are
  // excluded by dc17ValidCheckoutAttempt rather than treated as failed darts.
  return restored;
