@@ -3,6 +3,7 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {developmentAgenda} from './development-review.mjs';
 import {eventContext,competitionPreparation} from './competition-calendar.mjs';
 import {reflectionInsights} from './reflections.mjs';
+import {targetDevelopment,targetDevelopmentLines} from './host-targets.mjs';
 import {learningBoundary} from './challenge-episodes.mjs';
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate,currentMethodReviews} from './coaching-accountability.mjs';
 const same=(a,b)=>a.skill===b.skill&&a.context===b.context&&a.protocol===b.protocol;
@@ -24,6 +25,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
   'method-followup':'A separate measurement is needed to review the previous choice.',
   development:'Recorded development evidence; strength depends on comparable measurements.',
   'changed-conditions':'A dated player-reported setup or routine change limits which older evidence can guide current optional choices.',
+  'target-check':'Repeated within-task target measurements; confirmation is needed before broader conclusions.',
   balanced:'No new supported change; this does not establish that performance is stable.'
  };
  const response=(kind,title,detail,extra={})=>({kind,title,detail,event,basis:basis[kind],...extra});
@@ -73,6 +75,8 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  const concern=reflectionInsights(reflections??[],host,day).repeated[0];
  if(concern)return response('reflection','A recurring practice observation',concern.question+' This is player-reported context, not a diagnosis.');
 
+ const targets=targetDevelopment(host,state,day,now);
+ if(targets.focus)return response('target-check','Check '+targets.focus.target+' in familiar practice',targetDevelopmentLines(targets).slice(0,3).join(' '),{target:targets.focus.target});
  const lead=agenda.actions.find(a=>['investigate-decline','early-watch','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
  if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}

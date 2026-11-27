@@ -1,10 +1,11 @@
 import {recordSetting} from './challenge-setting.mjs';
 import {challengeLearning,learnedCap} from './challenge-learning.mjs';
-import {projectEvidence,masteryRows,canonicalSkillGames,recordedDay,quickAdaptiveMeasurements} from './v62-evidence.mjs';
-import {precisionDecisions,progressEvidence,calibrationGuard} from './progression-evidence.mjs';
+import {projectEvidence,masteryRows,canonicalSkillGames,recordedDay,quickAdaptiveMeasurements,fixedGameSources,roundIdentity} from './v62-evidence.mjs';
+import {precisionDecisions,progressEvidence,calibrationGuard,confirmedAbility} from './progression-evidence.mjs';
 import {precisionRound,precisionOptions,SUPPORTED_GAMES} from './precision-games.mjs';
 import {calibrationChoices,legacyPrecisionChoices,calibrationBand,isFoundationAverage,provisionalAllowance,botScoring} from './precision-calibration.mjs';
-import {projectTargets,summaries} from './host-targets.mjs';
+import {projectTargets,summaries,targetDevelopment,targetDevelopmentLines} from './host-targets.mjs';
+import {learningBoundary} from './challenge-episodes.mjs';
 import {gameProfile} from './game-profile.mjs';
 import {dayGap,dayValid} from './engine/context.mjs';
 export function snapshotPrecision(host,state,day,tiers,assessmentDay=null,now=Date.now()){
@@ -27,11 +28,24 @@ export function applyPrecision(game,profile,games,day,opts={}){
 // This marker is constructed here; saved records cannot opt themselves in.
 export function quickFixedSamples(host,now=Date.now()){
  const day=recordedDay(now),eligible=new Set(projectEvidence(host,{today:day,now}).observations.filter(o=>o.protocol.startsWith('IDC V6.2 Quick Play ')).map(o=>o.id));
- return canonicalSkillGames(host.games).flatMap(g=>{
+ const games=canonicalSkillGames(host.games.filter(g=>g&&['Scoring Challenge','Bull Accuracy'].includes(g.name))),sources=fixedGameSources(games);
+ return games.flatMap(g=>{
   const skill=g?.name==='Scoring Challenge'?'scoring':g?.name==='Bull Accuracy'?'bull':null;
-  if(!skill||!eligible.has('IDC:host-v62:game:'+g.at+':'+g.name+':'+skill))return [];
+  if(!skill||g.quick!==true||!eligible.has('IDC:host-v62:'+sources.get(roundIdentity(g))+':'+skill))return [];
   return [{skill,time:g.at,day:g.day,volume:skill==='scoring'?10:30,points:skill==='scoring'?g.points:0,hits:skill==='bull'?g.outer+g.inner:0,inner:g.inner??0,id:g.at,source:'Quick Play '+g.name,quick:true,verifiedQuick:true,weight:1}];
  });
+}
+// A repeated fixed Quick Play protocol may establish 80+, but neither one
+// hot day nor adaptive scoring can. All fresh comparable protocols can veto.
+export function fixedQuickScoringGate(host,state,day,now=Date.now()){
+ const boundary=learningBoundary(state??{},day),a=host.assessment,at=a?.finished&&Number.isFinite(a.completedAt)&&a.completedAt<=now?a.completedAt:0;
+ const raw=projectEvidence({...host,games:(host.games??[]).filter(g=>!at||g?.at>=at)},{today:day,now}).observations;
+ const profiles=progressEvidence([...raw,...(state?.observations??[])].filter(o=>(!boundary||o.day>boundary)&&(!at||o.day>=recordedDay(at,a.offsetMinutes))),day)
+  .filter(p=>p.skill==='scoring'&&p.context==='practice'&&['IDC V6.2 Quick Play Scoring Challenge fixed 30 darts','IDC V6.2 Scoring Challenge fixed 30 darts','IDC V6.2 assessment scoring 60 darts','IDC precision fixed scoring'].includes(p.protocol)&&p.adequate&&dayGap(p.last,day)<=7);
+ const quick=profiles.find(p=>p.protocol==='IDC V6.2 Quick Play Scoring Challenge fixed 30 darts');
+ if(!quick)return {status:'insufficient',allowed:false,average:null,source:'insufficient-fixed-quick-play'};
+ const average=confirmedAbility(profiles,180),allowed=profiles.every(p=>p.confirm(80)&&p.form.status!=='below-usual');
+ return {status:allowed?'supported':'blocked',allowed,average,source:allowed?'repeated-fixed-quick-play':'current-fixed-evidence-below-80',days:quick.days,weeks:quick.weeks,attempts:quick.attempts};
 }
 export function quickMeasurementCards(host,day,now=Date.now()){
  const targets=summaries(projectTargets(host,day,now).rows).filter(x=>x.protocol.startsWith('Quick Play · ')&&!x.protocol.includes('Target Mastery'));
@@ -45,6 +59,8 @@ export function createPrecisionAdapter(getData,getHistory=null){
  return Object.freeze({
   calibrationChoices,legacyPrecisionChoices,calibrationBand,isFoundationAverage,provisionalAllowance,botScoring,supported:name=>SUPPORTED_GAMES.includes(name),
   masteryRows:(host,now)=>masteryRows(host,now),quickFixedSamples,quickMeasurementCards,
+  targetReview(){try{const d=getData();return targetDevelopmentLines(targetDevelopment(d.host,d.state,d.day,d.now))}catch{return []}},
+  scoringEligibility(now=Date.now()){try{const d=getData();return fixedQuickScoringGate(d.host,d.state,recordedDay(now),now)}catch{return {status:'unavailable'}}},
   tierGuard(skill,current,next){try{const d=getData();const a=d.host.assessment,at=a?.finished?(a.completedAt??a.profile?.createdAt):null,boundary=Number.isFinite(at)&&at>0&&at<=d.now?recordedDay(at,a.offsetMinutes):null;return calibrationGuard([...projectEvidence(d.host,{today:d.day,now:d.now}).observations,...(d.state?.observations??[])].filter(o=>!boundary||o.day>=boundary),d.day,skill,current,next)}catch{return {status:'unavailable',contradictions:[]}}},
   botAverage(fallback,prior){try{const d=getData(),profiles=progressEvidence([...projectEvidence(d.host,{today:d.day,now:d.now}).observations,...(d.state?.observations??[])],d.day).filter(r=>r.skill==='scoring'&&r.context==='practice'&&r.adequate&&dayGap(r.last,d.day)<=7&&['IDC V6.2 assessment scoring 60 darts','IDC V6.2 Scoring Challenge fixed 30 darts','IDC precision fixed scoring','IDC V6.2 Quick Play Scoring Challenge fixed 30 darts'].includes(r.protocol));const values=profiles.map(r=>r.value);if(values.length&&Math.max(...values)-Math.min(...values)<=10)return Math.round(Math.min(...values)/2.5)*2.5;return Number.isFinite(prior)?prior:fallback}catch{return fallback}},
   adjust(game,context){

@@ -1,6 +1,6 @@
 import {manualTargetRows} from './manual-target-samples.mjs';
 import {skillProfiles} from './skill-statistics.mjs';
-import {projectTargets} from './host-targets.mjs';
+import {projectTargets,publicProtocol} from './host-targets.mjs';
 import {detailedTargets} from './target-statistics.mjs';
 import {scoringDetail,checkoutDetail} from './visit-statistics.mjs';
 import {practiceProfile} from './practice-statistics.mjs';
@@ -9,7 +9,7 @@ const pct=v=>v===null?'Not recorded':(100*v).toFixed(1)+'%';
 const num=v=>v===null?'Not recorded':v.toFixed(1);
 const fmt=(v,skill)=>['scoring','firstNine'].includes(skill)?num(v):pct(v);
 const window=(r,days)=>r.windows.find(w=>w.days===days);
-const card=(title,metrics,detail=[],bars=[])=>({title,metrics,detail,bars});
+const card=(title,metrics,detail=[],bars=[])=>({title:publicProtocol(title),metrics,detail,bars});
 const field=(label,value)=>({label,value:String(value)});
 export const PERIODS=Object.freeze({'Detailed skill statistics':[7,28,84,365],'Detailed target statistics':[7,28,84],'Detailed scoring statistics':[7,28,84],'Detailed checkout statistics':[7,28,84],'Practice volume':[7,28,84,365],'Actual match statistics':[7,28,84,365]});
 export function snapshotView(host,state,type,filter,days,day,now=Date.now(),checks=[]){
