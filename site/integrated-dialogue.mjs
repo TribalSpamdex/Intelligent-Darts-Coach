@@ -22,7 +22,7 @@ import {asOfState} from './engine/context.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
 export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?','Has my equipment change helped?','How do nerves and confidence affect my performance?','Do my technique observations match my results?','Which methods should we reconsider?','How am I doing in Quick Play?','What target should I practise next?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
-function reply(type,lines){return {kind:'answer',type,lines}}
+function reply(type,lines){return {kind:'answer',type,lines:lines.map(publicProtocol)}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+publicProtocol(g.protocol)+' · '+g.status}
 // Verbal figures remain supplied information, never silently logged practice.
 export function reportedComparison(q){
@@ -65,7 +65,7 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  const tactical=tacticalAnswer(state,q,day);if(tactical)return tactical;
  const intelligence=intelligenceAnswer(host,state,q,day,now,reflections);if(intelligence)return intelligence;
  const progression=progressionAnswer(host,state,q,day);if(progression)return progression;
- const statistical=statisticsAnswer(host,state,q,day,now,checks);if(statistical)return statistical;
+ const statistical=statisticsAnswer(host,state,q,day,now,checks);if(statistical)return {...statistical,lines:statistical.lines.map(publicProtocol)};
  if(/^(what do you know about me|show (my )?memory|player memory)$/.test(q)){
  const lines=[state.observations.length+' eligible performance measurements; '+host.sessions.filter(s=>s?.quick===false).length+' saved scheduled-training session records. No inferred player facts.'];
  for(const f of currentFacts(state))lines.push(f.key+': '+f.value+' ('+f.kind+')');

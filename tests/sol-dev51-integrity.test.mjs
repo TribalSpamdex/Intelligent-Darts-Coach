@@ -75,3 +75,12 @@ test('SOL51 adaptive settings with different actual allowances retain separate d
  assert.equal(quickAdaptiveMeasurements(host(games),day,now).length,2);
  const protocols=new Set(projectTargets(host(games),day,now).rows.map(r=>r.protocol));assert.equal(protocols.size,2);
 });
+
+import {snapshotView} from '../site/statistics-view.mjs';
+import {integratedAsk} from '../site/integrated-dialogue.mjs';
+import {newMemory} from '../site/coach-memory.mjs';
+test('SOL51 hidden tier identifiers stay out of detailed target cards and Coach answers',()=>{
+ const g={...game('one'),name:'Treble Hunt',tierAtStart:4,variant:'treble',benchmark:false,hits:1,thrown:2,targetLog:[{ring:'T',target:20,hit:true},{ring:'T',target:20,hit:false}]},h=host([g]),state=newMemory().state;
+ const cards=snapshotView(h,state,'Detailed target statistics','T20',28,day,now).cards;assert.equal(cards.length,1);assert.doesNotMatch(cards[0].title,/tier [1-7]/);
+ const a=integratedAsk(h,state,'Detailed target statistics T20',day,now);assert.doesNotMatch(a.lines.join(' '),/tier [1-7]/);assert.match(a.lines.join(' '),/separate setting/);
+});
