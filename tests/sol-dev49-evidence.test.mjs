@@ -116,3 +116,22 @@ test('SOL49-16 old advancing-target and current per-target streaks remain distin
  const a=make(null,0),b=make('same-target-streak-v1',1),r=projectTargets(host([a,b],[{...p,quickGame:a.name}]),day,now).rows;
  assert.equal(new Set(r.map(x=>x.protocol)).size,2);
 });
+test('SOL49-17 simulated opponent result is excluded but Double Duel actual player dart logs count',()=>{
+ const a={...g,name:'Double Duel',benchmark:false,win:true,hits:0,thrown:2,details:{tier:4,player:1,dcVisitLog:[{target:'D20',hit:true},{target:'D16',hit:false}]}};
+ const h=host([a],[{...p,quickGame:a.name}]);assert.equal(projectTargets(h,day,now).rows.length,2);
+ a.win=false;assert.equal(projectTargets(h,day,now).rows.length,2);a.details.dcVisitLog=[];assert.equal(projectTargets(h,day,now).rows.length,0);
+});
+test('SOL49-18 bull point games retain distinct recorded 25/50 outcomes and exact denominators',()=>{
+ for(const name of ['Bull Bank','Bull Blackjack']){
+  const a={...g,name,benchmark:false,points:125,dartsUsed:6,thrown:6,outer:3,inner:1,misses:2,details:{outer:3,inner:1}};
+  const h=host([a],[{...p,quickGame:name}]),r=quickAdaptiveMeasurements(h,day,now);assert.equal(r.length,3);assert.equal(r.find(x=>x.key.includes('either bull')).hits,4);assert.ok(r.every(x=>x.attempts===6));
+  a.points=150;assert.equal(quickAdaptiveMeasurements(h,day,now).length,0);
+ }
+});
+test('SOL49-19 contextual raw scoring is separated from bonus points and never enters fixed calibration',()=>{
+ for(const name of ['First Nine Siege','Risk or Reward','Setup Shot','High-Low','Split the Difference']){
+  const a={...g,name,benchmark:false,visits:3,scores:[60,60,60],points:['Risk or Reward','High-Low','Split the Difference'].includes(name)?999:180};
+  const h=host([a],[{...p,quickGame:name}]),r=quickAdaptiveMeasurements(h,day,now);assert.equal(r.length,1,name);assert.equal(r[0].hits,180);assert.equal(r[0].attempts,3);
+  assert.equal(quickFixedSamples(h,now).length,0);assert.equal(projectEvidence(h,{today:day,now}).observations.length,0);
+ }
+});
