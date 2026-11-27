@@ -576,5 +576,7 @@ with sync_playwright() as p:
     assert not errors, errors
     from browser_gameplay import run_gameplay_audit
     run_gameplay_audit(browser)
+    from browser_upgrade import run_upgrade_audit
+    run_upgrade_audit(browser)
     browser.close()
     print('IDC browser smoke and storage isolation passed')
