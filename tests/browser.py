@@ -574,5 +574,7 @@ with sync_playwright() as p:
     valid_recovery.close()
     print('Sol H1/H2/M1 browser regression probes passed')
     assert not errors, errors
+    from browser_gameplay import run_gameplay_audit
+    run_gameplay_audit(browser)
     browser.close()
     print('IDC browser smoke and storage isolation passed')
