@@ -73,7 +73,7 @@ test('aggregate multi-session doses cannot be applied to one native exercise',()
  assert.equal(pick({comparisons:[{...comparison,matched}]}).status,'unchanged');
 });
 
-test('repeated unmaintained delayed gains veto executable optional method selection but missing checks do not',()=>{
+test('unmaintained gains veto optional selection; missing delayed checks defer only within their active window',()=>{
  const rows=[
   {id:'one',day:'2026-10-04',baselineDays:['2026-09-30','2026-10-02'],followupDays:['2026-10-06','2026-10-08'],retentionDays:['2026-10-16','2026-10-19']},
   {id:'two',day:'2026-11-01',baselineDays:['2026-10-28','2026-10-30'],followupDays:['2026-11-03','2026-11-05'],retentionDays:['2026-11-13','2026-11-16']}
@@ -81,7 +81,9 @@ test('repeated unmaintained delayed gains veto executable optional method select
  assert.equal(pick({reviews:rows}).status,'unchanged');
  assert.equal(pick({reviews:rows.slice(0,1)}).status,'selected');
  assert.equal(pick({reviews:rows.map(r=>({...r,retention:'gain-still-observed'}))}).status,'selected');
- assert.equal(pick({reviews:rows.map(r=>({...r,retention:'insufficient-delayed-checks',retentionDays:[]}))}).status,'selected');
+ const pending=rows.map(r=>({...r,retention:'insufficient-delayed-checks',retentionDays:[]}));
+ assert.equal(pick({reviews:pending}).status,'unchanged');
+ assert.equal(pick({reviews:pending.slice(0,1)}).status,'selected');
  assert.equal(pick({reviews:[rows[0],{...rows[1],retentionDays:['2026-11-14','2026-11-27']}]}).status,'selected');
 });
 

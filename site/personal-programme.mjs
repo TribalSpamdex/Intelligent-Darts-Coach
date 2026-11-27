@@ -1,7 +1,7 @@
-import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
+import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate,currentMethodReviews} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes,durationReview,doseBand,delayedMethodCautions} from './training-outcomes.mjs';
-import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
+import {FIXED_PROTOCOLS,recordedConfounder,learningBoundary} from './challenge-episodes.mjs';
 import {validSetting,settingKey} from './challenge-setting.mjs';
 import {eventContext,validateEvents} from './competition-calendar.mjs';
 import {developmentAgenda} from './development-review.mjs';
@@ -11,7 +11,7 @@ const core=new Set(['scoring','doubles','checkout','bull']);
 export function personalLearning(host,state,day,now=Date.now()){
  const r=trainingOutcomes(host,state,day,now);
  const bySkill=new Map();
- for(const c of r.comparisons){
+ for(const c of r.currentComparisons){
   const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};
   g.comparisons++;
   if(['first-associated','second-associated'].includes(c.status)){
@@ -20,13 +20,13 @@ export function personalLearning(host,state,day,now=Date.now()){
   }else g.uncertain++;
   bySkill.set(c.skill,g);
  }
- for(const x of r.followups){const g=bySkill.get(x.skill)??{skill:x.skill,comparisons:0,supported:[],uncertain:0};g.followups=(g.followups??[]).concat({name:x.setting.name,protocol:x.protocol,status:x.status,followup:x.followup,delay:x.delay,recordedPractice:x.interveningDays.length});bySkill.set(x.skill,g)}
- for(const c of delayedMethodCautions(r.followups,day)){const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};g.cautions=(g.cautions??[]).concat(c);bySkill.set(c.skill,g)}
- return [...bySkill.values()].sort((a,b)=>a.skill.localeCompare(b.skill));
+ for(const x of r.currentFollowups){const g=bySkill.get(x.skill)??{skill:x.skill,comparisons:0,supported:[],uncertain:0};g.followups=(g.followups??[]).concat({name:x.setting.name,protocol:x.protocol,status:x.status,followup:x.followup,delay:x.delay,recordedPractice:x.interveningDays.length});bySkill.set(x.skill,g)}
+ for(const c of delayedMethodCautions(r.currentFollowups,day)){const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};g.cautions=(g.cautions??[]).concat(c);bySkill.set(c.skill,g)}
+ return [...bySkill.values()].map(g=>({...g,boundary:r.boundary})).sort((a,b)=>a.skill.localeCompare(b.skill));
 }
 export function learningLines(rows){
- if(!rows.length)return ['No supported individual learning contrasts or delayed follow-ups yet.'];
- return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...(r.cautions??[]).map(c=>c.setting.name+': '+c.reason),...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
+ if(!rows.length)return ['No supported current individual learning contrasts or delayed follow-ups yet. Older comparisons after a setup or routine change are not carried into new recommendations.'];
+ return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' current recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...(r.boundary?['Current learning begins after recorded change on '+r.boundary+'.']:[]),...(r.cautions??[]).map(c=>c.setting.name+': '+c.reason),...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
 }
 export function planPreview(host,state,report,events,day,now=Date.now(),existingAgenda=null){
  if(!dayValid(day))throw Error('Invalid planning date');
@@ -46,7 +46,7 @@ export function planPreview(host,state,report,events,day,now=Date.now(),existing
  // Prefer no additional changes while a focus or comparison is active.
  const blocked=open||pending||report?.decision!=='balanced'||report?.verification?.status!=='passed'||(state.trials??[]).some(x=>x.status==='active'&&x.start<=day)||event.phase!=='ordinary';
  if(!blocked){
-  const learning=personalLearning(host,state,day,now),reviews=methodReviews(host,state,day,now),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
+  const learning=personalLearning(host,state,day,now),reviews=currentMethodReviews(methodReviews(host,state,day,now),learningBoundary(state,day)),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
   for(const row of rows){
    if(awaiting.some(r=>r.skill===row.skill))continue;
    const profile=learning.find(x=>x.skill===row.skill),evidence=profile?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
@@ -112,7 +112,8 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   if(history.some(s=>dayValid(s?.date)&&dayGap(s.date,day)>=0&&dayGap(s.date,day)<7&&s.wholeSessionAudit?.idcMethod?.status==='selected'))return no('One learned method selection per rolling seven days');
   const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
    .map(c=>({...c,favoured:c.status==='first-associated'?c.firstSetting:c.secondSetting,other:c.status==='first-associated'?c.secondSetting:c.firstSetting}));
-  const deferred=methodReviewGate(reviews,day),followup=methodFollowupGate(reviews,day);
+  const currentReviews=currentMethodReviews(reviews,learningBoundary(state,day));
+  const deferred=methodReviewGate(currentReviews,day),followup=methodFollowupGate(currentReviews,day);
   const durationPreferences=durationReview(comparisons,day),cautions=delayedMethodCautions(followups,day);
   const eligible=[];
   for(const o of options){
@@ -149,6 +150,6 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   if(context.memory?.learnedMethods!==true||!options.length)return {status:'unchanged',reason:'No enabled eligible candidates'};
   // The history is reconstructed on demand: correction/deletion cannot
   // leave a cached preference behind.
-  const {comparisons,followups}=trainingOutcomes(host,context.state,day,now);
-  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons,followups,day,reviews:methodReviews(host,context.state,day,now)});
+  const {currentComparisons,currentFollowups}=trainingOutcomes(host,context.state,day,now);
+  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons:currentComparisons,followups:currentFollowups,day,reviews:methodReviews(host,context.state,day,now)});
  }
