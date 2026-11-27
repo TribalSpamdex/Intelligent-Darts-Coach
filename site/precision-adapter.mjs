@@ -35,7 +35,8 @@ export function createPrecisionAdapter(getData,getHistory=null){
     // recomputes from the saved authoritative history, not from partial darts.
     if(!cache||cache.key!==key){d=getData();cache={key,day:d.day,profile:snapshotPrecision(d.host,d.state,d.day,context.tiers,context.assessmentDay,d.now)}}
     if(!getHistory&&!d)d=getData();const now=d?.now??Date.now(),history=getHistory?getHistory(game.name,cache.day,now):d.host.games;
-    return applyPrecision(game,cache.profile,history,cache.day,{...context,now});
+    const eligibleHistory=history.filter(g=>g.quick===false);
+    return applyPrecision(game,cache.profile,eligibleHistory,cache.day,{...context,now});
    }catch{return game}
   },
   invalidate(){cache=null}

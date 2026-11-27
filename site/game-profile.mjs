@@ -1,3 +1,4 @@
+import {trainingParentIndex,trainingParentEligible,recordedDay} from './v62-evidence.mjs';
 import {legalFinishCount} from './finish-validation.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {routes,mean,sd} from './engine/engine.mjs';
@@ -8,16 +9,16 @@ const localDay=t=>{const d=new Date(t);return [d.getFullYear(),String(d.getMonth
 export function gameProfile(host,day,now=Date.now(),{includeRecords=false}={}){
  if(!dayValid(day)||!Number.isFinite(now))throw Error('Invalid profile date');
  const within=d=>dayValid(d)&&dayGap(d,day)>=0&&dayGap(d,day)<84;
- const map=new Map(),bad=new Set();
+ const map=new Map(),bad=new Set(),parents=trainingParentIndex(host.sessions??[]);
  function put(key,value){if(bad.has(key))return;if(map.has(key)&&JSON.stringify(map.get(key))!==JSON.stringify(value)){bad.add(key);map.delete(key)}else map.set(key,value)}
  for(const a of [...(host.assessmentHistory??[]),host.assessment].filter(Boolean)){
  if(a.version!==6||a.finished!==true||a.quickStart||a.carriedForward||!Number.isFinite(a.completedAt)||a.completedAt<=0||a.completedAt>now)continue;
- const d=localDay(a.completedAt);if(!within(d))continue;
+ const d=recordedDay(a.completedAt,a.offsetMinutes);if(!within(d))continue;
  const rows=Array.isArray(a.checkout)&&a.checkout.length===12&&a.checkout.every((x,i)=>x?.target===finishes[i]&&typeof x.hit==='boolean'&&[1,2,3].includes(x.darts)&&(x.hit?legalFinishCount(x.target,x.darts):x.darts===3))?a.checkout.map(x=>({score:x.target,success:x.hit,allowance:3,used:x.darts})):[];
  put('assessment:'+a.completedAt,{day:d,protocol:'Fixed checkout assessment',rows});
  }
  for(const g of host.games){
- if(!g||g.quick!==false||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!within(g.day))continue;
+ if(!g||!trainingParentEligible(g,parents)||g.completion!=='natural'||g.recovery||g.challengeTuning||!Number.isFinite(g.at)||g.at<=0||g.at>now||!within(g.day)||recordedDay(g.at,g.offsetMinutes)!==g.day)continue;
  if(g.name==='Checkout Climb'&&Array.isArray(g.attemptLog)&&g.attemptLog.length>0&&g.attemptLog.length===g.success+g.fail){
  const rows=g.attemptLog.map(x=>{
  if(x&&Number.isInteger(x.target)&&(x.hit===0||x.hit===1))return {score:x.target,success:x.hit===1,allowance:3,used:x.hit===0?3:null};

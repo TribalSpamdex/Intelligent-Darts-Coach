@@ -1,9 +1,10 @@
 import {challengeLearning,learningLines} from './challenge-learning.mjs';
-import {progressEvidence,progressionLines,abilityProfiles,abilityProfileLines} from './progression-evidence.mjs';
+import {progressEvidence,progressionLines,abilityProfiles,abilityProfileLines,calibrationReview,calibrationReviewLines} from './progression-evidence.mjs';
 import {actualLegObservations} from './match-statistics.mjs';
 import {precisionAudit,precisionAuditLines} from './precision-audit.mjs';
 const skills={scoring:'scoring',doubles:'doubles',checkout:'checkout',bull:'bull',singles:'singles',trebles:'trebles','first nine':'firstNine',switching:'switching',setup:'setup',pressure:'pressure',grouping:'grouping'};
 export function progressionAnswer(host,state,q,day){
+ if(/^(is my difficulty calibrated correctly|review my calibration|calibration review|is my training too hard|is my training too easy)$/.test(q))return {kind:'answer',type:'calibration-review',lines:calibrationReviewLines(calibrationReview(state.observations,day))};
  const m=q.match(/^(?:progression|my milestones|progress milestones)(?: (scoring|doubles|checkout|bull|singles|trebles|first nine|switching|setup|pressure|grouping))?$/);
  if(m)return {kind:'answer',type:'progression',lines:progressionLines(progressEvidence([...state.observations,...actualLegObservations(state.legs??[],day)],day),m[1]?skills[m[1]]:null)};
  if(q==='which difficulty helps me improve?'||q==='which difficulty helps me improve'||q==='difficulty learning')return {kind:'answer',type:'difficulty-learning',lines:learningLines(challengeLearning(host,state,day))};
@@ -11,7 +12,7 @@ export function progressionAnswer(host,state,q,day){
  if(q==='challenge progression')return {kind:'answer',type:'challenge-progression',lines:precisionAuditLines(precisionAudit(host.games,day))};
  return null;
 }
-export const PROGRESSION_QUESTIONS=['My milestones','My ability profile','Progression doubles','Challenge progression','Which difficulty helps me improve?'];
+export const PROGRESSION_QUESTIONS=['My milestones','My ability profile','Progression doubles','Challenge progression','Which difficulty helps me improve?','Is my difficulty calibrated correctly?'];
 export function milestoneCards(state,day){
  return progressEvidence([...state.observations,...actualLegObservations(state.legs??[],day)],day).filter(r=>r.band).map(r=>{
  const units=['scoring','firstNine'].includes(r.skill)?'':'%',f=v=>v===null?'Not confirmed':v.toFixed(1)+units;

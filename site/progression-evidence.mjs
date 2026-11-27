@@ -131,3 +131,28 @@ export function abilityProfileLines(profiles){
  }
  return [...lines,'These are descriptive measurements and conservative evidence bounds, not calibrated probabilities. Missing days are not misses; practice and competition remain separate.'];
 }
+
+ // A read-only current calibration review. It never exposes the seven
+ // native tiers to the player or fabricates historical decision provenance.
+ export function calibrationReview(observations,day){
+  const profiles=progressEvidence(observations,day),out=[];
+  for(const skill of Object.keys(SKILL_THRESHOLDS)){
+   const rows=profiles.filter(r=>r.skill===skill&&r.context==='practice'&&fixedSkill(skill,r.protocol));
+   const eligible=rows.filter(r=>fresh(r,day));
+   const max=skill==='scoring'?180:100,confirmed=confirmedAbility(eligible,max);
+   const spread=eligible.length>1?Math.max(...eligible.map(r=>r.value))-Math.min(...eligible.map(r=>r.value)):0;
+   const inconsistent=eligible.length>1&&spread>(skill==='scoring'?10:12.5);
+   const below=eligible.some(r=>r.form.status==='below-usual'),above=eligible.some(r=>r.form.status==='above-usual');
+   const status=!eligible.length?'more-evidence':inconsistent||below&&above?'mixed-evidence':below?'recent-lower-form':'supported-measurement';
+   out.push({skill,status,confirmed:inconsistent?null:confirmed,protocols:eligible.map(r=>({name:r.protocol,days:r.days,weeks:r.weeks,attempts:r.attempts,value:r.value})),staleOrLimited:rows.length-eligible.length});
+  }
+  return out;
+ }
+ export function calibrationReviewLines(rows){
+  return [...rows.flatMap(r=>[
+   r.skill+': '+({ 'more-evidence':'Repeat the same fixed benchmark on separate days before reconsidering difficulty.','mixed-evidence':'Comparable protocols or recent form disagree. Keep the established routine and investigate the difference.','recent-lower-form':'Recent form is below the earlier measured range. Review conditions before increasing challenge.','supported-measurement':'Current fixed evidence is available for a calibration review.'}[r.status]),
+   ...(r.confirmed===null?[]:['Conservative supported benchmark: '+r.confirmed.toFixed(1)+(r.skill==='scoring'?' average':'%')+'.']),
+   ...r.protocols.map(p=>p.name+' · '+p.value.toFixed(1)+(r.skill==='scoring'?' average':'%')+'; '+p.days+' days, '+p.attempts+' attempts across '+p.weeks+' weeks.'),
+   ...(r.staleOrLimited?[r.staleOrLimited+' other protocols lack fresh multi-week coverage.']:[])
+  ]),'Previously saved difficulty decisions cannot be reconstructed reliably without their original evidence. Existing calibration and records are retained; this review does not reset difficulty.'];
+ }

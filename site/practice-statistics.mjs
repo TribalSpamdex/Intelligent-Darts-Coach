@@ -1,3 +1,4 @@
+import {trainingParentIndex} from './v62-evidence.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {projectExposure} from './host-exposure.mjs';
 import {distribution} from './statistics.mjs';
@@ -8,6 +9,7 @@ export function practiceProfile(host,day,now=Date.now()){
  if(!s||s.quick!==false||!dayValid(s.date)||s.date>day||!['number','string'].includes(typeof s.id))continue;
  const id=String(s.id);if(seen.has(id))duplicates.add(id);else seen.set(id,s);
  }
+ const parents=trainingParentIndex(host.sessions);for(const id of seen.keys())if(parents.duplicates.has(id))duplicates.add(id);
  const sessions=[...seen].filter(([id])=>!duplicates.has(id)).map(([,s])=>s);
  return {duplicates:duplicates.size,windows:[7,28,84,365].map(days=>{
  const rows=exposure.filter(r=>dayGap(r.day,day)<days),ss=sessions.filter(s=>dayGap(s.date,day)<days),active=new Set(ss.map(s=>s.date)),classified=new Set(rows.map(r=>r.day)),perSkill=new Map(),daily=new Map();
