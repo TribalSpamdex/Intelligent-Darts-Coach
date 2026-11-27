@@ -5618,7 +5618,19 @@ function dcVisibleProgress(g,s,exercise,history){
    if(r?.sessionId!==s.id||r.exerciseId!==exercise.provenanceId)break;
    rows.push(r.name===g.name&&r.variant===g.variant&&(!bull||r.target===g.target)&&r.completion==='natural'?r:null);
   }
-  for(let i=rows.length-1;i>=0;i--){if(rows[i])consume(rows[i]);else gap()}
+  const seen=new Map(),conflicts=new Set();
+  const identity=r=>r&&Number.isFinite(r.at)?JSON.stringify([r.at,r.name]):null;
+  for(const r of rows){const key=identity(r);if(key===null)continue;
+   if(seen.has(key)&&JSON.stringify(seen.get(key))!==JSON.stringify(r))conflicts.add(key);
+   else seen.set(key,r);
+  }
+  const consumed=new Set();
+  for(let i=rows.length-1;i>=0;i--){
+   const r=rows[i],key=identity(r);
+   if(key!==null&&consumed.has(key))continue;
+   if(key!==null)consumed.add(key);
+   if(r&&!conflicts.has(key))consume(r);else gap();
+  }
  }
  consume(g);
  return {hits,streak,best,checkout,...(incomplete?{incomplete:true}:{})};

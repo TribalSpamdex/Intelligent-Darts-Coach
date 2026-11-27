@@ -34,6 +34,12 @@ test('legacy numeric counts are accepted without concatenating checkout attempts
  const g={name:'Checkout Climb',success:'1',fail:'1',attemptLog:[{target:61,hit:0},{target:60,hit:1}]};
  assert.deepEqual(read(g),{hits:1,streak:1,best:1,checkout:true});
 });
+test('duplicate saved round identities count once and conflicting copies break chronology',()=>{
+ const row=past(game([true,true],{at:123456789}));
+ assert.deepEqual(read(game([true]),[row,structuredClone(row)]),{hits:3,streak:3,best:3,checkout:false});
+ const conflict={...structuredClone(row),targetLog:[{ring:'D',target:16,hit:false},{ring:'D',target:16,hit:true}]};
+ assert.deepEqual(read(game([true]),[row,conflict]),{hits:1,streak:1,best:1,checkout:false,incomplete:true});
+});
 test('bull rounds keep target variants separate, and new double drills use actual saved logs',()=>{
  const bull=(target,bits)=>({name:'Bull Survival',target,thrown:bits.length,hits:bits.filter(Boolean).length,targetLog:bits.map(hit=>({target,hit}))});
  assert.deepEqual(read(bull('50',[true]),[past(bull('50',[false,true]))]),{hits:2,streak:2,best:2,checkout:false});
