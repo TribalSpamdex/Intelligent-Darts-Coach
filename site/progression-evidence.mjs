@@ -156,3 +156,18 @@ export function abilityProfileLines(profiles){
    ...(r.staleOrLimited?[r.staleOrLimited+' other protocols lack fresh multi-week coverage.']:[])
   ]),'Previously saved difficulty decisions cannot be reconstructed reliably without their original evidence. Existing calibration and records are retained; this review does not reset difficulty.'];
  }
+
+ // An independent contradiction check, not a new promotion engine.
+ // Two chronologically separate parts of a fresh fixed protocol must
+ // contradict the candidate boundary. Missing coverage does not veto it.
+ export function calibrationGuard(observations,day,skill,current,next){
+  if(!Object.hasOwn(SKILL_THRESHOLDS,skill)||!Number.isInteger(current)||!Number.isInteger(next)||current<1||current>7||next<1||next>7||Math.abs(current-next)!==1)return {status:'unchanged',contradictions:[]};
+  const promoting=next<current,boundary=SKILL_THRESHOLDS[skill][promoting?current-2:current-1];
+  const profiles=progressEvidence(observations,day).filter(r=>r.skill===skill&&r.context==='practice'&&fixedSkill(skill,r.protocol)&&fresh(r,day));
+  const contradictions=profiles.filter(r=>{
+   if(!promoting)return r.confirm(boundary);
+   const split=Math.floor(r.daily.length/2),halves=[r.daily.slice(0,split),r.daily.slice(split)];
+   return r.value<=boundary-r.margin&&halves.every(g=>g.length>=4&&g.filter(o=>o.value<=boundary-r.margin).length>=Math.ceil(.75*g.length));
+  }).map(r=>({protocol:r.protocol,days:r.days,attempts:r.attempts,value:r.value}));
+  return {status:contradictions.length?'defer':'clear',contradictions,protocols:profiles.length};
+ }

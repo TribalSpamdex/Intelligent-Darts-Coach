@@ -1,7 +1,7 @@
 import {recordSetting} from './challenge-setting.mjs';
 import {challengeLearning,learnedCap} from './challenge-learning.mjs';
 import {projectEvidence} from './v62-evidence.mjs';
-import {precisionDecisions,progressEvidence} from './progression-evidence.mjs';
+import {precisionDecisions,progressEvidence,calibrationGuard} from './progression-evidence.mjs';
 import {precisionRound,precisionOptions,SUPPORTED_GAMES} from './precision-games.mjs';
 import {calibrationChoices,legacyPrecisionChoices,calibrationBand,isFoundationAverage,provisionalAllowance,botScoring} from './precision-calibration.mjs';
 import {dayGap,dayValid} from './engine/context.mjs';
@@ -25,6 +25,7 @@ export function createPrecisionAdapter(getData,getHistory=null){
  let cache=null;
  return Object.freeze({
   calibrationChoices,legacyPrecisionChoices,calibrationBand,isFoundationAverage,provisionalAllowance,botScoring,supported:name=>SUPPORTED_GAMES.includes(name),
+  tierGuard(skill,current,next){try{const d=getData();return calibrationGuard([...projectEvidence(d.host,{today:d.day,now:d.now}).observations,...(d.state?.observations??[])],d.day,skill,current,next)}catch{return {status:'unavailable',contradictions:[]}}},
   botAverage(fallback,prior){try{const d=getData(),profiles=progressEvidence([...projectEvidence(d.host,{today:d.day,now:d.now}).observations,...(d.state?.observations??[])],d.day).filter(r=>r.skill==='scoring'&&r.context==='practice'&&r.adequate&&dayGap(r.last,d.day)<=7&&['IDC V6.2 assessment scoring 60 darts','IDC V6.2 Scoring Challenge fixed 30 darts','IDC precision fixed scoring'].includes(r.protocol));const values=profiles.map(r=>r.value);if(values.length&&Math.max(...values)-Math.min(...values)<=10)return Math.round(Math.min(...values)/2.5)*2.5;return Number.isFinite(prior)?prior:fallback}catch{return fallback}},
   adjust(game,context){
    if((!context?.eligible&&!context?.capture)||!SUPPORTED_GAMES.includes(game?.name)||game.recovery||game.challengeTuning)return game;

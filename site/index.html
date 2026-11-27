@@ -1497,7 +1497,7 @@ function dc69UniqueTrainingGames(games,context){
   if(!quickEvidenceEligible(g,context))continue;
   if(!Number.isFinite(g.at)||g.at<=0){legacy.push(g);continue}
   const key=JSON.stringify([g.name,g.at,g.sessionId==null?null:String(g.sessionId)]);
-  const projection=JSON.stringify([g.completion,g.benchmark,g.challengeTuning,g.variant,g.tier,g.visits,g.points,g.thrown,g.hits,g.success,g.fail,g.outer,g.inner,g.misses,g.attemptLog]);
+  const projection=JSON.stringify([g.completion,g.benchmark,g.challengeTuning,g.variant,g.tier,g.visits,g.points,g.thrown,g.hits,g.success,g.fail,g.outer,g.inner,g.misses,g.attemptLog,g.tierAtStart,g.ruleVersion,g.precision,g.learningSetting,g.win,g.recovery,g.extra]);
   if(unique.has(key)){if(unique.get(key).projection!==projection)conflicts.add(key)}
   else unique.set(key,{g,projection});
  }
@@ -1925,6 +1925,12 @@ function dc2UpdateSkills(early=false){
   if(key==='doubles'&&old>=6&&proposed.next<old){
    const freshReal=decisionRows.filter(d=>d.time>=now-28*DAY_MS);
    if(freshReal.length<3)proposed.next=old;
+  }
+  // Independently measured fixed results can contradict the native
+  // adaptive-game estimate. Defer only the candidate, not the saved tier.
+  if(proposed.next!==old&&typeof window!=='undefined'&&window.IDCPrecision?.tierGuard){
+   const fixed=window.IDCPrecision.tierGuard(key,old,proposed.next);
+   if(fixed.status==='defer')proposed={...proposed,next:old,reason:'fixed-benchmark-contradiction'};
   }
   // Never change tiers during a session; called only on session completion or weekly review.
   const next=proposed.next;
@@ -6578,7 +6584,7 @@ function completedRows(skill){
   if(skill==="bull"&&g.name==="Bull Accuracy"&&num(g.thrown)===30)out.push({time,volume:30,hits:num(g.outer)+num(g.inner)});
  }
  if(skill==="singles")for(const g of data.bigSingles||[]){
-  if(!g||g.complete!==true||!dc68RecordedCount(g.hits)||num(g.hits)>60||!g.day)continue;
+  if(!g||!quickEvidenceEligible(g,quickContext)||g.complete!==true||!dc68RecordedCount(g.hits)||num(g.hits)>60||!g.day)continue;
   if(g.perNumber!==undefined&&(!Array.isArray(g.perNumber)||g.perNumber.length!==20||!g.perNumber.every(h=>Number.isInteger(h)&&h>=0&&h<=3)||g.perNumber.reduce((a,h)=>a+h,0)!==num(g.hits)))continue;
   const t=Number.isFinite(g.at)?g.at:new Date(g.day+"T00:00:00").getTime();
   if(Number.isFinite(t)&&t<=Date.now())out.push({time:t,volume:60,hits:num(g.hits)});
