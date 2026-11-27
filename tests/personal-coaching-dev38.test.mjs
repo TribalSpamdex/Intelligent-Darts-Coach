@@ -5,7 +5,7 @@ import {newMemory} from '../site/coach-memory.mjs';
 import {delayedFollowups} from '../site/training-outcomes.mjs';
 import {recordSetting} from '../site/challenge-setting.mjs';
 import {legFromInput} from '../site/match-statistics.mjs';
-import {stageProfiles,stageTransfer,competitionProgress,competitionProgressLines} from '../site/match-stages.mjs';
+import {stageProfiles,stageTransfer,competitionProgress,competitionProgressLines,methodCompetitionReview,methodCompetitionLines} from '../site/match-stages.mjs';
 import {integratedAsk,QUESTIONS} from '../site/integrated-dialogue.mjs';
 const day='2026-11-26',now=Date.parse(day+'T12:00:00Z'),ago=n=>new Date(now-n*86400000).toISOString().slice(0,10);
 const host={games:[],sessions:[],assessmentHistory:[],bigSingles:[]};
@@ -81,4 +81,39 @@ test('question and match summaries do not create data when history is empty',()=
  const s=newMemory().state;const before=JSON.stringify(s);
  assert.match(integratedAsk(host,s,'competition progress',day,now).lines[0],/No eligible real competition/);
  assert.equal(JSON.stringify(s),before);
+});
+
+const matchEpisode=(extra={})=>({...episode(7),from:ago(32),to:ago(28),seconds:600,endpointPractice:[],...extra});
+test('method transfer uses actual competition before and after, not practice or same-day endpoints',()=>{
+ const e=matchEpisode(),rows=[leg('b',ago(33),slow),leg('a',ago(27),quick),leg('endpoint',ago(32),quick),leg('practice',ago(27),slow,{context:'practice'}),leg('end',ago(28),slow)];
+ const r=methodCompetitionReview(stageProfiles(rows,day),[e],{readiness:[]},day).rows[0];
+ assert.equal(r.earlier.from,ago(46));assert.equal(r.earlier.to,ago(33));assert.equal(r.later.from,ago(27));assert.equal(r.later.to,ago(14));
+ assert.equal(r.earlier.opportunities,6);assert.equal(r.later.opportunities,3);assert.equal(r.difference,88.5);assert.equal(r.status,'limited');
+});
+test('method transfer rejects incomplete future windows and incompatible practice protocol',()=>{
+ const rows=[leg('m',ago(27),quick)];
+ const report=stageProfiles(rows,day);
+ for(const e of [matchEpisode({to:ago(5)}),matchEpisode({protocol:'unknown'}),matchEpisode({from:ago(80)})])assert.equal(methodCompetitionReview(report,[e],{},day).rows.length,0);
+ assert.equal(methodCompetitionReview(stageProfiles([leg('p',day,quick,{context:'practice'})],day),[matchEpisode()],{},day).rows.length,0);
+});
+test('method transfer flags overlapping exposures and does not reuse calendar windows',()=>{
+ const rows=[leg('b',ago(33),slow),leg('a',ago(27),quick)],report=stageProfiles(rows,day);
+ const e=matchEpisode(),second=matchEpisode({from:ago(40),to:ago(36),delta:-4});
+ const r=methodCompetitionReview(report,[second,e],{},day);
+ assert.equal(r.rows.length,1);assert.equal(r.overlapping,1);assert.equal(r.rows[0].status,'confounded');assert.match(r.rows[0].confounders.join(' '),/overlaps/);
+ assert.deepEqual(r,methodCompetitionReview(report,[e,second],{},day));
+});
+test('method transfer preserves negative immediate changes and reports competition readiness rather than diagnosing pressure',()=>{
+ const r=methodCompetitionReview(stageProfiles([leg('b',ago(33),slow),leg('a',ago(27),quick)],day),[matchEpisode({delta:-7})],{readiness:[{day:ago(27),context:'competition',pressure:'high'}]},day);
+ assert.equal(r.rows[0].practiceChange,-7);assert.equal(r.rows[0].status,'confounded');assert.match(methodCompetitionLines(r).join(' '),/Player-reported competition readiness/);assert.match(methodCompetitionLines(r).at(-1),/not a controlled intervention/);
+});
+test('known real match sample cannot become a missing finishing-double measurement',()=>{
+ const e=matchEpisode({skill:'doubles',protocol:'IDC precision fixed doubles'});
+ const r=methodCompetitionReview(stageProfiles([leg('b',ago(33),slow),leg('a',ago(27),quick)],day),[e],{},day).rows[0];
+ assert.equal(r.earlier.value,null);assert.equal(r.later.value,null);assert.equal(r.difference,null);assert.equal(r.status,'not-measured');
+});
+test('supported focus brief includes measured facts and still does not alter the player',()=>{
+ const s=newMemory().state,before=JSON.stringify(s);
+ const b=coachBrief(host,s,{...report,decision:'temporary-focus',focus:'doubles',focusContext:'practice',focusProtocol:scope.protocol,issues:[{...scope,evidence:{earlier:{value:.35,days:7,attempts:100},recent:{value:.20,days:7,attempts:100}}}]},[],[],day,now);
+ assert.equal(b.kind,'focus');assert.match(b.detail,/35.0% to 20.0%/);assert.match(b.detail,/100\/100 attempts/);assert.equal(JSON.stringify(s),before);
 });

@@ -95,10 +95,10 @@ with sync_playwright() as p:
        const skip=[...document.querySelectorAll('#idcBrief button')].find(b=>b.textContent==='Skip for today');
        if(!skip)return {available:false,brief:document.getElementById('idcBrief').innerText,report:document.getElementById('idcReport').innerText};
        const before=JSON.stringify(data.idcCoachMemory);skip.click();
-       return {available:true,unchanged:before===JSON.stringify(data.idcCoachMemory),brief:document.getElementById('idcBrief').innerText,preference:localStorage.getItem('IDC:brief-dismissed-day')===dateKey()};
+       return {available:true,unchanged:before===JSON.stringify(data.idcCoachMemory),brief:document.getElementById('idcBrief').innerText,preference:localStorage.getItem('IDC:brief-dismissed-day')===dateKey(),detailCleared:!document.getElementById('idcReport').innerText.includes('Next question:')};
       }finally{if(saved===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=saved;localStorage.removeItem('IDC:brief-dismissed-day');window.IDCPrecision.invalidate()}
     }""")
-    assert prompt['available'] and prompt['unchanged'] and prompt['preference'] and 'Optional check skipped' in prompt['brief'], prompt
+    assert prompt['available'] and prompt['unchanged'] and prompt['preference'] and prompt['detailCleared'] and 'Optional check skipped' in prompt['brief'], prompt
     page.reload()
     page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
     page.locator('#navTechnique').click()

@@ -43,7 +43,14 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(report?.verification?.status!=='passed')return response('balanced','Coaching verification incomplete','Review the coaching evidence before adopting any new adjustment.');
  const due=agenda.actions.find(a=>a.kind==='review-goal');
  if(due)return response('goal','A measured goal is due for review',due.reason+' '+due.next);
- if(report?.verification?.status==='passed'&&report.decision==='temporary-focus')return response('focus','Review a supported training focus','The independent engine has confirmed a change worth investigating. Review the evidence before making an optional adjustment.');
+ if(report?.verification?.status==='passed'&&report.decision==='temporary-focus'){
+  const i=(report.issues??[]).find(i=>i.skill===report.focus&&i.context===report.focusContext&&i.protocol===report.focusProtocol);
+  const a=i?.evidence?.earlier,b=i?.evidence?.recent,scoring=['scoring','firstNine'].includes(i?.skill);
+  const fmt=v=>(scoring?v:v*100).toFixed(1)+(scoring?' average':'%');
+  const measured=a&&b&&Number.isFinite(a.value)&&Number.isFinite(b.value)&&Number.isFinite(a.attempts)&&Number.isFinite(b.attempts)&&Number.isFinite(a.days)&&Number.isFinite(b.days)
+   ?i.skill+' ('+i.context+'): '+fmt(a.value)+' to '+fmt(b.value)+' across '+a.days+'/'+b.days+' measured days and '+a.attempts+'/'+b.attempts+' attempts. ':'The independent engine has confirmed a change worth investigating. ';
+  return response('focus','Review a supported training focus',measured+'Review the evidence before making an optional adjustment.');
+ }
  if(report?.verification?.status==='passed'&&report.decision!=='stop'){
   const questions=(report.strategy?.agenda?.questions??[]).filter(q=>{
    const previous=(state.answers??[]).filter(a=>same(a,q.scope)&&a.question===q.id&&dayGap(a.day,day)>=0&&dayGap(a.day,day)<7);

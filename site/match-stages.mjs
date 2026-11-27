@@ -6,6 +6,7 @@ import {classify} from './engine/target-evidence.mjs';
 import {legalFinishCount} from './finish-validation.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
+import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
 const canonical=x=>/^[LI]/.test(x)?'S'+x.slice(1):x;
 const shortest=new Map();
 export function minimumFinishDarts(score){
@@ -147,9 +148,7 @@ export function transferLines(rows){
   for(const profile of report.profiles.filter(p=>p.context==='competition')){
    for(const [metric,spec] of Object.entries(metrics)){
     const [earlier,recent]=windows.map(w=>{
-     const days=profile.daily.filter(d=>d.day>=w.from&&d.day<=w.to).map(d=>{const [hits,attempts]=spec.read(d);return {day:d.day,hits,attempts}}).filter(d=>d.attempts>0);
-     const opportunities=days.reduce((n,d)=>n+d.attempts,0),hits=days.reduce((n,d)=>n+d.hits,0);
-     return {...w,days:days.length,opportunities,hits,value:count(hits,opportunities),dayMean:distribution(days.map(d=>d.hits/d.attempts)).mean};
+     return stageWindow(profile,spec,w.from,w.to);
     });
     const difference=earlier.value===null||recent.value===null?null:recent.value-earlier.value;
     rows.push({start:profile.start,metric,units:spec.units,earlier,recent,difference,status:difference===null?'missing-window':earlier.days<7||recent.days<7||earlier.opportunities<spec.min||recent.opportunities<spec.min?'limited':'descriptive'});
@@ -161,4 +160,52 @@ export function transferLines(rows){
   if(!rows.length)return ['No eligible real competition straight-in leg records. Log actual legs when convenient; practice and bot results cannot fill this gap.'];
   const fmt=(x,u)=>x===null?'not measured':(u==='points'?x:100*x).toFixed(1)+(u==='points'?'':'%');
   return [...rows.map(r=>r.start+' straight-in · '+r.metric+': '+r.earlier.from+' to '+r.earlier.to+' '+fmt(r.earlier.value,r.units)+' ('+r.earlier.days+' days, '+r.earlier.opportunities+' opportunities); '+r.recent.from+' to '+r.recent.to+' '+fmt(r.recent.value,r.units)+' ('+r.recent.days+' days, '+r.recent.opportunities+' opportunities). '+(r.difference===null?'No comparison possible.':'Observed change '+(r.difference>0?'+':'')+(r.units==='points'?r.difference:100*r.difference).toFixed(1)+' '+r.units+'. '+(r.status==='limited'?'Limited coverage.':'Descriptive comparison only.'))),'Separate real competition windows; no overlap, no bot or practice substitution. Opponents, tactics, equipment, readiness and selection may differ. This report does not establish a training effect or trigger a change.'];
+ }
+
+ // One real competition scope and one measured practice exposure at a time.
+ // Complete prior and subsequent 14-day windows; never reuse overlapping
+ // calendar windows within the same skill/start scope. No causal inference.
+ function stageWindow(profile,spec,from,to){
+  const days=profile.daily.filter(d=>d.day>=from&&d.day<=to).map(d=>{const [hits,attempts]=spec.read(d);return {day:d.day,hits,attempts}}).filter(d=>d.attempts>0);
+  const opportunities=days.reduce((n,d)=>n+d.attempts,0),hits=days.reduce((n,d)=>n+d.hits,0);
+  return {from,to,days:days.length,opportunities,hits,value:count(hits,opportunities),dayMean:distribution(days.map(d=>d.hits/d.attempts)).mean};
+ }
+ const methodMetrics={scoring:'scoring-stage average',doubles:'explicit finishing doubles',checkout:'checkout visit conversion'};
+ const dateShift=(day,n)=>new Date(Date.parse(day)+n*86400000).toISOString().slice(0,10);
+ export function methodCompetitionReview(report,episodes,state,day){
+  if(!dayValid(day)||!Array.isArray(episodes))throw Error('Invalid method transfer review');
+  const known=episodes.filter(e=>methodMetrics[e.skill]&&FIXED_PROTOCOLS[e.skill]?.includes(e.protocol)&&dayValid(e.from)&&dayValid(e.to)&&e.from<e.to&&e.to<=day&&typeof e.setting?.name==='string'&&Number.isFinite(e.delta)&&Number.isFinite(e.seconds)&&e.seconds>0);
+  const eligible=known.filter(e=>dayGap(dateShift(e.from,-14),day)<84&&dateShift(e.to,14)<=day).sort((a,b)=>b.to.localeCompare(a.to)||b.from.localeCompare(a.from)||a.skill.localeCompare(b.skill)||a.protocol.localeCompare(b.protocol)||a.setting.name.localeCompare(b.setting.name));
+  const rows=[];let overlapping=0;
+  for(const p of report.profiles.filter(p=>p.context==='competition')){
+   const used=new Map();
+   for(const e of eligible){
+    const metric=methodMetrics[e.skill],spec=metrics[metric],from=dateShift(e.from,-14),to=dateShift(e.to,14);
+    const ranges=used.get(e.skill)??[];
+    if(ranges.some(r=>r.from<=to&&from<=r.to)){overlapping++;continue}
+    ranges.push({from,to});used.set(e.skill,ranges);
+    const earlier=stageWindow(p,spec,from,dateShift(e.from,-1)),later=stageWindow(p,spec,dateShift(e.to,1),to);
+    const confounders=[];
+    if(recordedConfounder(state,from,to))confounders.push('Recorded practice conditions, equipment, technique, intervention or trial changed.');
+    if((state.readiness??[]).some(r=>r.context==='competition'&&dayValid(r.day)&&r.day>=from&&r.day<=to&&(r.pain||r.fatigue==='high'||r.pressure==='high')))confounders.push('Player-reported competition readiness concern.');
+    if((e.endpointPractice??[]).length)confounders.push('Practice occurred on a benchmark endpoint; ordering is unknown.');
+    if(known.some(x=>x!==e&&x.skill===e.skill&&x.from<=to&&from<=x.to))confounders.push('Other same-skill training exposure overlaps these windows.');
+    const difference=earlier.value===null||later.value===null?null:later.value-earlier.value;
+    const status=difference===null?'not-measured':confounders.length?'confounded':earlier.days<3||later.days<3||earlier.opportunities<spec.min||later.opportunities<spec.min?'limited':'observed-comparison';
+    rows.push({start:p.start,skill:e.skill,protocol:e.protocol,method:e.setting.name,seconds:e.seconds,from:e.from,to:e.to,practiceChange:e.delta,metric,units:spec.units,earlier,later,difference,status,confounders});
+   }
+  }
+  return {rows,eligibleEpisodes:eligible.length,overlapping,limitation:'Observed chronological match follow-up of recorded training, not a controlled intervention or proof of match transfer. Other practice, opponents, tactics and unreported conditions can differ. No training allocation or difficulty change follows from this report.'};
+ }
+ export function methodCompetitionLines(report){
+  const num=(x,u)=>x===null?'not measured':(u==='points'?x:x*100).toFixed(1)+(u==='points'?'':'%');
+  const lines=['Recorded methods and real competition follow-up: '+report.eligibleEpisodes+' eligible dated practice exposures; '+report.overlapping+' overlapping scope windows not reused.'];
+  if(!report.rows.length)lines.push('No eligible method-to-competition comparisons yet. Separate actual match records and fixed practice checks are needed before and after a delivered training method.');
+  for(const r of report.rows.slice(0,20)){
+   lines.push(r.method+' · '+r.skill+' · '+r.protocol+' · '+Math.round(r.seconds/60)+' delivered minutes, '+r.from+' to '+r.to+'; measured practice change '+(r.practiceChange>0?'+':'')+r.practiceChange.toFixed(1)+(r.skill==='scoring'?' average points.':' percentage points.'));
+   lines.push(r.start+' straight-in competition · '+r.metric+': '+r.earlier.from+' to '+r.earlier.to+' '+num(r.earlier.value,r.units)+' ('+r.earlier.days+' days, '+r.earlier.opportunities+' opportunities); '+r.later.from+' to '+r.later.to+' '+num(r.later.value,r.units)+' ('+r.later.days+' days, '+r.later.opportunities+' opportunities). '+(r.difference===null?'No measured contrast.':'Observed match change '+(r.difference>0?'+':'')+(r.units==='points'?r.difference:r.difference*100).toFixed(1)+' '+r.units+'.')+' '+r.status.replaceAll('-',' ')+'.');
+   if(r.confounders.length)lines.push('Recorded limitations: '+r.confounders.join(' '));
+  }
+  if(report.rows.length>20)lines.push('Showing 20 most recent available scope comparisons; remaining comparisons are not shown.');
+  return [...lines,report.limitation];
  }

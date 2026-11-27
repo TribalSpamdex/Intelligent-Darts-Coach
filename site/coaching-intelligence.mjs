@@ -2,9 +2,10 @@ import {exerciseSequences,sequenceLines} from './session-learning.mjs';
 import {nextComparison,comparisonPlanLines} from './trial-planning.mjs';
 // Local coaching intelligence router. Each expensive analysis runs only on
 // explicit review, not on each keypad press, dart or timer tick.
+import {learningEpisodes} from './challenge-episodes.mjs';
 import {trainingLedger,ledgerLines} from './training-ledger.mjs';
 import {trainingOutcomes,outcomeReportLines,followupLines} from './training-outcomes.mjs';
-import {stageProfiles,stageTransfer,stageLines,transferLines,competitionProgress,competitionProgressLines} from './match-stages.mjs';
+import {stageProfiles,stageTransfer,stageLines,transferLines,competitionProgress,competitionProgressLines,methodCompetitionReview,methodCompetitionLines} from './match-stages.mjs';
 import {developmentProfile,developmentAgenda,developmentLines,agendaLines,goalRunwayLines} from './development-review.mjs';
 export const INTELLIGENCE_QUESTIONS=Object.freeze([
  'What should I work on next?','How much have I actually trained?','How does my training relate to progress?',
@@ -22,7 +23,11 @@ export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[
  if(/^(have my gains lasted|delayed benchmark follow-up|training retention)$/.test(q))return answer('training-followup',followupLines(trainingOutcomes(host,state,day,now)));
  const period=q.match(/^(?:match stages|where do i lose performance in legs)(?: (7|28|84|365) days)?$/);
  if(period)return answer('match-stages',stageLines(stageProfiles(state.legs??[],day),period[1]?Number(period[1]):28));
- if(/^(how does practice transfer to competition|actual match transfer|match stage comparison)$/.test(q))return answer('match-transfer',transferLines(stageTransfer(stageProfiles(state.legs??[],day),day)));
+ if(/^(how does practice transfer to competition|actual match transfer|match stage comparison|how do my drills relate to competition)$/.test(q)){
+  const report=stageProfiles(state.legs??[],day),transfer=stageTransfer(report,day);
+  const episodes=report.profiles.some(p=>p.context==='competition')?learningEpisodes(host,state,day,now).episodes:[];
+  return answer('match-transfer',[...transferLines(transfer),...methodCompetitionLines(methodCompetitionReview(report,episodes,state,day))]);
+ }
  if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day)));
  if(/^(how far am i from my goals|goal runway|goal gaps)$/.test(q))return answer('goal-runway',goalRunwayLines(developmentAgenda(host,state,day,{now})));
  if(/^(do i lose consistency during practice|early versus late rounds|within exercise performance)$/.test(q))return answer('exercise-sequence',sequenceLines(exerciseSequences(host,state,reflections,day,now)));
