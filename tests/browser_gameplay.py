@@ -168,7 +168,7 @@ def run_gameplay_audit(browser):
            return {names:new Set(checks.map(x=>x.name)).size,configurations:checks.length,naturalRounds:checks.filter(x=>x.completed).length,actions:checks.reduce((n,x)=>n+x.steps+1,0)};
           }finally{save=oldSave;window.alert=oldAlert;announceRound=oldAnnounce;hideRoundAnnouncement()}
         }""")
-        assert result['names']==41 and result['configurations']==336 and result['naturalRounds']==336, result
+        assert result['names']==42 and result['configurations']==343 and result['naturalRounds']==343, result
         print('Native gameplay action, round, Undo and timer matrix:',result)
     finally:
         ctx.close()
