@@ -163,3 +163,25 @@ export function followupLines(report){
  for(const r of rows.slice(-20).reverse())lines.push(r.skill+' · '+r.protocol+' · '+settingLabel(r.setting)+' · '+r.delay+' days later: '+r.baseline.toFixed(1)+' before, '+r.after.toFixed(1)+' after, '+r.value.toFixed(1)+' at follow-up'+(r.skill==='scoring'?' points.':'%.')+' '+r.status.replaceAll('-',' ')+'. '+(r.independentOfRecordedTraining?'No intervening saved training days; unlogged practice remains unknown.':r.interveningDays.length+' saved training days including endpoints; not a retention-isolation test.'));
  return [...lines,'Both initially successful and unsuccessful approaches are eligible for a later check. Only new benchmark identities are used; later changes do not establish permanent retention or causal benefit.'];
 }
+
+ // Only independent, disjoint delayed measurements may veto an optional
+ // exact-setting preference. Missing checks are not failures.
+ export function delayedMethodCautions(followups,day){
+  if(!dayValid(day)||!Array.isArray(followups))throw Error('Invalid delayed method review');
+  const groups=new Map(),out=[];
+  for(const r of followups){
+   if(!r||!FIXED_PROTOCOLS[r.skill]?.includes(r.protocol)||!validSetting(r.setting)||r.setting.skill!==r.skill||!dayValid(r.from)||!dayValid(r.to)||!dayValid(r.followup)||r.from>=r.to||dayGap(r.to,r.followup)<7||dayGap(r.to,r.followup)>21||dayGap(r.followup,day)<0||dayGap(r.followup,day)>56||r.independentOfRecordedTraining!==true||!Array.isArray(r.interveningDays)||r.interveningDays.length||!Array.isArray(r.measurementIds)||!r.measurementIds.length||!Number.isFinite(r.gain)||!Number.isFinite(r.baseline)||!Number.isFinite(r.value)||Math.abs(r.gain-(r.value-r.baseline))>1e-6)continue;
+   if(!['gain-not-observed','decline-still-observed','later-decline-observed','gain-still-observed','later-improvement-observed'].includes(r.status))continue;
+   const k=JSON.stringify([r.skill,r.protocol,settingKey(r.setting)]),g=groups.get(k)??[];g.push(r);groups.set(k,g);
+  }
+  for(const g of groups.values()){
+   const sorted=[...g].sort((a,b)=>b.followup.localeCompare(a.followup)||b.from.localeCompare(a.from)),chosen=[],ids=new Set();
+   for(const r of sorted){if(chosen.some(x=>x.from<=r.followup&&r.from<=x.followup)||r.measurementIds.some(id=>ids.has(id)))continue;chosen.push(r);for(const id of r.measurementIds)ids.add(id)}
+   const adverse=chosen.filter(r=>['gain-not-observed','decline-still-observed','later-decline-observed'].includes(r.status)&&r.gain<=0);
+   const positive=chosen.filter(r=>['gain-still-observed','later-improvement-observed'].includes(r.status)&&r.gain>=floor(r.skill));
+   if(adverse.length>=2&&chosen[0]===adverse[0]&&adverse.length>positive.length){
+    const r=adverse[0];out.push({skill:r.skill,protocol:r.protocol,setting:r.setting,adverse:adverse.length,positive:positive.length,last:r.followup,reason:'Repeated independent delayed checks did not retain a gain or showed a decline. Defer the optional exact-setting preference and review; causality is not established.'});
+   }
+  }
+  return out.sort((a,b)=>b.last.localeCompare(a.last)||settingKey(a.setting).localeCompare(settingKey(b.setting)));
+ }

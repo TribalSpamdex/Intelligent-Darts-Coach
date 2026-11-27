@@ -3,7 +3,10 @@ import {intelligenceAnswer,INTELLIGENCE_QUESTIONS} from './coaching-intelligence
 import {tacticalAnswer} from './tactical-learning.mjs';
 import {progressionAnswer,PROGRESSION_QUESTIONS} from './progression-dialogue.mjs';
 import {statisticsAnswer,STAT_QUESTIONS} from './statistics-dialogue.mjs';
-import {contextLines,techniqueLines} from './context-profile.mjs';
+import {contextLines,techniqueLines,equipmentReviews,equipmentLines,isolatedReadiness,isolatedReadinessLines,techniqueEvidence,techniqueEvidenceLines} from './context-profile.mjs';
+import {trainingOutcomes,delayedMethodCautions} from './training-outcomes.mjs';
+import {recoveryAdvice,recoveryLines} from './tactical-learning.mjs';
+import {REGIONS} from './engine/target-evidence.mjs';
 import {longitudinal,profileLines,investigationQueue} from './longitudinal.mjs';
 import {outcomeAudit,outcomeLines,verifiedLearningState} from './intervention-audit.mjs';
 import {reflectionInsights,label as reflectionLabel} from './reflections.mjs';
@@ -17,7 +20,7 @@ import {fullReport} from './engine/executive.mjs';
 import {asOfState} from './engine/context.mjs';
 const pct=x=>(x*100).toFixed(1)+'%';
 const targetName=s=>s==='50'?'Bullseye':s;
-export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
+export const QUESTIONS=['What do you know about me?','What are my strongest doubles?','What are my weakest doubles?','Compare D16 and D20','Checkout 81 with 2 darts','How consistent is my scoring?','How am I finishing?','What are my goals?','What should I investigate next?','How did my practice feel?','How have I progressed this year?','What happened to my interventions?','Does fatigue affect my darts?','What have we observed about my technique?','Has my equipment change helped?','How do nerves and confidence affect my performance?','Do my technique observations match my results?','Which methods should we reconsider?',...STAT_QUESTIONS,...PROGRESSION_QUESTIONS,...INTELLIGENCE_QUESTIONS,...AUTONOMY_QUESTIONS,'Model checkout 81 with 2 darts','Recovery from 81 after S19'];
 function reply(type,lines){return {kind:'answer',type,lines}}
 function describe(g){return targetName(g.target)+': '+g.hits+'/'+g.attempts+' ('+pct(g.rate)+') across '+g.days+' days · '+g.protocol+' · '+g.status}
 // Verbal figures remain supplied information, never silently logged practice.
@@ -42,8 +45,15 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  state=asOfState(state,day);
  host={...host,sessions:(host.sessions??[]).filter(s=>s?.date<=day),games:(host.games??[]).filter(g=>g?.day<=day)};
  if(typeof text!=='string'||!text.trim()||text.length>300)return ask(state,text,day);
- const q=text.trim().toLowerCase().replace(/[?!.]+$/,'').replace(/\s+/g,' ');
+ const q=normaliseQuestion(text);
  const comparison=reportedComparison(q);if(comparison)return comparison;
+ if(/^(has my equipment change helped|equipment (?:review|performance)|did changing my darts help|how did my new darts affect my performance)$/.test(q))return reply('equipment-evidence',equipmentLines(equipmentReviews(state,day)));
+ if(/^(how do nerves and confidence affect my performance|mental performance|does (?:pressure|confidence|nerves) affect my darts|how does match pressure affect my darts)$/.test(q))return reply('mental-evidence',isolatedReadinessLines(isolatedReadiness(state,day)));
+ if(/^(do my technique observations match my results|technique evidence|does my technique affect my performance)$/.test(q))return reply('technique-evidence',techniqueEvidenceLines(techniqueEvidence(state,day)));
+ if(/^(which methods should we reconsider|review unsuccessful methods|what hasn't worked)$/.test(q)){
+  const r=trainingOutcomes(host,state,day,now),c=delayedMethodCautions(r.followups,day);
+  return reply('method-cautions',[...(c.length?c.map(x=>x.setting.name+' · '+x.protocol+' · '+x.adverse+' adverse and '+x.positive+' positive separate delayed reviews. '+x.reason):['No repeated independent delayed adverse reviews currently justify deferring an exact-setting preference. This does not establish every method is effective.']), 'Ordinary balanced training is unchanged.']);
+ }
  const autonomy=autonomyAnswer(host,state,q,day,now,reflections,baselines,events);if(autonomy)return autonomy;
  const tactical=tacticalAnswer(state,q,day);if(tactical)return tactical;
  const intelligence=intelligenceAnswer(host,state,q,day,now,reflections);if(intelligence)return intelligence;
@@ -81,10 +91,48 @@ export function integratedAsk(host,state,text,day,now=Date.now(),checks=[],refle
  return reply('target-profile',[x.length?x.map(o=>o.target+' ('+o.comparisons+' peer comparisons)').join(', '):'No consistent '+(kind==='weak'?'weak':'strong')+' double established yet.',p.limitation]);
  }
  if(/^(how did my practice feel|practice reflections|how did training feel)$/.test(q)){const review=reflectionInsights(reflections,host,day);return reply('reflections',[review.count+' recent player-reported reflections linked to saved training.',...review.repeated.map(x=>reflectionLabel(x.topic)+' across '+x.days+' days. '+x.question),review.limitation])}
- const intent=interpret(text,day);
+ const intent=interpret(q,day);
  if(intent.kind==='query'&&intent.request.type==='checkout'){
  const {score,darts}=intent.request.payload,r=personalisedCheckout(state,projectTargets(host,day,now,checks).rows,score,darts);
  return reply('checkout',[r.guidance,...(r.suggested?['Suggested: '+r.suggested.join(' → '),'Standard: '+r.standard.join(' → '),r.personalisation]:r.setup.slice(0,3).map(x=>'Aim '+x.target+' to leave '+x.remaining)),...(r.comparison?[r.comparison.days+' matched days; observed finishing-double difference '+pct(r.comparison.delta)+'.']:[])]);
  }
- const result=ask(verifiedLearningState(state,baselines,day,host,now).state,text,day);if(result.type==='next-actions'){const review=reflectionInsights(reflections,host,day);for(const x of review.repeated)result.lines.push('Additional player-reported concern: '+x.question+' ('+x.days+' days)')}return result
+ const result=ask(verifiedLearningState(state,baselines,day,host,now).state,q,day);if(result.type==='next-actions'){const review=reflectionInsights(reflections,host,day);for(const x of review.repeated)result.lines.push('Additional player-reported concern: '+x.question+' ('+x.days+' days)')}return result
 }
+
+ // Only whole-question aliases. No guess from isolated keywords.
+ export function normaliseQuestion(text){
+  const q=text.trim().toLowerCase().replace(/[’‘]/g,"'").replace(/[?!.]+$/,'').replace(/\s+/g,' ');
+  const bare=q.replace(/^(?:please |can you (?:please )?|could you (?:please )?)/,'').replace(/,? please$/,'');
+  const aliases=[
+   [/^(?:tell me |show me )?(?:which|what) (?:are )?my (?:best|strongest) doubles$/,'what are my strongest doubles'],
+   [/^(?:tell me |show me )?(?:which|what) (?:are )?my (?:worst|weakest) doubles$/,'what are my weakest doubles'],
+   [/^(?:show me |tell me )?(?:my )?(?:competition|match) progress$/,'is my real match performance improving'],
+   [/^(?:show me |tell me )?(?:my )?equipment (?:history|review|performance)$/,'has my equipment change helped'],
+   [/^(?:show me |tell me )?(?:my )?mental performance$/,'how do nerves and confidence affect my performance'],
+   [/^(?:how|what) (?:can|should|do) i (?:improve|work on) my (?:darts|game)$/,'what should i work on next'],
+   [/^(?:show me |tell me )?(?:my )?(?:current |next )?(?:training|practice) (?:priority|priorities)$/,'what is my next coaching priority']
+  ];
+  return aliases.find(([re])=>re.test(bare))?.[1]??bare;
+ }
+ // Ephemeral explicitly scoped checkout context. Never persisted or used
+ // to create observations. A different question clears the context.
+ export function conversationTurn(host,state,text,day,now=Date.now(),checks=[],reflections=[],baselines={},events=[],previous=null){
+  const q=typeof text==='string'&&text.length<=300?normaliseQuestion(text):'';
+  const context=previous?.day===day&&Number.isInteger(previous.score)&&previous.score>=2&&previous.score<=1001&&Number.isInteger(previous.darts)&&previous.darts>=1&&previous.darts<=3?previous:null;
+  const count=q.match(/^(?:what about |and |what if i have )?(?:with )?(one|two|three|[123]) darts?(?: left| in hand| remaining)?$/);
+  const hit=q.match(/^(?:what if i hit|i hit|after|instead i hit) ([a-z0-9]+)$/);
+  if(count||hit){
+   if(!context)return {answer:reply('clarification',['Which remaining score and how many darts in hand? Start with a checkout question.']),context:null};
+   if(count){
+    const darts=({one:1,two:2,three:3})[count[1]]??Number(count[1]);
+    return {answer:integratedAsk(host,state,'Checkout '+context.score+' with '+darts+' darts',day,now,checks,reflections,baselines,events),context:{day,score:context.score,darts}};
+   }
+   const actual=hit[1].toUpperCase();
+   if(!REGIONS.includes(actual))return {answer:reply('clarification',['Enter the actual segment, such as S19, T20, D16, 25, 50 or MISS.']),context};
+   const r=recoveryAdvice(asOfState(state,day),context.score,[actual],context.darts);
+   return {answer:reply('checkout-recovery',recoveryLines(r)),context:r.dartsLeft>0&&r.remaining>=2&&r.status!=='bust'&&r.status!=='finished'?{day,score:r.remaining,darts:r.dartsLeft}:null};
+  }
+  const intent=interpret(q,day);
+  const answer=integratedAsk(host,state,text,day,now,checks,reflections,baselines,events);
+  return {answer,context:intent.kind==='query'&&intent.request.type==='checkout'&&answer.kind==='answer'?{day,...intent.request.payload}:null};
+ }

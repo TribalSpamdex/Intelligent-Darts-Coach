@@ -56,13 +56,13 @@ export function performanceForecasts(observations,day){
  for(const o of canonicalRows(observations,day)){const k=scopeKey(o),g=groups.get(k)??[];g.push(o);groups.set(k,g)}
  return [...groups.values()].map(rows=>{
   const {skill,context,protocol}=rows[0],blocks=measuredBlocks(rows,day,skill),f=forecastBlocks(blocks,skill);
-  return {skill,context,protocol,...f};
+  const validation=backtestBlocks(blocks,skill);return {skill,context,protocol,...f,reliability:validation.status,validationCount:validation.n,validationMAE:validation.mae,naiveMAE:validation.naiveMAE};
  }).sort((a,b)=>scopeKey(a).localeCompare(scopeKey(b)));
 }
 export function forecastLines(rows){
  const fmt=(v,s)=>score(s)?v.toFixed(1):(100*v).toFixed(1)+'%';
  if(!rows.length)return ['No comparable measured history to estimate a future performance range.'];
- return [...rows.slice(0,24).map(r=>r.skill+' · '+r.context+' · '+r.protocol+': '+(r.status==='insufficient'?'Need at least 16 consecutive adequately measured weekly blocks; currently '+r.blocks+'.':'Next comparable seven-day daily-mean estimate '+fmt(r.point,r.skill)+'; historical error range '+r.range.map(v=>fmt(v,r.skill)).join(' to ')+'. '+r.calibrationBlocks+' chronological calibration blocks, mean absolute error '+fmt(r.calibrationMAE,r.skill)+'. Method: '+r.method+'.')),'Historical conditional range, not a guaranteed result, calibrated probability, match prediction or goal date. Missing weeks break the evidence chain. No automatic difficulty changes from forecasts.'];
+ return [...rows.slice(0,24).map(r=>r.skill+' · '+r.context+' · '+r.protocol+': '+(r.status==='insufficient'?'Need at least 16 consecutive adequately measured weekly blocks; currently '+r.blocks+'.':r.reliability==='higher-historical-error'?'Forecast withheld: historical walk-forward error exceeded the simple last-block baseline across '+r.validationCount+' evaluations. Continue using recorded measurements until reviewed.':'Next comparable seven-day daily-mean estimate '+fmt(r.point,r.skill)+'; historical error range '+r.range.map(v=>fmt(v,r.skill)).join(' to ')+'. '+r.calibrationBlocks+' chronological calibration blocks, mean absolute error '+fmt(r.calibrationMAE,r.skill)+'. Method: '+r.method+'.')),'Historical conditional range, not a guaranteed result, calibrated probability, match prediction or goal date. Missing weeks break the evidence chain. No automatic difficulty changes from forecasts.'];
 }
 
 export function backtestBlocks(blocks,skill){

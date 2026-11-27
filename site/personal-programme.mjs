@@ -1,6 +1,6 @@
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
-import {trainingOutcomes,durationReview,doseBand} from './training-outcomes.mjs';
+import {trainingOutcomes,durationReview,doseBand,delayedMethodCautions} from './training-outcomes.mjs';
 import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
 import {validSetting,settingKey} from './challenge-setting.mjs';
 import {eventContext,validateEvents} from './competition-calendar.mjs';
@@ -100,7 +100,7 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
  // A bounded prospective choice between already eligible native near-ties.
  // This does not learn a universal optimal drill, choose a difficulty, or
  // attribute a causal effect. Historical exact settings remain descriptive.
- export function learnedMethodChoice({memory,state,report,events,history,policy,options,comparisons,day,reviews=[]}){
+ export function learnedMethodChoice({memory,state,report,events,history,policy,options,comparisons,day,reviews=[],followups=[]}){
   const no=reason=>({status:'unchanged',reason});
   if(memory?.learnedMethods!==true)return no('Player has not enabled learned method selection');
   if(!dayValid(day)||!Array.isArray(history)||!Array.isArray(options)||!Array.isArray(comparisons))return no('Invalid planning evidence');
@@ -112,7 +112,7 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
    .map(c=>({...c,favoured:c.status==='first-associated'?c.firstSetting:c.secondSetting,other:c.status==='first-associated'?c.secondSetting:c.firstSetting}));
   const deferred=methodReviewGate(reviews,day),followup=methodFollowupGate(reviews,day);
-  const durationPreferences=durationReview(comparisons,day);
+  const durationPreferences=durationReview(comparisons,day),cautions=delayedMethodCautions(followups,day);
   const eligible=[];
   for(const o of options){
    if(!o||!core.has(o.skill)||typeof o.normal!=='string'||typeof o.alternative!=='string'||o.normal===o.alternative||!Number.isFinite(o.normalScore)||!Number.isFinite(o.alternativeScore)||o.alternativeScore<o.normalScore||o.alternativeScore-o.normalScore>2.5||!Number.isInteger(o.seconds)||o.seconds<300||o.seconds>1200||!Number.isInteger(o.normalTier)||!Number.isInteger(o.alternativeTier)||o.normalTier<1||o.normalTier>7||o.alternativeTier<1||o.alternativeTier>7)continue;
@@ -135,6 +135,7 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
    // is a veto, not permission to cherry-pick a favourable duplicate.
    if(comparisons.some(c=>c?.kind==='method'&&c.skill===o.skill&&c.protocol===rows[0].protocol&&c.status==='unclear'&&c.pairs>=6&&c.weeks>=6&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&[c.firstSetting.name,c.secondSetting.name].includes(o.normal)&&[c.firstSetting.name,c.secondSetting.name].includes(o.alternative)))continue;
    const best=[...doseMatched].sort((a,b)=>b.pairs-a.pairs||b.weeks-a.weeks||b.latest.localeCompare(a.latest))[0];
+   if(cautions.some(r=>r.skill===o.skill&&r.protocol===best.protocol&&settingKey(r.setting)===settingKey(best.favoured)))continue;
    // Duration evidence is a veto on an optional choice, never permission
    // to add/subtract time or override an independently supported focus.
    const plannedBand=doseBand(o.seconds);
@@ -147,6 +148,6 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   if(context.memory?.learnedMethods!==true||!options.length)return {status:'unchanged',reason:'No enabled eligible candidates'};
   // The history is reconstructed on demand: correction/deletion cannot
   // leave a cached preference behind.
-  const comparisons=trainingOutcomes(host,context.state,day,now).comparisons;
-  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons,day,reviews:methodReviews(host,context.state,day,now)});
+  const {comparisons,followups}=trainingOutcomes(host,context.state,day,now);
+  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons,followups,day,reviews:methodReviews(host,context.state,day,now)});
  }
