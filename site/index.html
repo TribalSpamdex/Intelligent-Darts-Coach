@@ -1396,13 +1396,11 @@ function show(id){
 }
 /* Evidence is aggregated by calendar day: many rounds cannot create many promotion days. */
 function gameTime(g){if(num(g.at)>0)return num(g.at);if(g.day){const t=new Date(g.day+"T12:00:00").getTime();if(Number.isFinite(t))return t}const t=new Date(g.date||"").getTime();return Number.isFinite(t)?t:0}
-/* Quick Play rounds must form a meaningful SESSION of comparable evidence. */
+/* Recreational Quick Play is retained for records, never for coaching evidence. */
 function quickEvidenceEligible(g,context=null){
- if(!g.quick)return true;
- const evidence=context||dc63QuickEvidence(),actual=evidence.sessions.get(g.sessionId);
- if(!actual||num(actual.minutes)<15||g.completion!=='natural'||!g.sessionId)return false;
- const minimum=g.name==='Bull Accuracy'?30:['Doubles Survival','Outside Doubles','Double Double'].includes(g.name)?12:g.name==='Checkout Climb'?5:10;
- return (evidence.volumes.get(g.sessionId)?.get(g.name)||0)>=minimum;
+ if(!g||g.quick)return false;
+ const evidence=context||dc63QuickEvidence();
+ return g.sessionId==null||!evidence.sessions.has(String(g.sessionId));
 }
 /* Checkout difficulty uses the existing modest logistic slope. This is a
    coaching model, while recorded successes, attempts and progress stay factual.
@@ -1477,27 +1475,17 @@ if(g.benchmark===false&&!(["Scoring Survival","Scoring Ladder","Outside Doubles"
  if(g.name==="Bull Accuracy"&&Number.isInteger(g.thrown)&&g.thrown===30&&Number.isInteger(g.outer)&&Number.isInteger(g.inner)&&g.outer>=0&&g.inner>=0&&g.outer+g.inner<=30&&(!Object.prototype.hasOwnProperty.call(g,"misses")||(Number.isInteger(g.misses)&&g.misses>=0&&g.misses+g.outer+g.inner===30)))result.bull.push({time,hits:num(g.outer)+num(g.inner),inner:num(g.inner),volume:num(g.thrown),id:time,source:g.name+(Number.isFinite(g.tier)?':tier'+g.tier:'')+(typeof g.variant==='string'?':'+g.variant:''),quick:!!g.quick,weight:quickWeight(g,quickContext)});
  }return result}
 function quickWeight(g,context=null){
- if(!g.quick)return 1;
- const row=context?context.sessions.get(g.sessionId):data.sessions.find(x=>x.quick&&x.id===g.sessionId&&x.completed);
- const minutes=row?num(row.minutes):0;
- return minutes>=30?.75:minutes>=20?.55:minutes>=15?.4:0;
+ return quickEvidenceEligible(g,context)?1:0;
 }
 
 /* Coach evidence is indexed for one calculation, never cached across mutations. */
 function dc63QuickEvidence(){
- const sessions=new Map(),volumes=new Map(),now=Date.now();
- for(const row of data.sessions){
-  if(row?.quick&&row.completed&&!sessions.has(row.id))sessions.set(row.id,row);
+ const sessions=new Map();
+ for(const row of data.sessions||[]){
+  if(row?.quick&&row.id!=null)sessions.set(String(row.id),row);
  }
- for(const row of data.games){
-  if(!row?.quick||!row.sessionId||row.completion!=='natural'||!dc68EvidenceCounts(row))continue;
-  const time=gameTime(row);if(!time||time>now)continue;
-  const byName=volumes.get(row.sessionId)||new Map();
-  const volume=row.name==='Bull Accuracy'||['Doubles Survival','Outside Doubles','Double Double'].includes(row.name)?
-   num(row.thrown):row.name==='Checkout Climb'?num(row.success)+num(row.fail):num(row.visits);
-  byName.set(row.name,(byName.get(row.name)||0)+volume);volumes.set(row.sessionId,byName);
- }
- return {sessions,volumes};
+ if(data.activeSession?.quick&&data.activeSession.id!=null)sessions.set(String(data.activeSession.id),data.activeSession);
+ return {sessions,volumes:new Map()};
 }
 function dc64RecentEstimate(key,rows,prior,now){
  // These are bounded comparison blocks. Equal recency prevents the candidate's
@@ -1605,7 +1593,8 @@ function dc63DecisionEvidence(key,rows,current,proposed,now,initialWindow){
 function dailySamples(rows){
  const groups=new Map();
  for(const row of rows){
-  const volume=Number(row?.volume),weight=row?.quick?Number(row.weight):1;
+  if(row?.quick)continue;
+  const volume=Number(row?.volume),weight=1;
   if(!row||!Number.isFinite(row.time)||!Number.isFinite(volume)||volume<=0||!Number.isFinite(weight)||weight<=0)continue;
   const day=dateKey(row.time);
   if(!groups.has(day))groups.set(day,{day,time:row.time,hits:0,inner:0,points:0,volume:0,quickVolume:0,quick:{hits:0,inner:0,points:0,volume:0}});
@@ -1957,7 +1946,7 @@ function rapidInitialCalibration(){
  if(!a||!a.finished||!a.completedAt)return;
  dc2UpdateSkills(true);
 }
-function focusForDay(extra){const sorted=[...data.days].sort((a,b)=>a-b),index=sorted.indexOf(new Date().getDay());if(extra)return FOCUS[(Math.max(0,index)+data.sessions.filter(s=>s.date===dateKey()).length+1)%5];return FOCUS[Math.max(0,index)%5]}
+function focusForDay(extra){const sorted=[...data.days].sort((a,b)=>a-b),index=sorted.indexOf(new Date().getDay());if(extra)return FOCUS[(Math.max(0,index)+data.sessions.filter(s=>s.date===dateKey()&&!s.quick).length+1)%5];return FOCUS[Math.max(0,index)%5]}
 /* Each scheduled session draws three DISTINCT pressure games, favouring its daily
    theme and avoiding games from the most recent session where possible.
    Stable benchmarks/assessment are not mixed with the jeopardy game library. */
@@ -3391,10 +3380,10 @@ function dc40ExplorationEligibility(now=Date.now(),policy=null){
 }
 function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true,preparation=null,reserved=null){
  const primary=TRAINING_LIBRARY[focus]||TRAINING_LIBRARY.scoring;
- const recent=(data.sessions||[]).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
+ const recent=(data.sessions||[]).filter(s=>s&&!s.quick).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
  const alreadyToday=dc22GamesPlayedToday();
  if(data.activeSession&&!data.activeSession.quick){for(const e of data.activeSession.plan||[])if(QUICK_GAMES.includes(e.name))alreadyToday.add(e.name)}
- const seed=(Math.floor(Date.now()/DAY_MS)*1103515245+(data.sessions||[]).filter(x=>x?.date===dateKey()).length*7919)>>>0;
+ const seed=(Math.floor(Date.now()/DAY_MS)*1103515245+(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick).length*7919)>>>0;
  const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery'&&n!==reserved);
  const profiles=dc18ChallengeProfiles(all),effects=dc15EffectEvidence(),categoryPlan=dc28CategoryPlanning(),selected=[],policy=sessionPolicy||dc32WholeSessionPolicy();
  const exploration=dc40ExplorationEligibility(Date.now(),policy);let explored=false,exploredGame=null,dc47Trial=null;
@@ -3821,12 +3810,12 @@ function dc22MasteryCandidate(){
   if(treble!==null)candidates.push({ring:"T",target:treble.target,priority:treble.score});
   if(singles.development.length)candidates.push({ring:'S',target:singles.development[0].target,priority:singles.development[0].score});
   if(doubles.weak.length)candidates.push({ring:'D',target:doubles.weak[0],priority:3.5});
-  const today=(data.sessions||[]).filter(x=>x?.date===dateKey());
+  const today=(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick);
   if((data.games||[]).some(g=>g?.name==='Target Mastery'&&!g.quick&&Number.isFinite(g.at)&&g.at<=Date.now()&&dateKey(g.at)===dateKey()&&['natural','partial','timed'].includes(g.completion)))return null;
   if(today.some(x=>(x.focus||[]).includes('Target Mastery')))return null;
   // Do not schedule the same exact segment every day when there are other
   // measured needs. Leave at least two calendar days between repeats.
-  const cooldown=new Set((data.games||[]).filter(g=>g?.name==='Target Mastery'&&g.completion==='natural'&&
+  const cooldown=new Set((data.games||[]).filter(g=>g?.name==='Target Mastery'&&!g.quick&&g.completion==='natural'&&
     Number.isFinite(g.at)&&g.at<=Date.now()&&Date.now()-g.at<3*DAY_MS)
     .map(g=>g.details?.ring+String(g.details?.target)));
   for(let i=candidates.length-1;i>=0;i--)if(candidates[i].ring&&cooldown.has(candidates[i].ring+String(candidates[i].target)))candidates.splice(i,1);
@@ -3863,7 +3852,7 @@ function dc10PressureSummary(games,sessionId){
 function dc44FocusGate(candidate,category,policy,extra=false,now=Date.now()){
  const base={version:'5.32.0',eligible:false,minutes:0,reason:'balanced programme',category:category||null,
   completedFocusMinutes7d:0,independentDays:0};
- if(extra&&(data.sessions||[]).some(s=>dateKey(s.start)===dateKey(now)&&((s.activities||[]).some(a=>a.name==='Target Mastery'&&num(a.seconds)>0)||s.interruptedExercise?.name==='Target Mastery')))return {...base,reason:'focused practice already completed today'};
+ if(extra&&(data.sessions||[]).some(s=>s&&!s.quick&&dateKey(s.start)===dateKey(now)&&((s.activities||[]).some(a=>a.name==='Target Mastery'&&num(a.seconds)>0)||s.interruptedExercise?.name==='Target Mastery')))return {...base,reason:'focused practice already completed today'};
  if(!candidate||!category)return {...base,reason:'no measured, actionable weakness'};
  if(candidate.basis==='maintenance rotation, not a diagnosed weakness'||Number(candidate.priority)<1.25)
   return {...base,reason:'maintenance or weak signal is not a diagnosed need'};
@@ -3877,7 +3866,7 @@ function dc44FocusGate(candidate,category,policy,extra=false,now=Date.now()){
  // actual finished focus, not the planned future exposure.
  let spent=0;
  for(const sess of data.sessions||[]){
-  if(!sess||sess.completed!==true||!Number.isFinite(sess.start)||sess.start>now||sess.start<now-7*DAY_MS||!Array.isArray(sess.activities))continue;
+  if(!sess||sess.quick||sess.completed!==true||!Number.isFinite(sess.start)||sess.start>now||sess.start<now-7*DAY_MS||!Array.isArray(sess.activities))continue;
   for(const a of sess.activities){
    if(a?.name==='Target Mastery'&&Number(a.seconds)>=300)spent+=Math.min(60,Number(a.seconds)/60);
   }
@@ -3970,7 +3959,7 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
   const counts=chosen.map(n=>dc28GameCategory(n));
   const donor=counts.findLastIndex(k=>counts.filter(x=>x===k).length>1);
   if(pool.length&&donor>=0){
-   const recentGames=(data.sessions||[]).filter(s=>s.completed&&s.start>=Date.now()-7*DAY_MS).flatMap(s=>s.activities||[]);
+   const recentGames=(data.sessions||[]).filter(s=>s.completed&&!s.quick&&s.start>=Date.now()-7*DAY_MS).flatMap(s=>s.activities||[]);
    const exposure=n=>recentGames.filter(a=>a.name===n).reduce((v,a)=>v+num(a.seconds),0);
    pool.sort((a,b)=>exposure(a)-exposure(b)||a.localeCompare(b));
    chosen[donor]=pool[0];
@@ -4138,7 +4127,7 @@ function renderQuick(){
  $("dc23MasteryOptions").classList.toggle("hidden",randomQuickPending||quickChoice!=="Target Mastery");
  $("dc23MasterySelect").value=dc23QuickMode;
  document.querySelectorAll("#quickDurationOptions button").forEach(b=>{const on=Number(b.dataset.seconds)===duration;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on))});
- $("quickEvidence").textContent=duration<900?'This short game is saved in Quick Play history but excluded from tier decisions.':duration<1800?'Recorded separately. Once there are enough real results across several days, they can contribute modestly to your skill assessment.':'Thirty-minute practice can contribute meaningful evidence over multiple days. It cannot change a tier after one session.';
+ $("quickEvidence").textContent='Quick Play is recorded separately for your enjoyment and personal records. It does not contribute to coaching decisions.';
  $("quickStart").disabled=needs||!!session();
  $("quickStart").textContent=session()?'Session in progress':needs?'Complete assessment first':randomQuickPending?'Play Random Game':'Play Game';
  $("quickIntro").textContent=needs?'Complete your assessment or choose Quick Start in Train before playing.':session()?'A training or Quick Play session is in progress. Finish it before starting another.':'Choose a game. The coach applies your existing independent hidden skill level automatically.';
@@ -4157,7 +4146,6 @@ function startQuickPlay(){
   if(picked==='Target Mastery')dc23QuickMode=DC23_MASTERY_MODES[Math.floor(Math.random()*DC23_MASTERY_MODES.length)];
  }
  if(!QUICK_GAMES.includes(quickChoice))return;
- performCoachReview();
  const t=Date.now();
  data.activeSession={id:t,start:t,extra:true,quick:true,quickGame:quickChoice,quickSeconds:duration,plan:[{name:quickChoice,mode:"timed",seconds:duration,...(quickChoice==="Target Mastery"?{mastery:{mode:dc23QuickMode}}:{})}],index:0,completed:[],pausedAt:t,pausedTotal:0,activityStarted:null,activityAccumulated:0,round:1,roundsCompleted:0,allocated:true,benchmarkSeconds:0,phase:"rules"};
  dc45InitialSnapshot(data.activeSession);dc45LockAllocation(data.activeSession);
@@ -4339,7 +4327,7 @@ function focusedConfig(){
  const tier=clamp(Math.round(num(data.skills.checkout.level)||7),1,7);
  const [low,high]=FOCUSED_BANDS[tier];
  /* Choose a varied length (3-12 inclusive), bounded by this tier's band. */
- const seed=(data.sessions.length*13+new Date().getDate()*7+
+ const seed=(data.sessions.filter(s=>s&&!s.quick).length*13+new Date().getDate()*7+
    (s?Math.floor(num(s.id)/DAY_MS):0)+tier*11)>>>0;
  const length=Math.min(high-low+1,3+(seed%2));
  const start=low+((Math.floor(seed/10)*7+seed)%Math.max(1,high-low-length+2));
@@ -4672,7 +4660,7 @@ function dc3MatchAllowance(start){
  // Give a sensible provisional 501 ceiling, then yield to completed independent training evidence.
  if(start===501&&p.quickStart===true){
   const completedDays=new Set((Array.isArray(data.games)?data.games:[]).filter(g=>
-   g&&['501 Pressure','301 Pressure','Scoring Challenge','Scoring Survival','Scoring Ladder'].includes(g.name)&&
+   g&&!g.quick&&['501 Pressure','301 Pressure','Scoring Challenge','Scoring Survival','Scoring Ladder'].includes(g.name)&&
    (g.completion==='natural'||g.completion==='partial')&&Number.isFinite(g.at)).map(g=>dateKey(g.at)));
   if(completedDays.size<4){
    const band=String(p.averageBand||'');
@@ -5763,7 +5751,7 @@ function finishSession(success){hideRoundAnnouncement();const s=session();if(!s)
  // V5.72: an abandoned checkout modal must not survive into another session.
  closeCheckoutDartPicker();const elapsed=Math.round(sessionElapsed()/6)/10;const interruptedExercise=success?null:dc66CaptureUnfinishedSessionExercise(s);const sessionRecord={id:s.id,start:s.start,startOffsetMinutes:s.startOffsetMinutes,date:sessionStartDay(s),minutes:elapsed,extra:s.extra,quick:!!s.quick,quickGame:s.quickGame||null,completed:!!success,activities:s.completed,focus:s.plan.map(p=>p.name)};if(interruptedExercise)sessionRecord.interruptedExercise=interruptedExercise;if(s.provenanceInitial)sessionRecord.provenanceInitial=clone(s.provenanceInitial);if(s.provenanceLocked)sessionRecord.provenanceLocked=clone(s.provenanceLocked);if(Array.isArray(s.coachPlanAudit))sessionRecord.coachPlanAudit=clone(s.coachPlanAudit);if(s.categoryPlanAudit)sessionRecord.categoryPlanAudit=clone(s.categoryPlanAudit);if(s.wholeSessionAudit)sessionRecord.wholeSessionAudit=clone(s.wholeSessionAudit);if(s.researchPlan&&!s.extra&&!s.quick)sessionRecord.researchPlan=clone(s.researchPlan);if(s.coachDayIntent)sessionRecord.coachDayIntent=clone(s.coachDayIntent);
  if(s.coachComplement)sessionRecord.coachComplement=clone(s.coachComplement);
- sessionRecord.coachReport=generateSessionReport(sessionRecord);dc30LogCompletedInterventions(s);dc30RefreshFollowUps();data.sessions.push(sessionRecord);displayCoachReport(sessionRecord.coachReport);data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;rapidInitialCalibration();performCoachReview();checkCompletedBlocks();data.coach.challengeAudit=dc7ChallengeAudit(data.games);data.coach.challengeForecast=dc8ChallengeForecast(data.games);const saved=save();
+ sessionRecord.coachReport=generateSessionReport(sessionRecord);if(!s.quick){dc30LogCompletedInterventions(s);dc30RefreshFollowUps()}data.sessions.push(sessionRecord);displayCoachReport(sessionRecord.coachReport);data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;if(!s.quick){rapidInitialCalibration();performCoachReview();checkCompletedBlocks();data.coach.challengeAudit=dc7ChallengeAudit(data.games);data.coach.challengeForecast=dc8ChallengeForecast(data.games)}const saved=save();
  if(saved)checkpointData();
  $("finishedText").textContent=saved?(success?(s.quick?"Quick Play saved separately.":"Today's practice is saved."):"Your practice has been saved."):storageSaveError;$("sessionFinished").classList.remove("hidden");show("train")}
 function finishSessionEarly(){if(!session())return;if(!confirm("End this training session?"))return;finishSession(false)}
