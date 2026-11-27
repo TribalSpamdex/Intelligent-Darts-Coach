@@ -84,3 +84,12 @@ test('repeated unmaintained delayed gains veto executable optional method select
  assert.equal(pick({reviews:rows.map(r=>({...r,retention:'insufficient-delayed-checks',retentionDays:[]}))}).status,'selected');
  assert.equal(pick({reviews:[rows[0],{...rows[1],retentionDays:['2026-11-14','2026-11-27']}]}).status,'selected');
 });
+
+test('exact duration evidence can veto an optional drill but cannot extend the session',()=>{
+ const dose={kind:'dose',skill:'scoring',protocol:comparison.protocol,status:'first-associated',pairs:8,weeks:8,latest:prev,firstSetting:b,secondSetting:b,shortSeconds:300,longSeconds:600,matched:Array.from({length:8},()=>({aSeconds:300,bSeconds:600,aSessions:1,bSessions:1}))};
+ const x=fixture();x.comparisons.push(dose);
+ assert.equal(learnedMethodChoice(x).status,'unchanged');
+ const variants=[{...dose,status:'second-associated'},{...dose,status:'unclear'},{...dose,latest:'2026-10-01'},{...dose,firstSetting:a,secondSetting:a},{...dose,matched:dose.matched.map(m=>({...m,aSessions:2}))}];
+ for(const c of variants){const y=fixture();y.comparisons.push(c);const r=learnedMethodChoice(y);assert.equal(r.status,'selected');assert.equal(r.seconds,600);}
+ const conflict=fixture();conflict.comparisons.push(dose,{...dose,status:'second-associated'});assert.equal(learnedMethodChoice(conflict).status,'selected');
+});
