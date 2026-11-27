@@ -66,3 +66,16 @@ export function learningEpisodes(host,state,day,now=Date.now()){
  }
  return {episodes:out.sort((a,b)=>a.to.localeCompare(b.to)||a.key.localeCompare(b.key)),rejected,exposures:exposure.exposures.length,blockedDays:exposure.blockedDays};
 }
+
+ // A known setup/routine change is a boundary for applying old individual
+ // learning. Retain all eligible historical comparisons for inspection.
+ // Same-day order is unknown. Never infer a change from a missing record.
+ export function learningBoundary(state,day){
+  if(!dayValid(day))throw Error('Invalid learning boundary date');
+  const dates=[...(state.setups??[]),...(state.changes??[])].map(x=>x.day).filter(d=>dayValid(d)&&d<=day);
+  return dates.sort().at(-1)??null;
+ }
+ export function currentLearningEpisodes(episodes,state,day){
+  const boundary=learningBoundary(state,day);
+  return {boundary,episodes:episodes.filter(e=>dayValid(e.from)&&dayValid(e.to)&&e.from<e.to&&e.to<=day&&(!boundary||e.from>boundary))};
+ }

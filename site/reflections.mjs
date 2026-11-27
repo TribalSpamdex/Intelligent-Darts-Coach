@@ -1,3 +1,4 @@
+import {trainingParentIndex} from './v62-evidence.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 const codes=['comfortable','timing','aim','pressure','fatigue','confidence','other','unknown','skip'];
 const str=(s,max)=>typeof s==='string'&&s.length>0&&s.length<=max;
@@ -28,7 +29,8 @@ export function questionFor(boundary,history=[]){
 }
 export function label(code){return ({comfortable:'Comfortable / controlled',timing:'Timing or release felt inconsistent',aim:'Aiming or grouping felt difficult',pressure:'Felt rushed or under pressure',fatigue:'Tired or losing concentration',confidence:'Confidence was low',other:'Something else',unknown:'Not sure',skip:'Skipped'})[code]??code}
 export function reflectionInsights(history,host,day){
- const validSessions=new Map((host.sessions??[]).filter(s=>s?.quick===false).map(s=>[String(s.id),s]));
+ const {parents,duplicates}=trainingParentIndex(host.sessions??[]);
+ const validSessions=new Map([...parents].filter(([id,s])=>s.quick===false&&!duplicates.has(id)));
  const recent=validateReflections(history).filter(x=>{const s=validSessions.get(x.sessionId);return s&&s.date===x.day&&dayGap(x.day,day)>=0&&dayGap(x.day,day)<28&&x.answer!=='skip'&&(x.kind==='session'||s.activities?.some(a=>a.exerciseIndex===x.index&&a.name===x.name))});
  const groups=new Map();
  for(const x of recent.filter(x=>!['comfortable','unknown','other'].includes(x.answer))){const g=groups.get(x.answer)??new Set();g.add(x.day);groups.set(x.answer,g)}

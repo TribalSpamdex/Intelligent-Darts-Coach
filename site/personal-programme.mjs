@@ -11,7 +11,7 @@ const core=new Set(['scoring','doubles','checkout','bull']);
 export function personalLearning(host,state,day,now=Date.now()){
  const r=trainingOutcomes(host,state,day,now);
  const bySkill=new Map();
- for(const c of r.comparisons){
+ for(const c of r.currentComparisons){
   const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};
   g.comparisons++;
   if(['first-associated','second-associated'].includes(c.status)){
@@ -20,13 +20,13 @@ export function personalLearning(host,state,day,now=Date.now()){
   }else g.uncertain++;
   bySkill.set(c.skill,g);
  }
- for(const x of r.followups){const g=bySkill.get(x.skill)??{skill:x.skill,comparisons:0,supported:[],uncertain:0};g.followups=(g.followups??[]).concat({name:x.setting.name,protocol:x.protocol,status:x.status,followup:x.followup,delay:x.delay,recordedPractice:x.interveningDays.length});bySkill.set(x.skill,g)}
- for(const c of delayedMethodCautions(r.followups,day)){const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};g.cautions=(g.cautions??[]).concat(c);bySkill.set(c.skill,g)}
- return [...bySkill.values()].sort((a,b)=>a.skill.localeCompare(b.skill));
+ for(const x of r.currentFollowups){const g=bySkill.get(x.skill)??{skill:x.skill,comparisons:0,supported:[],uncertain:0};g.followups=(g.followups??[]).concat({name:x.setting.name,protocol:x.protocol,status:x.status,followup:x.followup,delay:x.delay,recordedPractice:x.interveningDays.length});bySkill.set(x.skill,g)}
+ for(const c of delayedMethodCautions(r.currentFollowups,day)){const g=bySkill.get(c.skill)??{skill:c.skill,comparisons:0,supported:[],uncertain:0};g.cautions=(g.cautions??[]).concat(c);bySkill.set(c.skill,g)}
+ return [...bySkill.values()].map(g=>({...g,boundary:r.boundary})).sort((a,b)=>a.skill.localeCompare(b.skill));
 }
 export function learningLines(rows){
- if(!rows.length)return ['No supported individual learning contrasts or delayed follow-ups yet.'];
- return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...(r.cautions??[]).map(c=>c.setting.name+': '+c.reason),...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
+ if(!rows.length)return ['No supported current individual learning contrasts or delayed follow-ups yet. Older comparisons after a setup or routine change are not carried into new recommendations.'];
+ return [...rows.flatMap(r=>[r.skill+': '+r.comparisons+' current recorded comparisons; '+r.uncertain+' uncertain or insufficient.',...(r.boundary?['Current learning begins after recorded change on '+r.boundary+'.']:[]),...(r.cautions??[]).map(c=>c.setting.name+': '+c.reason),...r.supported.slice(0,5).map(x=>x.kind+' · '+x.protocol+' · '+(x.status==='first-associated'?x.first:x.second)+' associated with better later results in '+x.pairs+' matched pairs across '+x.weeks+' weekly blocks.'),...(r.followups??[]).slice(-5).map(x=>x.name+' · '+x.status.replaceAll('-',' ')+' after '+x.delay+' days; '+x.recordedPractice+' saved intervening training days.')]),'Individual learning evidence is observational and may conflict across protocols. No universal learning style or causal improvement rate is assigned.'];
 }
 export function planPreview(host,state,report,events,day,now=Date.now(),existingAgenda=null){
  if(!dayValid(day))throw Error('Invalid planning date');
@@ -149,6 +149,6 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   if(context.memory?.learnedMethods!==true||!options.length)return {status:'unchanged',reason:'No enabled eligible candidates'};
   // The history is reconstructed on demand: correction/deletion cannot
   // leave a cached preference behind.
-  const {comparisons,followups}=trainingOutcomes(host,context.state,day,now);
-  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons,followups,day,reviews:methodReviews(host,context.state,day,now)});
+  const {currentComparisons,currentFollowups}=trainingOutcomes(host,context.state,day,now);
+  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons:currentComparisons,followups:currentFollowups,day,reviews:methodReviews(host,context.state,day,now)});
  }

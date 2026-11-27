@@ -4,7 +4,7 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
 import {canonicalRows} from './longitudinal.mjs';
 import {summarise} from './engine/engine.mjs';
-import {learningEpisodes,recordedConfounder,FIXED_PROTOCOLS} from './challenge-episodes.mjs';
+import {learningEpisodes,recordedConfounder,FIXED_PROTOCOLS,currentLearningEpisodes} from './challenge-episodes.mjs';
 import {settingKey,validSetting} from './challenge-setting.mjs';
 const floor=s=>s==='scoring'?3:5;
 const minimum={scoring:30,doubles:60,checkout:12,bull:30,singles:60,trebles:60};
@@ -142,12 +142,15 @@ export function delayedFollowups(episodes,state,host,day,blockedDays=[]){
 }
 export function trainingOutcomes(host,state,day,now=Date.now()){
  const history=learningEpisodes(host,state,day,now);
- const comparisons=methodComparisons(history.episodes,day);
- return {...history,comparisons,durations:durationReview(comparisons,day),followups:delayedFollowups(history.episodes,state,host,day,history.blockedDays),limitation:'Matched observational comparisons, not causal effects. Unlogged practice, different conditions, selection bias and regression to the mean may remain. No automatic changes to exercise choice, time or difficulty.'};
+ const comparisons=methodComparisons(history.episodes,day),current=currentLearningEpisodes(history.episodes,state,day);
+ const currentComparisons=current.boundary?methodComparisons(current.episodes,day):comparisons;
+ const followups=delayedFollowups(history.episodes,state,host,day,history.blockedDays);
+ return {...history,comparisons,currentComparisons,boundary:current.boundary,currentEpisodes:current.episodes.length,durations:durationReview(currentComparisons,day),followups,currentFollowups:followups.filter(r=>!current.boundary||r.from>current.boundary),limitation:'Matched observational comparisons, not causal effects. Unlogged practice, different conditions, selection bias and regression to the mean may remain. No automatic changes to exercise choice, time or difficulty.'};
 }
 export function outcomeReportLines(report,kind=null){
  const f=n=>n===null?'not measured':(n>0?'+':'')+n.toFixed(1);
  const rows=report.comparisons.filter(r=>!kind||r.kind===kind),lines=[report.exposures+' eligible exercise exposures; '+report.episodes.length+' disjoint benchmark episodes.'];
+ if(report.boundary)lines.push('Latest recorded setup or routine change: '+report.boundary+'. '+report.currentEpisodes+' eligible episodes after that date. Historical comparisons remain visible but only post-change comparisons can inform current optional preferences.');
  if(!rows.length)lines.push('No comparable recorded '+(kind==='dose'?'training duration':kind==='method'?'training method':'method or duration')+' contrasts yet. Continue balanced practice and fixed checks.');
  for(const r of rows.slice(0,20)){
   const units=r.skill==='scoring'?' points':' percentage points';
@@ -159,6 +162,7 @@ export function outcomeReportLines(report,kind=null){
 }
 export function followupLines(report){
  const rows=report.followups,lines=[rows.length+' separately measured delayed follow-ups.'];
+ if(report.boundary)lines.push('Current method decisions use only complete episodes after '+report.boundary+'. Earlier follow-ups are retained for review.');
  if(!rows.length)lines.push('No eligible independent later benchmark yet.');
  for(const r of rows.slice(-20).reverse())lines.push(r.skill+' · '+r.protocol+' · '+settingLabel(r.setting)+' · '+r.delay+' days later: '+r.baseline.toFixed(1)+' before, '+r.after.toFixed(1)+' after, '+r.value.toFixed(1)+' at follow-up'+(r.skill==='scoring'?' points.':'%.')+' '+r.status.replaceAll('-',' ')+'. '+(r.independentOfRecordedTraining?'No intervening saved training days; unlogged practice remains unknown.':r.interveningDays.length+' saved training days including endpoints; not a retention-isolation test.'));
  return [...lines,'Both initially successful and unsuccessful approaches are eligible for a later check. Only new benchmark identities are used; later changes do not establish permanent retention or causal benefit.'];

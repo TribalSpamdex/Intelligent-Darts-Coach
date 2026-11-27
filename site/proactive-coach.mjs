@@ -3,6 +3,7 @@ import {dayValid,dayGap} from './engine/context.mjs';
 import {developmentAgenda} from './development-review.mjs';
 import {eventContext,competitionPreparation} from './competition-calendar.mjs';
 import {reflectionInsights} from './reflections.mjs';
+import {learningBoundary} from './challenge-episodes.mjs';
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
 const same=(a,b)=>a.skill===b.skill&&a.context===b.context&&a.protocol===b.protocol;
 export function coachBrief(host,state,report,events,reflections,day,now=Date.now()){
@@ -22,6 +23,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
   'method-review':'Individual observational evidence requires reassessment.',
   'method-followup':'A separate measurement is needed to review the previous choice.',
   development:'Recorded development evidence; strength depends on comparable measurements.',
+  'changed-conditions':'A dated player-reported setup or routine change limits which older evidence can guide current optional choices.',
   balanced:'No new supported change; this does not establish that performance is stable.'
  };
  const response=(kind,title,detail,extra={})=>({kind,title,detail,event,basis:basis[kind],...extra});
@@ -69,6 +71,8 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
  if(deferred)return response('method-review','Review a personalised drill choice',deferred.reason+' Keep the ordinary planner for this method while its evidence is reviewed.');
  const waiting=methodFollowupGate(reviews,day)[0];
  if(waiting)return response('method-followup','Complete your personalised drill review',waiting.reason+' No extra session is required.');
+ const boundary=learningBoundary(state,day);
+ if(boundary&&dayGap(boundary,day)<=6)return response('changed-conditions','Establish your new reference measurements','A setup or routine change was recorded on '+boundary+'. Repeat familiar fixed checks during normal training. Earlier results remain in your history, but old learned preferences need fresh post-change evidence.');
  const lead=agenda.actions.find(a=>['investigate-decline','early-watch','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
  if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}

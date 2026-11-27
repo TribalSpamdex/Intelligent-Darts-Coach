@@ -1,6 +1,6 @@
 import {dayGap,dayValid} from './engine/context.mjs';
 import {distribution} from './statistics.mjs';
-import {learningEpisodes} from './challenge-episodes.mjs';
+import {learningEpisodes,currentLearningEpisodes} from './challenge-episodes.mjs';
 import {baseKey,settingSnapshot} from './challenge-setting.mjs';
 const ratio=(a,b)=>Math.abs(a-b)<=Math.max(a,b)*.25;
 const distance=(a,b)=>Math.abs(dayGap(a.to,b.to));
@@ -38,11 +38,12 @@ export function compareSettings(episodes,day){
 }
 export function challengeLearning(host,state,day,now=Date.now()){
  const evidence=learningEpisodes(host,state,day,now);
- return {...evidence,comparisons:compareSettings(evidence.episodes,day)};
+ const current=currentLearningEpisodes(evidence.episodes,state,day),comparisons=compareSettings(evidence.episodes,day);
+ return {...evidence,comparisons,currentComparisons:current.boundary?compareSettings(current.episodes,day):comparisons,boundary:current.boundary,currentEpisodes:current.episodes.length};
 }
 export function learnedCap(game,report){
  const s=settingSnapshot(game,game);if(!s)return {maxQuarter:3,reason:'untracked-rule'};
- const key=baseKey(s),rows=report?.comparisons?.filter(r=>r.key===key)??[];
+ const key=baseKey(s),rows=(report?.currentComparisons??report?.comparisons??[]).filter(r=>r.key===key);
  // Never make a game harder than the current independent evidence permits.
  // A lower setting can be preferred only when every adequate comparison of
  // those same settings agrees; contradictory or unclear protocols veto.
@@ -57,6 +58,7 @@ export function learningLines(r){
  const number=n=>n===null?'not measured':(n>0?'+':'')+n.toFixed(1);
  const setting=s=>s.field+' '+(Array.isArray(s.after)?s.after.join('/'):s.after);
  const lines=[r.exposures+' eligible recorded exercise exposures; '+r.episodes.length+' nonoverlapping benchmark episodes.'];
+ if(r.boundary)lines.push('Latest recorded setup or routine change: '+r.boundary+'. Only '+r.currentEpisodes+' post-change episodes are eligible for current learned difficulty preferences. Earlier evidence remains descriptive.');
  if(!r.comparisons.length)lines.push('Not enough comparable records at different settings yet. Normal training continues.');
  for(const c of r.comparisons.slice(0,20))lines.push(c.name+' · '+c.protocol+' · '+setting(c.lower)+' versus '+setting(c.higher)+': '+c.pairs+' matched pairs; '+c.blocks+' measured weekly blocks. '+(c.status==='insufficient'?'More evidence needed.':c.status==='lower-favoured'?'Lower setting associated with better later measurements.':c.status==='higher-favoured'?'Higher setting associated with better later measurements.':'No clear preference.')+' Median benchmark change: '+number(c.lowerChange.median)+' versus '+number(c.higherChange.median)+(c.skill==='scoring'?' points.':' percentage points.'));
  lines.push('Only complete saved sessions, exact recorded configurations and disjoint fixed benchmark measurements are eligible. Other practice and unrecorded conditions may still explain the differences. Measurement-day practice or a single chronological order prevents automatic difficulty changes. A preference can reduce challenge, never override the skill evidence ceiling or safety rules.');
