@@ -307,19 +307,29 @@ with sync_playwright() as p:
           return {expected:expected.length,missing};
         }""")
         assert inventory['expected']>=160 and not inventory['missing'], inventory
+        # Record an emulation failure separately, without suppressing later
+        # real-origin outage, gameplay, migration or storage checks.
+        webkit_offline_error=None
         try:
             ctx.set_offline(True)
-            page.reload()
-            page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+            page.goto('http://127.0.0.1:8765/index.html?audit=webkit-offline')
+            page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
             page.locator('#navTechnique').click()
             page.locator('#idcExample').click()
             assert 'temporary-focus' in page.locator('#idcReport').inner_text()
             page.locator('#idcQuestion').fill('Checkout 81 with 2 darts')
             page.locator('#idcAsk').click()
             assert 'legal finish' in page.locator('#idcAnswer').inner_text()
-            print('WebKit offline relaunch and Coach passed:',inventory['expected'])
+            print('WebKit offline emulation navigation and Coach passed:',inventory['expected'])
+        except Exception as exc:
+            webkit_offline_error=str(exc)
+            print('WebKit offline emulation failure:',webkit_offline_error)
         finally:
             ctx.set_offline(False)
+        if webkit_offline_error:
+            page.goto('http://127.0.0.1:8765/index.html')
+            page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+            page.locator('#navTechnique').click()
     page.locator('#idcStatsPanel').evaluate('(e)=>e.open=true')
     page.locator('#idcStatsType').select_option('Actual match statistics')
     page.locator('#idcStatsReview').click()
@@ -593,6 +603,8 @@ with sync_playwright() as p:
     from browser_migration import run_migration_audit
     import traceback
     audit_errors=[]
+    if os.getenv('IDC_BROWSER','chromium')=='webkit' and webkit_offline_error:
+        audit_errors.append(('webkit_offline_emulation',webkit_offline_error))
     for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit):
         try:
             audit(browser)

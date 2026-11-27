@@ -9,6 +9,17 @@ from pathlib import Path
 from threading import Thread, Lock, Event
 from urllib.parse import urlsplit
 import re
+from time import monotonic
+
+def wait_async(page, predicate, description, timeout=30):
+    # Await the boolean itself, not a truthy Promise/JSHandle. Playwright's
+    # polling semantics can differ between versions and browser engines.
+    end=monotonic()+timeout
+    while monotonic()<end:
+        if page.evaluate(predicate) is True:
+            return
+        page.wait_for_timeout(100)
+    raise AssertionError('Timed out: '+description)
 
 SITE=Path(__file__).resolve().parent.parent/'site'
 
@@ -111,18 +122,23 @@ def run_upgrade_audit(browser):
             state.update(generation=902,fail=True)
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
         assert failed_request.wait(20), 'No failed precache request reached the synthetic server'
-        page.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration();return (await caches.keys()).includes('IDC:assets:2.0.0-dev902')&&!r.installing&&!r.waiting}")
+        wait_async(page,"async()=>{const r=await navigator.serviceWorker.getRegistration();return (await caches.keys()).includes('IDC:assets:2.0.0-dev902')&&!r.installing&&!r.waiting}",'failed installation settles')
         with lock:
             assert state['failed']>0, state
-        page.reload()
-        page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
+        # Keep the original controlled client alive. Navigate a second tab
+        # during the failed update, then close it before starting generation 903.
+        failed_tab=ctx.new_page()
+        failed_tab.goto(url+'?audit=failed-install')
+        failed_tab.wait_for_function('navigator.serviceWorker.controller!==null')
+        probe(failed_tab,901)
+        failed_tab.close()
         probe(page,901)
         assert page.evaluate("data.__upgradeAudit==='keep'")
         # Generation 903 succeeds but must remain waiting while old clients exist.
         with lock:
             state.update(generation=903,fail=False)
         page.evaluate("async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update()}")
-        page.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration();return !!r.waiting&&r.waiting.state==='installed'}")
+        wait_async(page,"async()=>{const r=await navigator.serviceWorker.getRegistration();return !!r.waiting&&r.waiting.state==='installed'}",'new worker installed and waiting')
         assert page.evaluate("async()=>{const keys=await caches.keys();return keys.includes('IDC:assets:2.0.0-dev901')&&keys.includes('IDC:assets:2.0.0-dev903')}")
         waiting=page.evaluate("""async()=>{
           const r=await navigator.serviceWorker.getRegistration(),w=r.waiting;
@@ -146,7 +162,7 @@ def run_upgrade_audit(browser):
         page.close()
         # Wait from an uncontrolled same-origin page, so opening the next
         # client cannot race with the old worker's release of its last client.
-        observer.wait_for_function("async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');const keys=await caches.keys();return !!r?.active&&r.active.state==='activated'&&!r.waiting&&keys.includes('IDC:assets:2.0.0-dev903')&&!keys.includes('IDC:assets:2.0.0-dev901')&&!keys.includes('IDC:assets:2.0.0-dev902')}")
+        wait_async(observer,"async()=>{const r=await navigator.serviceWorker.getRegistration('./site/');const keys=await caches.keys();return !!r?.active&&r.active.state==='activated'&&!r.waiting&&keys.includes('IDC:assets:2.0.0-dev903')&&!keys.includes('IDC:assets:2.0.0-dev901')&&!keys.includes('IDC:assets:2.0.0-dev902')}",'new worker activation and old cache retirement')
         cache_probe(observer,903)
         page=ctx.new_page()
         page.goto(url+'?audit=activated-generation')
@@ -155,8 +171,13 @@ def run_upgrade_audit(browser):
         probe(page,903)
         assert page.evaluate("data.__upgradeAudit==='keep' && localStorage.getItem('dartsCoachV4')==='LEGACY-UPGRADE-SENTINEL'")
         assert page.evaluate("async()=>!!await (await caches.open('OTHER:unrelated')).match('./unrelated')")
-        ctx.set_offline(True)
-        page.reload()
+        # Deny every runtime request at the real origin. Verify the outage
+        # with an uncached probe, then navigate using only the installed worker.
+        # This is distinct from Playwright network-emulation/airplane mode.
+        with lock:
+            state.update(fail=True)
+        assert page.evaluate("async()=>{try{return (await fetch('./unavailable-audit-probe',{cache:'no-store'})).status===503}catch(e){return true}}")
+        page.goto(url+'?audit=origin-unavailable')
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
         probe(page,903)
         page.locator('#navTechnique').click()
@@ -164,7 +185,7 @@ def run_upgrade_audit(browser):
         page.locator('#idcAsk').click()
         assert 'legal finish' in page.locator('#idcAnswer').inner_text()
         assert page.evaluate("data.__upgradeAudit==='keep'")
-        print('Real worker upgrade audit: interrupted precache, waiting generation, old tabs, consistent activation, offline relaunch and profile survival passed')
+        print('Real worker upgrade audit: interrupted precache, waiting generation, old tabs, consistent activation, origin-outage relaunch and profile survival passed')
     finally:
         if ctx is not None:
             ctx.close()
