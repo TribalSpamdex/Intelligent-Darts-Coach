@@ -972,7 +972,7 @@ html[data-appearance=light] body nav[aria-label="Main navigation"]:not(#dc590a):
 <details class="techTopic"><summary><span class="techTopicIcon">◎</span><span><strong>Aiming & grouping</strong><small>Control your routine, not every dart</small></span></summary><div class="techContent"><svg viewBox="0 0 320 148" role="img" aria-label="Target diagram contrasting a tight group and a scattered group"><rect x="8" y="8" width="304" height="132" rx="14" fill="#07130d"/><g fill="none" stroke="#568c6a" stroke-width="2"><circle cx="94" cy="75" r="43"/><circle cx="94" cy="75" r="29"/><circle cx="94" cy="75" r="14"/><circle cx="226" cy="75" r="43"/><circle cx="226" cy="75" r="29"/><circle cx="226" cy="75" r="14"/></g><g fill="#a5ffd0"><circle cx="88" cy="72" r="4"/><circle cx="99" cy="79" r="4"/><circle cx="95" cy="67" r="4"/><circle cx="194" cy="58" r="4"/><circle cx="250" cy="97" r="4"/><circle cx="223" cy="41" r="4"/></g><g fill="#b5dfc7" font-size="11" text-anchor="middle"><text x="94" y="131">Tighter group</text><text x="226" y="131">Wider spread</text></g></svg><p>Choose a precise target and keep your eyes there as you throw. A clear aiming routine is more repeatable than changing technique after each miss.</p><p>Look at clusters over several visits: a consistent group away from the target is different from darts scattered unpredictably.</p><div class="techExercise"><b>Try it:</b> Record ten three-dart visits at 20. Note whether the misses tend to land in 1, 5 or elsewhere. Treat the pattern as information, not proof of a mechanical fault.</div></div></details>
 <details class="techTopic"><summary><span class="techTopicIcon">➤</span><span><strong>Dart flight & setup</strong><small>Points, barrels, stems and flights</small></span></summary><div class="techContent"><svg viewBox="0 0 320 152" role="img" aria-label="Diagram comparing nose-up, level and nose-down dart entry angles"><rect x="8" y="8" width="304" height="136" rx="14" fill="#07130d"/><path d="M270 16V138" stroke="#9bd7b0" stroke-width="5"/><g stroke="#a5ffd0" stroke-width="5" stroke-linecap="round"><path d="M105 33L256 54"/><path d="M105 77L256 77"/><path d="M105 122L256 100"/></g><g fill="#b8e9cb" font-size="10"><text x="14" y="34">Nose up</text><text x="14" y="78">Level</text><text x="14" y="123">Nose down</text></g></svg><p>Flight shape, stem length, barrel balance and point length can change how a dart stabilises and enters the board. The same setup can behave differently for different throwing styles.</p><p>Change one component at a time, use enough throws to judge it and prioritise consistent grouping over a particular entry angle.</p><div class="techExercise"><b>Try it:</b> Compare two stem lengths over several identical three-dart visits. Record grouping and comfort before making a permanent change.</div></div></details>
 <details class="techTopic"><summary><span class="techTopicIcon">⑳</span><span><strong>Checkouts & board management</strong><small>Plan your next dart before throwing</small></span></summary><div class="techContent"><div class="checkoutExample"><div><small>EXAMPLE · 61 LEFT</small><strong>T15 → D8</strong><span>45 + 16 = 61</span></div><div><small>ALTERNATIVE</small><strong>S25 → D18</strong><span>25 + 36 = 61</span></div></div><p>Consider the double you prefer and the score a miss might leave. A good checkout route isn't simply the shortest mathematical combination: it should be playable for you.</p><p>When a dart hits the wrong segment, recalculate from the actual remaining score. Avoid leaving one point or a finish that isn't available.</p><div class="techExercise"><b>Try it:</b> Play finishes 41–61. Before every visit, name your preferred route and one alternative if the opening dart misses.</div></div></details>
-<details class="techTopic"><summary><span class="techTopicIcon">◷</span><span><strong>Rhythm & match pressure</strong><small>Maintain the same routine under jeopardy</small></span></summary><div class="techContent"><div class="rhythmDiagram"><span>Settle</span><b>›</b><span>Focus</span><b>›</b><span>Throw</span><b>›</b><span>Reset</span></div><p>Pressure changes attention. Keep your routine short and repeatable: settle your feet, pick the target, throw at your normal pace, then reset for the next dart.</p><p>A failed visit doesn't mean the routine was wrong. Judge changes over many sessions, especially when pressure differs.</p><div class="techExercise"><b>Try it:</b> Give yourself three darts at a double for five rounds. Use the exact same pre-throw routine whether the previous round was a win or a loss.</div></div></details>
+<details class="techTopic"><summary><span class="techTopicIcon">◷</span><span><strong>Rhythm & match pressure</strong><small>Maintain the same routine under jeopardy</small></span></summary><div class="techContent"><div class="rhythmDiagram"><span>Settle</span><b>›</b><span>Focus</span><b>›</b><span>Throw</span><b>›</b><span>Reset</span></div><p>Pressure changes attention. Keep your routine short and repeatable: settle your feet, pick the target, throw at your normal pace, then reset for the next dart.</p><p>A failed visit doesn't mean the routine was wrong. Judge changes over many sessions, especially when pressure differs.</p><div class="techExercise"><b>Try it:</b> Give yourself three darts at a double for five rounds. Use the exact same pre-throw routine whether the previous round met the target or not.</div></div></details>
 </div></div></section>
 <section id="settings" class="hidden">
 <div class="card"><h2>Weekly Training Days</h2><p class="muted">Select five days. The coach handles the training on those days.</p><div class="dayRow" id="days"></div><p id="dayStatus" class="muted"></p></div><div class="card"><h2>Training Data</h2><p class="muted">Data is stored in this browser or Home Screen app, not on GitHub. Updates at the same address should preserve it. Safari and a Home Screen app may have different saved data. Keep an external backup.</p><h3>1. Protect Your Training</h3>
@@ -1347,16 +1347,8 @@ function checkpointDate(){
 }
 let data=load(),activeStage=null,currentTab="home",activeGame=null,undoSnapshot=null,flash="";
 let roundAnnouncementTimer=null;
-function announceRound(number,previous=""){
- const el=$("roundAnnouncement");if(!el)return;
- if(roundAnnouncementTimer!==null)clearTimeout(roundAnnouncementTimer);
- $("roundAnnouncementTitle").textContent="ROUND "+number;
- $("roundAnnouncementPrevious").textContent=previous;
- $("roundAnnouncementPrevious").classList.toggle("hidden",!previous);
- el.classList.remove("hidden");
- const card=$("roundAnnouncementCard");card.style.animation="none";void card.offsetWidth;card.style.animation="";
- roundAnnouncementTimer=setTimeout(()=>{el.classList.add("hidden");roundAnnouncementTimer=null},1450);
-}
+function announceRound(){hideRoundAnnouncement()}
+
 function hideRoundAnnouncement(){if(roundAnnouncementTimer!==null){clearTimeout(roundAnnouncementTimer);roundAnnouncementTimer=null}const el=$("roundAnnouncement");if(el)el.classList.add("hidden")}
 
 /* V5.10.1: A failed main write must not be reported as success. Keep the
@@ -1404,13 +1396,11 @@ function show(id){
 }
 /* Evidence is aggregated by calendar day: many rounds cannot create many promotion days. */
 function gameTime(g){if(num(g.at)>0)return num(g.at);if(g.day){const t=new Date(g.day+"T12:00:00").getTime();if(Number.isFinite(t))return t}const t=new Date(g.date||"").getTime();return Number.isFinite(t)?t:0}
-/* Quick Play rounds must form a meaningful SESSION of comparable evidence. */
+/* Recreational Quick Play is retained for records, never for coaching evidence. */
 function quickEvidenceEligible(g,context=null){
- if(!g.quick)return true;
- const evidence=context||dc63QuickEvidence(),actual=evidence.sessions.get(g.sessionId);
- if(!actual||num(actual.minutes)<15||g.completion!=='natural'||!g.sessionId)return false;
- const minimum=g.name==='Bull Accuracy'?30:['Doubles Survival','Outside Doubles','Double Double'].includes(g.name)?12:g.name==='Checkout Climb'?5:10;
- return (evidence.volumes.get(g.sessionId)?.get(g.name)||0)>=minimum;
+ if(!g||g.quick)return false;
+ const evidence=context||dc63QuickEvidence();
+ return g.sessionId==null||!evidence.sessions.has(String(g.sessionId));
 }
 /* Checkout difficulty uses the existing modest logistic slope. This is a
    coaching model, while recorded successes, attempts and progress stay factual.
@@ -1485,27 +1475,17 @@ if(g.benchmark===false&&!(["Scoring Survival","Scoring Ladder","Outside Doubles"
  if(g.name==="Bull Accuracy"&&Number.isInteger(g.thrown)&&g.thrown===30&&Number.isInteger(g.outer)&&Number.isInteger(g.inner)&&g.outer>=0&&g.inner>=0&&g.outer+g.inner<=30&&(!Object.prototype.hasOwnProperty.call(g,"misses")||(Number.isInteger(g.misses)&&g.misses>=0&&g.misses+g.outer+g.inner===30)))result.bull.push({time,hits:num(g.outer)+num(g.inner),inner:num(g.inner),volume:num(g.thrown),id:time,source:g.name+(Number.isFinite(g.tier)?':tier'+g.tier:'')+(typeof g.variant==='string'?':'+g.variant:''),quick:!!g.quick,weight:quickWeight(g,quickContext)});
  }return result}
 function quickWeight(g,context=null){
- if(!g.quick)return 1;
- const row=context?context.sessions.get(g.sessionId):data.sessions.find(x=>x.quick&&x.id===g.sessionId&&x.completed);
- const minutes=row?num(row.minutes):0;
- return minutes>=30?.75:minutes>=20?.55:minutes>=15?.4:0;
+ return quickEvidenceEligible(g,context)?1:0;
 }
 
 /* Coach evidence is indexed for one calculation, never cached across mutations. */
 function dc63QuickEvidence(){
- const sessions=new Map(),volumes=new Map(),now=Date.now();
- for(const row of data.sessions){
-  if(row?.quick&&row.completed&&!sessions.has(row.id))sessions.set(row.id,row);
+ const sessions=new Map();
+ for(const row of data.sessions||[]){
+  if(row?.quick&&row.id!=null)sessions.set(String(row.id),row);
  }
- for(const row of data.games){
-  if(!row?.quick||!row.sessionId||row.completion!=='natural'||!dc68EvidenceCounts(row))continue;
-  const time=gameTime(row);if(!time||time>now)continue;
-  const byName=volumes.get(row.sessionId)||new Map();
-  const volume=row.name==='Bull Accuracy'||['Doubles Survival','Outside Doubles','Double Double'].includes(row.name)?
-   num(row.thrown):row.name==='Checkout Climb'?num(row.success)+num(row.fail):num(row.visits);
-  byName.set(row.name,(byName.get(row.name)||0)+volume);volumes.set(row.sessionId,byName);
- }
- return {sessions,volumes};
+ if(data.activeSession?.quick&&data.activeSession.id!=null)sessions.set(String(data.activeSession.id),data.activeSession);
+ return {sessions,volumes:new Map()};
 }
 function dc64RecentEstimate(key,rows,prior,now){
  // These are bounded comparison blocks. Equal recency prevents the candidate's
@@ -1613,7 +1593,8 @@ function dc63DecisionEvidence(key,rows,current,proposed,now,initialWindow){
 function dailySamples(rows){
  const groups=new Map();
  for(const row of rows){
-  const volume=Number(row?.volume),weight=row?.quick?Number(row.weight):1;
+  if(row?.quick)continue;
+  const volume=Number(row?.volume),weight=1;
   if(!row||!Number.isFinite(row.time)||!Number.isFinite(volume)||volume<=0||!Number.isFinite(weight)||weight<=0)continue;
   const day=dateKey(row.time);
   if(!groups.has(day))groups.set(day,{day,time:row.time,hits:0,inner:0,points:0,volume:0,quickVolume:0,quick:{hits:0,inner:0,points:0,volume:0}});
@@ -1965,7 +1946,7 @@ function rapidInitialCalibration(){
  if(!a||!a.finished||!a.completedAt)return;
  dc2UpdateSkills(true);
 }
-function focusForDay(extra){const sorted=[...data.days].sort((a,b)=>a-b),index=sorted.indexOf(new Date().getDay());if(extra)return FOCUS[(Math.max(0,index)+data.sessions.filter(s=>s.date===dateKey()).length+1)%5];return FOCUS[Math.max(0,index)%5]}
+function focusForDay(extra){const sorted=[...data.days].sort((a,b)=>a-b),index=sorted.indexOf(new Date().getDay());if(extra)return FOCUS[(Math.max(0,index)+data.sessions.filter(s=>s.date===dateKey()&&!s.quick).length+1)%5];return FOCUS[Math.max(0,index)%5]}
 /* Each scheduled session draws three DISTINCT pressure games, favouring its daily
    theme and avoiding games from the most recent session where possible.
    Stable benchmarks/assessment are not mixed with the jeopardy game library. */
@@ -2262,14 +2243,14 @@ const DC12_RECOVERY_GAMES=new Set([
 function dc12RecoveryState(name, games=data.games, now=Date.now()){
  const p=dc10ChallengeProfile(name,games,now);
  const supported=DC12_RECOVERY_GAMES.has(name),cutoff=now-45*DAY_MS;
- const previous=(games||[]).filter(e=>e&&e.name===name&&e.completion==='natural'&&
+ const previous=(games||[]).filter(e=>e&&e.name===name&&!e.quick&&(name!=='Doubles Streak'||e.ruleVersion==='same-target-streak-v1')&&e.completion==='natural'&&
    e.recovery===true&&typeof e.win==='boolean'&&Number.isFinite(e.at)&&e.at>=cutoff&&e.at<=now);
  const wins=previous.filter(e=>e.win).length;
  const earned=supported&&p.evidence>=8&&p.effectiveDays>=5&&p.probability<.30&&p.reliability>=.5;
  // A recovered game must periodically be played at normal rules. If standard
  // performance improves, the need for a softer round disappears automatically.
  const attempt=previous.length;
- const latest=(games||[]).filter(e=>e&&e.name===name&&e.completion==='natural'&&
+ const latest=(games||[]).filter(e=>e&&e.name===name&&!e.quick&&(name!=='Doubles Streak'||e.ruleVersion==='same-target-streak-v1')&&e.completion==='natural'&&
   typeof e.win==='boolean'&&Number.isFinite(e.at)&&e.at>=cutoff&&e.at<=now)
   .sort((a,b)=>a.at-b.at).at(-1);
  const trial=!!latest?.recovery&&attempt>0&&(attempt%4===3||wins>=3&&attempt%2===1);
@@ -2333,7 +2314,7 @@ function dc19Decision(name,games=data.games,now=Date.now()){
  const config=DC19_TUNABLE[name];
  if(!config)return {mode:'standard',reason:'unsupported'};
  const p=dc10ChallengeProfile(name,games,now);
- const recent=(games||[]).filter(e=>e&&e.name===name&&
+ const recent=(games||[]).filter(e=>e&&e.name===name&&(name!=='Doubles Streak'||e.ruleVersion==='same-target-streak-v1')&&
   e.completion==='natural'&&e.quick!==true&&e.recovery!==true&&
   Number(e.tierAtStart)===p.tier&&Number.isFinite(e.at)&&
   e.at>=now-60*DAY_MS&&e.at<=now&&typeof e.win==='boolean');
@@ -2413,7 +2394,7 @@ function dc21FixedProgramme(focus){
  const selected=[];
  for(const theme of themes){
   const pool=TRAINING_LIBRARY[theme]||[];
-  const name=pool.find(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&!selected.includes(n));
+  const name=pool.find(n=>QUICK_GAMES.includes(n)&&dcGameEligible(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&!selected.includes(n));
   if(name)selected.push(name);
  }
  return selected;
@@ -2531,7 +2512,7 @@ function dc21ResearchHTML(){
     forecast.signal==='worse'?'Forecasts currently underperform a neutral prediction on this check.':
     'Uncertain: the current observations do not clearly separate the coach from a neutral prediction.')+'</p>';
  }else html+='<p class="muted">Waiting for at least 40 eligible rounds on 20 separate days. No performance verdict yet.</p>';
- html+='<h3>Historical-Rate Comparison</h3><p>'+historical.rounds+' eligible forecasts on '+historical.days+' days, each against a win rate estimated from at least eight previous recorded days for that exact game and tier.</p>';
+ html+='<h3>Historical-Rate Comparison</h3><p>'+historical.rounds+' eligible forecasts on '+historical.days+' days, each against a completion rate estimated from at least eight previous recorded days for that exact game and tier.</p>';
  if(historical.ready){
   html+='<p>Day-balanced squared error: coach '+escNum(historical.model)+' versus earlier-results reference '+escNum(historical.historical)+'.</p>'+
    '<p>Estimated advantage: '+escNum(historical.gain)+'; approximate 95% day-cluster interval '+escNum(historical.lower95)+' to '+escNum(historical.upper95)+'.</p>'+
@@ -2767,6 +2748,7 @@ function dc16PressureEvidence(player=data,now=Date.now()){
  const cutoff=now-56*DAY_MS,groups=new Map();
  for(const g of player.games||[]){
   if(!g||g.completion!=='natural'||g.quick||g.recovery||g.challengeTuning||typeof g.win!=='boolean'||!Number.isFinite(g.at)||g.at<cutoff||g.at>now||!Number.isInteger(Number(g.tierAtStart)))continue;
+  if(g.name==='Doubles Streak'&&g.ruleVersion!=='same-target-streak-v1')continue;
   const key=g.name+':'+Number(g.tierAtStart),d=dateKey(g.at);
   const row=groups.get(key)||{name:g.name,tier:Number(g.tierAtStart),days:new Map()};
   const day=row.days.get(d)||{at:g.at,w:0,n:0};day.at=Math.max(day.at,g.at);day.w+=g.win?1:0;day.n++;row.days.set(d,day);groups.set(key,row);
@@ -3399,11 +3381,11 @@ function dc40ExplorationEligibility(now=Date.now(),policy=null){
 }
 function chooseSessionGames(focus,count=3,sessionPolicy=null,allowTrials=true,preparation=null,reserved=null){
  const primary=TRAINING_LIBRARY[focus]||TRAINING_LIBRARY.scoring;
- const recent=(data.sessions||[]).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
+ const recent=(data.sessions||[]).filter(s=>s&&!s.quick).slice(-3).flatMap(x=>Array.isArray(x?.focus)?x.focus:[]);
  const alreadyToday=dc22GamesPlayedToday();
  if(data.activeSession&&!data.activeSession.quick){for(const e of data.activeSession.plan||[])if(QUICK_GAMES.includes(e.name))alreadyToday.add(e.name)}
- const seed=(Math.floor(Date.now()/DAY_MS)*1103515245+(data.sessions||[]).filter(x=>x?.date===dateKey()).length*7919)>>>0;
- const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery'&&n!==reserved);
+ const seed=(Math.floor(Date.now()/DAY_MS)*1103515245+(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick).length*7919)>>>0;
+ const all=[...new Set(Object.values(TRAINING_LIBRARY).flat().concat(QUICK_GAMES))].filter(n=>QUICK_GAMES.includes(n)&&dcGameEligible(n)&&!DC10_MEASUREMENT_GAMES.has(n)&&n!=='Target Mastery'&&n!==reserved);
  const profiles=dc18ChallengeProfiles(all),effects=dc15EffectEvidence(),categoryPlan=dc28CategoryPlanning(),selected=[],policy=sessionPolicy||dc32WholeSessionPolicy();
  const exploration=dc40ExplorationEligibility(Date.now(),policy);let explored=false,exploredGame=null,dc47Trial=null;
  const methodCandidates=[],methodEnabled=allowTrials&&!exploration.allowed&&window.IDCPolicy?.methodEnabled?.()===true;
@@ -3829,12 +3811,12 @@ function dc22MasteryCandidate(){
   if(treble!==null)candidates.push({ring:"T",target:treble.target,priority:treble.score});
   if(singles.development.length)candidates.push({ring:'S',target:singles.development[0].target,priority:singles.development[0].score});
   if(doubles.weak.length)candidates.push({ring:'D',target:doubles.weak[0],priority:3.5});
-  const today=(data.sessions||[]).filter(x=>x?.date===dateKey());
+  const today=(data.sessions||[]).filter(x=>x?.date===dateKey()&&!x.quick);
   if((data.games||[]).some(g=>g?.name==='Target Mastery'&&!g.quick&&Number.isFinite(g.at)&&g.at<=Date.now()&&dateKey(g.at)===dateKey()&&['natural','partial','timed'].includes(g.completion)))return null;
   if(today.some(x=>(x.focus||[]).includes('Target Mastery')))return null;
   // Do not schedule the same exact segment every day when there are other
   // measured needs. Leave at least two calendar days between repeats.
-  const cooldown=new Set((data.games||[]).filter(g=>g?.name==='Target Mastery'&&g.completion==='natural'&&
+  const cooldown=new Set((data.games||[]).filter(g=>g?.name==='Target Mastery'&&!g.quick&&g.completion==='natural'&&
     Number.isFinite(g.at)&&g.at<=Date.now()&&Date.now()-g.at<3*DAY_MS)
     .map(g=>g.details?.ring+String(g.details?.target)));
   for(let i=candidates.length-1;i>=0;i--)if(candidates[i].ring&&cooldown.has(candidates[i].ring+String(candidates[i].target)))candidates.splice(i,1);
@@ -3871,7 +3853,7 @@ function dc10PressureSummary(games,sessionId){
 function dc44FocusGate(candidate,category,policy,extra=false,now=Date.now()){
  const base={version:'5.32.0',eligible:false,minutes:0,reason:'balanced programme',category:category||null,
   completedFocusMinutes7d:0,independentDays:0};
- if(extra&&(data.sessions||[]).some(s=>dateKey(s.start)===dateKey(now)&&((s.activities||[]).some(a=>a.name==='Target Mastery'&&num(a.seconds)>0)||s.interruptedExercise?.name==='Target Mastery')))return {...base,reason:'focused practice already completed today'};
+ if(extra&&(data.sessions||[]).some(s=>s&&!s.quick&&dateKey(s.start)===dateKey(now)&&((s.activities||[]).some(a=>a.name==='Target Mastery'&&num(a.seconds)>0)||s.interruptedExercise?.name==='Target Mastery')))return {...base,reason:'focused practice already completed today'};
  if(!candidate||!category)return {...base,reason:'no measured, actionable weakness'};
  if(candidate.basis==='maintenance rotation, not a diagnosed weakness'||Number(candidate.priority)<1.25)
   return {...base,reason:'maintenance or weak signal is not a diagnosed need'};
@@ -3885,7 +3867,7 @@ function dc44FocusGate(candidate,category,policy,extra=false,now=Date.now()){
  // actual finished focus, not the planned future exposure.
  let spent=0;
  for(const sess of data.sessions||[]){
-  if(!sess||sess.completed!==true||!Number.isFinite(sess.start)||sess.start>now||sess.start<now-7*DAY_MS||!Array.isArray(sess.activities))continue;
+  if(!sess||sess.quick||sess.completed!==true||!Number.isFinite(sess.start)||sess.start>now||sess.start<now-7*DAY_MS||!Array.isArray(sess.activities))continue;
   for(const a of sess.activities){
    if(a?.name==='Target Mastery'&&Number(a.seconds)>=300)spent+=Math.min(60,Number(a.seconds)/60);
   }
@@ -3974,11 +3956,11 @@ function generateSession(extra=false,skipWarmup=false,preview=false){
  const need=close?null:coach62SessionNeed(dayIntent,wholePolicy);
  if(need&&!chosen.exploration?.trial&&!chosen.some(n=>dc28GameCategory(n)===need.key)){
   const recent=dc22GamesPlayedToday();
-  const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===need.key&&n!==application&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
+  const pool=QUICK_GAMES.filter(n=>dcGameEligible(n)&&dc28GameCategory(n)===need.key&&n!==application&&!DC10_MEASUREMENT_GAMES.has(n)&&!chosen.includes(n)&&!recent.has(n));
   const counts=chosen.map(n=>dc28GameCategory(n));
   const donor=counts.findLastIndex(k=>counts.filter(x=>x===k).length>1);
   if(pool.length&&donor>=0){
-   const recentGames=(data.sessions||[]).filter(s=>s.completed&&s.start>=Date.now()-7*DAY_MS).flatMap(s=>s.activities||[]);
+   const recentGames=(data.sessions||[]).filter(s=>s.completed&&!s.quick&&s.start>=Date.now()-7*DAY_MS).flatMap(s=>s.activities||[]);
    const exposure=n=>recentGames.filter(a=>a.name===n).reduce((v,a)=>v+num(a.seconds),0);
    pool.sort((a,b)=>exposure(a)-exposure(b)||a.localeCompare(b));
    chosen[donor]=pool[0];
@@ -4059,7 +4041,7 @@ const QUICK_DESCRIPTIONS={
  "Scoring Ladder":"Climb a sequence of targets. Missing a target knocks you down.",
  "Treble Hunt":"Hit changing trebles within your lives allowance. Beginners aim at singles using measured targets when available.",
  "Doubles Survival":"Clear doubles before your darts run out.",
- "Doubles Streak":"Build consecutive target hits. Misses break your run and cost lives.",
+ "Doubles Streak":"Keep hitting the same target. A miss breaks the streak, costs one life and moves to the next target.",
  "Staying Straight":"Keep scoring in each numbered segment. The first miss ends that segment.",
  "Checkout Climb":"Finish in three darts. Success raises the score; failure lowers it.",
  "Focused Checkouts":"Clear an adaptive range before your lives run out.",
@@ -4083,7 +4065,7 @@ const QUICK_DESCRIPTIONS={
  "Last Dart Rescue":"Solve five last-dart situations. Wrong target costs a life.",
  "Risk or Reward":"Choose SAFE (normal scoring) or RISK (+35 bonus points if you meet the higher target). Miss a risky target and lose 50 points and a life. Reach the goal to win.",
  "170 Challenge":"Attempt a 170 finish inside your dart allowance; busts and missed attempts cost a life.",
- "First Nine Siege":"Three visits (nine darts) to beat a cumulative scoring target. An exact, finite win/loss challenge.",
+ "First Nine Siege":"Three visits (nine darts) to beat a cumulative scoring target. A fixed scoring challenge.",
  "Last Dart Standing":"Six one-dart situations. Decide whether to finish or set up before throwing. Wrong decisions cost lives.",
  "Pressure Cricket":"Close the three displayed numbers and beat a simulated opponent\u2019s scoring pace.",
  "Bull Blackjack":"Reach exactly 150 bull points before your darts run out. Over 150 is an instant loss.",
@@ -4120,7 +4102,34 @@ function closeQuickGame(){
  quickGameReturnFocus=null;
  randomQuickPending=false;
 }
-function chooseQuick(name){if(!QUICK_GAMES.includes(name))return;randomQuickPending=false;quickChoice=name;renderQuick();openQuickGame()}
+/* 501 Pressure is reserved for current 80+ scoring ability. No recreational evidence. */
+function dc501PressureEligibility(now=Date.now()){
+ const a=data.assessment,at=assessmentDate(a);
+ const valid=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=180;
+ const result=(average,source)=>({allowed:valid(average)&&average>=80-1e-9,average:valid(average)?average:null,source});
+ const cutoff=Math.max(now-42*DAY_MS,at>0&&at<=now?at:0);
+ const rows=dailySamples(skillSamples().scoring.filter(r=>!r.quick&&r.time>=cutoff&&r.time<=now));
+ const estimate=dc2Estimate('scoring',rows,null,now,true);
+ if(estimate.confidence!=='low'&&valid(estimate.value))return result(estimate.value,'recent-training');
+ if(a?.finished===true&&at>0&&at<=now&&at>=now-42*DAY_MS){
+  const p=a.profile?.scoring;
+  if(a.quickStart===true&&valid(a.profile?.selfReportedAverage))return result(a.profile.selfReportedAverage,'provisional-quick-start');
+  if(Number.isInteger(p?.visits)&&p.visits>=20&&valid(p.average)&&Number.isFinite(p.total)&&Math.abs(p.total/p.visits-p.average)<1e-6)return result(p.average,'assessment');
+ }
+ return result(null,'insufficient-current-evidence');
+}
+function dcGameEligible(name){return name!=='501 Pressure'||dc501PressureEligibility().allowed}
+function dc501Substitute(s,item){
+ if(item.name!=='501 Pressure'||dcGameEligible(item.name))return item;
+ const used=new Set(s.plan.filter((_,i)=>i!==s.index).map(e=>e.name));
+ const choices=['301 Pressure','Focused Checkouts','Scoring Survival','Scoring Ladder'];
+ const replacement=choices.find(n=>!used.has(n))||choices[0];
+ const next={name:replacement,mode:item.mode,seconds:item.seconds,...(item.application?{application:true}:{}),...(item.provenanceId?{provenanceId:item.provenanceId}:{})};
+ if(item.wholeCoach)next.wholeCoach={category:dc28GameCategory(replacement),reason:'501 Pressure eligibility replacement'};
+ (s.eligibilitySubstitutions??=[]).push({index:s.index,from:item.name,to:replacement,seconds:item.seconds,at:Date.now(),reason:'Current 80+ scoring evidence unavailable'});
+ s.plan[s.index]=next;return next;
+}
+function chooseQuick(name){if(!QUICK_GAMES.includes(name)||!dcGameEligible(name))return;randomQuickPending=false;quickChoice=name;renderQuick();openQuickGame()}
 let dc22LastRandomGame=null;
 function randomQuickPlay(){
  if(session()||assessmentDue()){show('train');return}
@@ -4128,7 +4137,7 @@ function randomQuickPlay(){
 }
 function selectRandomQuickGame(){
  const last=dc22LastRandomGame||(data.sessions||[]).filter(x=>x?.quick&&QUICK_GAMES.includes(x.quickGame)).at(-1)?.quickGame;
- const eligible=QUICK_GAMES.filter(n=>n!==last);
+ const eligible=QUICK_GAMES.filter(n=>n!==last&&dcGameEligible(n));
  const recent=(data.sessions||[]).filter(x=>x?.quick).slice(-QUICK_GAMES.length).map(x=>x.quickGame);
  const fresh=eligible.filter(n=>!recent.includes(n));
  const pool=fresh.length?fresh:eligible;
@@ -4138,7 +4147,7 @@ function selectRandomQuickGame(){
 }
 function renderQuick(){
  const area=$("quickGames");if(!area)return;
- area.innerHTML=QUICK_GAMES.map(name=>'<button class="quickTile '+(name===quickChoice?'selected':'')+'" aria-pressed="'+(name===quickChoice)+'" onclick="chooseQuick('+JSON.stringify(name).replace(/"/g,'&quot;')+')">'+esc(name)+'</button>').join('');
+ area.innerHTML=QUICK_GAMES.filter(dcGameEligible).map(name=>'<button class="quickTile '+(name===quickChoice?'selected':'')+'" aria-pressed="'+(name===quickChoice)+'" onclick="chooseQuick('+JSON.stringify(name).replace(/"/g,'&quot;')+')">'+esc(name)+'</button>').join('');
  const duration=Number($("quickDuration").value)||1200;
  const needs=assessmentDue();
  $("quickGameTitle").textContent=randomQuickPending?"Random Game":quickChoice;
@@ -4146,12 +4155,13 @@ function renderQuick(){
  $("dc23MasteryOptions").classList.toggle("hidden",randomQuickPending||quickChoice!=="Target Mastery");
  $("dc23MasterySelect").value=dc23QuickMode;
  document.querySelectorAll("#quickDurationOptions button").forEach(b=>{const on=Number(b.dataset.seconds)===duration;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on))});
- $("quickEvidence").textContent=duration<900?'This short game is saved in Quick Play history but excluded from tier decisions.':duration<1800?'Recorded separately. Once there are enough real results across several days, they can contribute modestly to your skill assessment.':'Thirty-minute practice can contribute meaningful evidence over multiple days. It cannot change a tier after one session.';
- $("quickStart").disabled=needs||!!session();
- $("quickStart").textContent=session()?'Session in progress':needs?'Complete assessment first':randomQuickPending?'Play Random Game':'Play Game';
+ $("quickEvidence").textContent='Quick Play is recorded separately for your enjoyment and personal records. It does not contribute to coaching decisions.';
+ const unavailable=!randomQuickPending&&!dcGameEligible(quickChoice);
+ $("quickStart").disabled=needs||!!session()||unavailable;
+ $("quickStart").textContent=session()?'Session in progress':needs?'Complete assessment first':unavailable?'Requires 80+ average':randomQuickPending?'Play Random Game':'Play Game';
  $("quickIntro").textContent=needs?'Complete your assessment or choose Quick Start in Train before playing.':session()?'A training or Quick Play session is in progress. Finish it before starting another.':'Choose a game. The coach applies your existing independent hidden skill level automatically.';
  const rows=data.sessions.filter(x=>x.quick).slice(-8).reverse();
- $("quickHistory").innerHTML=rows.length?rows.map(x=>{const rounds=data.games.filter(g=>g.sessionId===x.id&&g.quick&&g.completion==="natural");const w=rounds.filter(g=>g.win===true).length,l=rounds.filter(g=>g.loss===true).length;return '<div class="entry"><strong>'+esc(x.quickGame||'Quick Play')+'</strong> · '+esc(x.date)+' · '+num(x.minutes).toFixed(1)+' min · '+w+' WIN / '+l+' LOSE</div>'}).join(''):'<p class="muted">No Quick Play sessions yet.</p>';
+ $("quickHistory").innerHTML=rows.length?rows.map(x=>{const rounds=data.games.filter(g=>g.sessionId===x.id&&g.quick&&g.completion==="natural");return '<div class="entry"><strong>'+esc(x.quickGame||'Quick Play')+'</strong> · '+esc(x.date)+' · '+num(x.minutes).toFixed(1)+' min · '+rounds.length+' rounds recorded</div>'}).join(''):'<p class="muted">No Quick Play sessions yet.</p>';
 }
 function startQuickPlay(){
  if(!idcPhysicalAllowed())return;
@@ -4164,8 +4174,7 @@ function startQuickPlay(){
   quickChoice=picked;dc22LastRandomGame=picked;
   if(picked==='Target Mastery')dc23QuickMode=DC23_MASTERY_MODES[Math.floor(Math.random()*DC23_MASTERY_MODES.length)];
  }
- if(!QUICK_GAMES.includes(quickChoice))return;
- performCoachReview();
+ if(!QUICK_GAMES.includes(quickChoice)||!dcGameEligible(quickChoice))return;
  const t=Date.now();
  data.activeSession={id:t,start:t,extra:true,quick:true,quickGame:quickChoice,quickSeconds:duration,plan:[{name:quickChoice,mode:"timed",seconds:duration,...(quickChoice==="Target Mastery"?{mastery:{mode:dc23QuickMode}}:{})}],index:0,completed:[],pausedAt:t,pausedTotal:0,activityStarted:null,activityAccumulated:0,round:1,roundsCompleted:0,allocated:true,benchmarkSeconds:0,phase:"rules"};
  dc45InitialSnapshot(data.activeSession);dc45LockAllocation(data.activeSession);
@@ -4293,7 +4302,7 @@ function allocateRemaining(s){
    const played=dc22GamesPlayedToday();
    const options=(s.unifiedAudit?.idcMethodCandidates||[]).flatMap(o=>{
     const e=queue.find(x=>x.name===o.normal&&x.mode==='timed'&&x.wholeCoach?.category===o.skill);
-    if(!e||!QUICK_GAMES.includes(o.alternative)||DC10_MEASUREMENT_GAMES.has(o.alternative)||o.alternative==='Target Mastery'||dc28GameCategory(o.alternative)!==o.skill||played.has(o.alternative)||s.plan.some(x=>x.name===o.alternative))return [];
+    if(!e||!QUICK_GAMES.includes(o.alternative)||!dcGameEligible(o.alternative)||DC10_MEASUREMENT_GAMES.has(o.alternative)||o.alternative==='Target Mastery'||dc28GameCategory(o.alternative)!==o.skill||played.has(o.alternative)||s.plan.some(x=>x.name===o.alternative))return [];
     return [{...o,seconds:e.seconds,normalTier:dc9GameTier(o.normal),alternativeTier:dc9GameTier(o.alternative)}];
    });
    const decision=options.length?window.IDCPolicy.methodChoice(options,s.wholeSessionAudit.policy):{status:'unchanged'};
@@ -4312,7 +4321,7 @@ function allocateRemaining(s){
    const cat=entry.wholeCoach?.category;
    if(!cat||entry.seconds<1500)continue;
    while(entry.seconds>=1500){
-    const pool=QUICK_GAMES.filter(n=>dc28GameCategory(n)===cat&&!DC10_MEASUREMENT_GAMES.has(n)&&!s.plan.some(e=>e.name===n)&&!recent.has(n)&&n!==s.wholeSessionAudit?.idcMethod?.normal);
+    const pool=QUICK_GAMES.filter(n=>dcGameEligible(n)&&dc28GameCategory(n)===cat&&!DC10_MEASUREMENT_GAMES.has(n)&&!s.plan.some(e=>e.name===n)&&!recent.has(n)&&n!==s.wholeSessionAudit?.idcMethod?.normal);
     if(!pool.length)break;
     pool.sort((a,b)=>exposure(a)-exposure(b)||a.localeCompare(b));
     const total=entry.seconds;
@@ -4331,7 +4340,7 @@ function allocateRemaining(s){
  if(s.wholeSessionAudit?.idcMethod?.status==='selected'){const d=s.wholeSessionAudit.idcMethod,idx=s.plan.findIndex(e=>e.name===d.alternative&&e.seconds===d.seconds&&e.mode==='timed');if(idx>=0)d.exerciseIndex=idx;}
  s.allocated=true;dc45LockAllocation(s);
 }
-function startExercise(){const s=session();if(!s)return;if(s.index>=s.plan.length){finishSession(true);return}let item=currentExercise();if(item.name!=="Warm-up"&&item.name!=="Big Singles"&&!s.allocated)allocateRemaining(s);item=currentExercise();if(!item){finishSession(true);return}s.phase="rules";if(!s.pausedAt)s.pausedAt=Date.now();s.activityStarted=null;s.activityAccumulated=0;s.round=1;s.roundsCompleted=0;s.lastRoundUndo=null;dc45EnsureProvenance(s);activeGame=buildGame(item.name);data.game=activeGame;undoSnapshot=null;save(false)}
+function startExercise(){const s=session();if(!s)return;if(s.index>=s.plan.length){finishSession(true);return}let item=currentExercise();if(item.name!=="Warm-up"&&item.name!=="Big Singles"&&!s.allocated)allocateRemaining(s);item=currentExercise();if(!item){finishSession(true);return}item=dc501Substitute(s,item);s.phase="rules";if(!s.pausedAt)s.pausedAt=Date.now();s.activityStarted=null;s.activityAccumulated=0;s.round=1;s.roundsCompleted=0;s.lastRoundUndo=null;dc45EnsureProvenance(s);activeGame=buildGame(item.name);data.game=activeGame;undoSnapshot=null;save(false)}
 
 /* FOCUSED CHECKOUTS: independent checkout tier; selectable range size is not fixed.
    Range is chosen ONCE per exercise and remains stable for its timed rounds.
@@ -4347,7 +4356,7 @@ function focusedConfig(){
  const tier=clamp(Math.round(num(data.skills.checkout.level)||7),1,7);
  const [low,high]=FOCUSED_BANDS[tier];
  /* Choose a varied length (3-12 inclusive), bounded by this tier's band. */
- const seed=(data.sessions.length*13+new Date().getDate()*7+
+ const seed=(data.sessions.filter(s=>s&&!s.quick).length*13+new Date().getDate()*7+
    (s?Math.floor(num(s.id)/DAY_MS):0)+tier*11)>>>0;
  const length=Math.min(high-low+1,3+(seed%2));
  const start=low+((Math.floor(seed/10)*7+seed)%Math.max(1,high-low-length+2));
@@ -4639,9 +4648,13 @@ function trebleDart(hit){if(typeof hit!=="boolean")return;
 function doublesStreakDart(hit){if(typeof hit!=="boolean")return;
  const g=activeGame,s=session();if(!g||g.name!=="Doubles Streak"||!s||s.pausedAt||s.phase!=="playing")return;
  snapshot();(g.targetLog||(g.targetLog=[])).push({target:g.targets[g.targetIndex],hit:!!hit,ring:g.variant==="singles"?"S":"D"});g.thrown++;
- if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);g.targetIndex=(g.targetIndex+1)%g.targets.length}
- else{g.misses++;g.streak=0;g.lives--}
- if(g.best>=g.goal||g.lives<=0){endRound();return}
+ const sameTarget=g.ruleVersion==='same-target-streak-v1';
+ if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(!sameTarget)g.targetIndex=(g.targetIndex+1)%g.targets.length}
+ else{g.misses++;g.streak=0;g.lives--;if(sameTarget&&g.lives>0)g.targetIndex=(g.targetIndex+1)%g.targets.length}
+ // New rounds end only on exhausted lives or exercise time. The streak
+ // goal remains an internal milestone, not a forced interruption.
+ // A restored pre-upgrade round retains its original target progression.
+ if(g.lives<=0||!sameTarget&&g.best>=g.goal){endRound();return}
  data.game=g;save();
 }
 
@@ -4680,7 +4693,7 @@ function dc3MatchAllowance(start){
  // Give a sensible provisional 501 ceiling, then yield to completed independent training evidence.
  if(start===501&&p.quickStart===true){
   const completedDays=new Set((Array.isArray(data.games)?data.games:[]).filter(g=>
-   g&&['501 Pressure','301 Pressure','Scoring Challenge','Scoring Survival','Scoring Ladder'].includes(g.name)&&
+   g&&!g.quick&&['501 Pressure','301 Pressure','Scoring Challenge','Scoring Survival','Scoring Ladder'].includes(g.name)&&
    (g.completion==='natural'||g.completion==='partial')&&Number.isFinite(g.at)).map(g=>dateKey(g.at)));
   if(completedDays.size<4){
    const band=String(p.averageBand||'');
@@ -4785,10 +4798,11 @@ function dc22MasteryDart(hit){dc23MasteryInput(hit?'hit':'miss')}
 /* RC2 variation: state belongs to the player record, never the clock or render.
    Benchmarks, named-score games and deliberate mastery keep their protocols. */
 function dcRC2Memory(){
- const m=data.targetVariation;
- if(!m||m.version!==2||typeof m.history!=='object'||!m.history||Array.isArray(m.history)||typeof m.exposure!=='object'||!m.exposure||Array.isArray(m.exposure))data.targetVariation={version:2,history:{},exposure:{S:[],D:[],T:[]}};
- for(const r of ['S','D','T'])if(!Array.isArray(data.targetVariation.exposure[r]))data.targetVariation.exposure[r]=[];
- return data.targetVariation;
+ const holder=data.activeSession?.quick?data.activeSession:data;
+ const m=holder.targetVariation;
+ if(!m||m.version!==2||typeof m.history!=='object'||!m.history||Array.isArray(m.history)||typeof m.exposure!=='object'||!m.exposure||Array.isArray(m.exposure))holder.targetVariation={version:2,history:{},exposure:{S:[],D:[],T:[]}};
+ for(const r of ['S','D','T'])if(!Array.isArray(holder.targetVariation.exposure[r]))holder.targetVariation.exposure[r]=[];
+ return holder.targetVariation;
 }
 let dcRC2EvidenceCache=null;
 function dcRC2WeakTargets(ring){
@@ -4903,6 +4917,7 @@ function applyRoundBalance(g){
  return g;
 }
 function dcRC2ExpectedRules(name,tier){
+ if(name==='Doubles Streak')return 'same-target-streak-v1';
  if(name==='Double Double')return 'rc2-four-doubles';
  const novice=tier===7||tier===6&&data.assessment?.quickStart&&(window.IDCPrecision?.isFoundationAverage(data.assessment.quickBand)??(['30','under30'].includes(data.assessment.quickBand)||(/^[pq](?:0|20|22\\.5|25|27\\.5|30|32\\.5|35|37\\.5)$/.test(data.assessment.quickBand))));
  const changed=['Treble Hunt','Doubles Streak','Number Lock','Shanghai Combo','Bull Streak','Bull Survival','Bull Bank','Bull Blackjack','Outside Doubles','Double Bull Bridge','101 Sprint','Double-In 201','Last Dart Rescue','Last Dart Standing','Checkout Poker','Cricket Countdown','Pressure Cricket','Switchback','Dartboard Bingo','Risk or Reward','Scoring Survival','Scoring Ladder','First Nine Siege','Focused Checkouts','High-Low'];
@@ -5182,6 +5197,7 @@ function buildGame(name,previous=null){const g=name==="Focused Checkouts"?focuse
   const tier=pressureTier("doubles");Object.assign(g,{tier,target:20,player:0,opponent:0,turn:0,thrown:0,matchDone:false,opponentEvery:[2,2,3,3,4,5,6][tier-1]});
  }
  const standard=dc80Block(dcRC2Beginner(dc19ApplyTuning(dc12ApplyRecovery(applyRoundBalance(g)))),previous);
+ if(name==='Doubles Streak')standard.ruleVersion='same-target-streak-v1';
  const ss=session(),tier=Number(standard.tier)||dc9GameTier(name);
  if(window.IDCPrecision&&ss&&!ss.quick&&!ss.extra&&!standard.recovery&&!standard.challengeTuning&&!DC10_MEASUREMENT_GAMES.has(name)&&window.IDCPrecision.supported(name)){
   if(!Number.isInteger(standard.tier))standard.tier=tier;
@@ -5233,7 +5249,7 @@ function newGameDart(action){
   g.visits++;g.thrown+=3;if(action===0){g.points=Math.floor(g.points/2);g.halves++}else g.points+=base*action;
   if(label==="T20"&&action===3)g.oneEighties=num(g.oneEighties)+1;g.index++;if(g.index>=g.targets.length){endRound();return}
  }else if(name==="Outside Doubles"){
-  g.thrown++;if(action==="double"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
+  (g.targetLog||(g.targetLog=[])).push({target:g.targets[g.index],ring:g.variant==='singles'?'S':'D',hit:action==='double'});g.thrown++;if(action==="double"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
   else if(action==="inside"){g.inside++;g.lives--}else g.outside++;
   if(g.lives<=0||g.thrown>=g.allowed){endRound();return}
  }else if(name==="101 Sprint"){
@@ -5247,7 +5263,7 @@ function newGameDart(action){
   g.thrown++;g.hits+=action?1:0;g.marks[g.index]=Math.min(3,g.marks[g.index]+action);
   if(g.marks[g.index]>=3)g.index++;if(g.index>=g.targets.length||g.thrown>=g.allowed){endRound();return}
  }else if(name==="Double Double"){
-  g.thrown++;if(action==="hit"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
+  (g.targetLog||(g.targetLog=[])).push({target:g.targets[g.index],ring:'D',hit:action==='hit'});g.thrown++;if(action==="hit"){g.hits++;g.index++;if(g.index>=g.targets.length){endRound();return}}
   if(g.thrown>=g.allowed){endRound();return}
  }else if(name==="Double-In 201"){
   // Entry is handled by doubleInEntrySubmit(), never a native phone prompt.
@@ -5453,8 +5469,8 @@ function checkoutHit(){if(session()?.phase!=="playing")return;const g=activeGame
  askCheckoutDarts({score:g.target,maxDarts:3-g.attempt,onFinish:darts=>{snapshot();g.dartsUsed+=g.attempt+darts;g.success++;(g.attemptLog||(g.attemptLog=[])).push({target:g.target,hit:1});g.highest=Math.max(g.highest,g.target);g.target+=5;g.attempt=0;if(climbWon(g)){endRound();return}data.game=g;save()}});
 }
 function bullDart(value){if(![0,25,50].includes(value)||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Accuracy"||session().pausedAt)return;snapshot();g.thrown++;if(value===50)g.inner++;else if(value===25)g.outer++;else g.misses++;if(g.thrown>=30){endRound();return}data.game=g;save()}
-function bullSurvival(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Survival"||session().pausedAt)return;snapshot();g.used++;g.thrown++;if(hit){g.hits++;g.wins++;endRound();return}if(g.used>=g.allowed){endRound();return}data.game=g;save()}
-function bullStreak(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Streak"||session().pausedAt)return;snapshot();g.thrown++;if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(g.streak>=g.goal){endRound();return}}else{g.streak=0;g.misses=num(g.misses)+1;if(g.misses>=num(g.allowedMisses||7)){endRound();return}}data.game=g;save()}
+function bullSurvival(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Survival"||session().pausedAt)return;snapshot();(g.targetLog||(g.targetLog=[])).push({target:g.target,hit});g.used++;g.thrown++;if(hit){g.hits++;g.wins++;endRound();return}if(g.used>=g.allowed){endRound();return}data.game=g;save()}
+function bullStreak(hit){if(typeof hit!=="boolean"||session()?.phase!=="playing")return;const g=activeGame;if(!g||g.name!=="Bull Streak"||session().pausedAt)return;snapshot();(g.targetLog||(g.targetLog=[])).push({target:g.target,hit});g.thrown++;if(hit){g.hits++;g.streak++;g.best=Math.max(g.best,g.streak);if(g.streak>=g.goal){endRound();return}}else{g.streak=0;g.misses=num(g.misses)+1;if(g.misses>=num(g.allowedMisses||7)){endRound();return}}data.game=g;save()}
 function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.practiceBlock?clone(g.practiceBlock):undefined,name:g.name,mode:g.name,...(currentExercise()?.application===true?{application:true}:{}),at,day:dateKey(at),offsetMinutes:new Date(at).getTimezoneOffset(),date:new Date(at).toLocaleString(),extra:!!session()?.extra,sessionId:session()?.id||null,exerciseId:currentExercise()?.provenanceId||null,exerciseIndex:Number.isInteger(session()?.index)?session().index:null,quick:!!session()?.quick,quickMinutes:session()?.quick?Math.round(num(session().quickSeconds)/60):0,completion,benchmark:completion==="natural"||completion==="timed",version:"6.1-RC16",ruleVersion:g.ruleVersion||null,result:"Activity completed",oneEighties:num(g.oneEighties),recovery:!!g.recovery,challengeTuning:g.challengeTuning||null,challengeTuningVersion:g.challengeTuningVersion||null,
  prospectiveForecast:g.prospectiveForecast&&completion==='natural'&&
  !g.recovery&&!g.challengeTuning&&!session()?.quick?clone(g.prospectiveForecast):null};
@@ -5486,6 +5502,7 @@ function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.p
  if(g.name==="Staying Straight"){normaliseStraightGame(g);Object.assign(e,{points:g.points,targets:[...STRAIGHT_TARGETS],counts:[...g.counts],hits:[...g.hits],misses:[...g.misses],successfulDarts:g.hits.reduce((a,b)=>a+b,0),missedDarts:g.misses.reduce((a,b)=>a+b,0),darts:g.darts,complete:g.index>=5});e.result=g.points+" points · "+STRAIGHT_TARGETS.map((n,i)=>n+"s: "+g.counts[i]).join(", ")}
  if(g.name==="Checkout Climb"){Object.assign(e,{success:g.success,fail:g.fail,attempts:g.success+g.fail,dartsUsed:g.dartsUsed,highest:g.highest,attemptLog:[...(g.attemptLog||[])]});e.result=g.success+" successful checkouts";if(completion==="natural"&&g.success>0)data.bestCheckout=Math.max(num(data.bestCheckout),g.highest)}
  if(g.name==="Bull Accuracy"){Object.assign(e,{thrown:g.thrown,outer:g.outer,inner:g.inner,misses:g.misses});e.benchmark=g.thrown>=30;e.result=(g.outer+g.inner)+"/"+g.thrown+" bull hits · "+g.inner+" bullseyes"}
+ if(["Bull Survival","Bull Streak"].includes(g.name))e.targetLog=Array.isArray(g.targetLog)?clone(g.targetLog):[];
  if(g.name==="Bull Survival"){Object.assign(e,{target:g.target,allowed:g.allowed,hits:g.hits,thrown:g.thrown,wins:g.wins});e.result=(g.hits?"Success":"Round ended")+" · "+g.thrown+" dart(s)"}
  if(g.name==="Bull Streak"){Object.assign(e,{target:g.target,goal:g.goal,hits:g.hits,thrown:g.thrown,best:g.best});e.result="Best streak "+g.best+"/"+g.goal}
  if(g.name==="Shanghai Combo"){
@@ -5589,11 +5606,72 @@ function gameResult(g,completion){const at=Date.now();const e={practiceBlock:g.p
  }
  return e}
 /* Round completion records the result and restarts the SAME game. The exercise clock never resets. */
-function endRound(){const s=session();if(!s||s.phase!=="playing"||s.pausedAt||!activeGame)return;const item=currentExercise(),previousGame=clone(undoSnapshot||activeGame),previousTotals={bestDouble:data.bestDouble,bestCheckout:data.bestCheckout,doublesHit:data.doublesHit,doublesThrown:data.doublesThrown},result=gameResult(activeGame,"natural");s.lastRoundUndo={previousGame,previousTotals,resultAt:result.at,name:result.name};data.games.push(result);s.roundsCompleted++;s.round++;flash=(result.win===true?"WIN":result.win===false?"LOSE":"Round ended")+" · Round "+s.roundsCompleted+" saved";activeGame=buildGame(item.name,activeGame);data.game=activeGame;undoSnapshot=null;save();announceRound(s.round,(result.win===true?"WIN":result.win===false?"LOSE":"ROUND COMPLETE")+" · Previous round"+(result.name==="Setup Shot"&&result.details?.setupOutcome?" · "+result.details.setupOutcome.replaceAll("-"," "):""))}
+/* Player-facing progress only: use actual chronological logs, never infer a streak from totals. */
+function dcVisibleProgress(g,s,exercise,history){
+ const checkout=['Checkout Climb','Focused Checkouts'].includes(g?.name);
+ const bull=['Bull Survival','Bull Streak'].includes(g?.name);
+ if(!checkout&&!bull&&!['Doubles Survival','Doubles Streak','Treble Hunt','Outside Doubles','Double Double'].includes(g?.name))return null;
+ const sameTarget=g.name==='Doubles Streak'&&g.ruleVersion==='same-target-streak-v1';
+ let hits=0,streak=0,best=0,incomplete=false,lastTarget=null;
+ const count=v=>(typeof v==='number'||typeof v==='string'&&v.trim()!=='')&&Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):null;
+ const gap=()=>{streak=null;lastTarget=null;incomplete=true};
+ const consume=r=>{
+  const log=checkout?r.attemptLog:(r.targetLog??r.details?.targetLog);
+  const successes=count(checkout?r.success:r.hits),failures=count(r.fail);
+  const expected=checkout?(successes!==null&&failures!==null?successes+failures:null):count(r.thrown);
+  if(expected===null||(!Array.isArray(log)&&expected!==0)||(Array.isArray(log)&&log.length!==expected)){
+   // Old saves may contain honest totals without a complete chronology.
+   // Preserve those totals, but never present a guessed zero or streak.
+   if(expected!==null&&successes!==null&&successes<=expected)hits+=successes;
+   gap();return;
+  }
+  const ring=g.name==='Treble Hunt'?(g.variant==='single'?'S':'T'):(g.variant==='singles'?'S':'D');
+  for(const entry of log||[]){
+   const targetValid=entry?.target===undefined||(bull?entry.target===g.target:
+    Number.isInteger(entry.target)&&entry.target>=(checkout?2:1)&&entry.target<=(checkout?170:20));
+   const valid=entry&&[true,false,0,1].includes(entry.hit)&&
+    targetValid&&(checkout||bull||entry.ring===undefined||entry.ring===ring);
+   if(!valid){gap();continue}
+   if(entry.hit===true||entry.hit===1){
+    hits++;
+    if(sameTarget&&!Number.isInteger(entry.target)){gap();continue}
+    if(sameTarget&&lastTarget!==null&&lastTarget!==entry.target)streak=0;
+    streak=(streak??0)+1;best=Math.max(best,streak);lastTarget=entry.target??null;
+   }else{streak=0;lastTarget=null}
+  }
+ };
+ if(s?.id&&exercise?.provenanceId&&Array.isArray(history)){
+  const rows=[];
+  for(let i=history.length-1;i>=0;i--){
+   const r=history[i];
+   if(r?.sessionId!==s.id||r.exerciseId!==exercise.provenanceId)break;
+   rows.push(r.name===g.name&&r.variant===g.variant&&(!bull||r.target===g.target)&&r.completion==='natural'?r:null);
+  }
+  const seen=new Map(),conflicts=new Set();
+  const identity=r=>r&&Number.isFinite(r.at)?JSON.stringify([r.at,r.name]):null;
+  for(const r of rows){const key=identity(r);if(key===null)continue;
+   if(seen.has(key)&&JSON.stringify(seen.get(key))!==JSON.stringify(r))conflicts.add(key);
+   else seen.set(key,r);
+  }
+  const consumed=new Set();
+  for(let i=rows.length-1;i>=0;i--){
+   const r=rows[i],key=identity(r);
+   if(key!==null&&consumed.has(key))continue;
+   if(key!==null)consumed.add(key);
+   if(r&&!conflicts.has(key))consume(r);else gap();
+  }
+ }
+ consume(g);
+ return {hits,streak,best,checkout,...(incomplete?{incomplete:true}:{})};
+}
+function dcVisibleRoundResult(value){
+ return String(value||'Activity completed').replace(/\b(?:WIN|LOSE)\s*·\s*/gi,'');
+}
+function endRound(){const s=session();if(!s||s.phase!=="playing"||s.pausedAt||!activeGame)return;const item=currentExercise(),previousGame=clone(undoSnapshot||activeGame),previousTotals={bestDouble:data.bestDouble,bestCheckout:data.bestCheckout,doublesHit:data.doublesHit,doublesThrown:data.doublesThrown},result=gameResult(activeGame,"natural");s.lastRoundUndo={previousGame,previousTotals,resultAt:result.at,name:result.name};data.games.push(result);s.roundsCompleted++;s.round++;flash="";activeGame=buildGame(item.name,activeGame);data.game=activeGame;undoSnapshot=null;save();hideRoundAnnouncement()}
 function playExercise(){
  const s=session();if(!s||s.phase!=="rules"||!idcPhysicalAllowed())return;
  if(s.pausedAt){s.pausedTotal+=Math.max(0,Date.now()-s.pausedAt);s.pausedAt=null}
- s.phase="playing";s.activityStarted=Date.now();save();if(activeGame&&!(["Warm-up","Big Singles","Review"].includes(activeGame.name)))announceRound(s.round);
+ s.phase="playing";s.activityStarted=Date.now();save();hideRoundAnnouncement();
 }
 function nextExercise(){
  const s=session();if(!s||s.phase!=="complete")return;
@@ -5713,8 +5791,8 @@ function dc66CaptureUnfinishedSessionExercise(s){
 function finishSession(success){hideRoundAnnouncement();const s=session();if(!s)return;
  // V5.72: an abandoned checkout modal must not survive into another session.
  closeCheckoutDartPicker();const elapsed=Math.round(sessionElapsed()/6)/10;const interruptedExercise=success?null:dc66CaptureUnfinishedSessionExercise(s);const sessionRecord={id:s.id,start:s.start,startOffsetMinutes:s.startOffsetMinutes,date:sessionStartDay(s),minutes:elapsed,extra:s.extra,quick:!!s.quick,quickGame:s.quickGame||null,completed:!!success,activities:s.completed,focus:s.plan.map(p=>p.name)};if(interruptedExercise)sessionRecord.interruptedExercise=interruptedExercise;if(s.provenanceInitial)sessionRecord.provenanceInitial=clone(s.provenanceInitial);if(s.provenanceLocked)sessionRecord.provenanceLocked=clone(s.provenanceLocked);if(Array.isArray(s.coachPlanAudit))sessionRecord.coachPlanAudit=clone(s.coachPlanAudit);if(s.categoryPlanAudit)sessionRecord.categoryPlanAudit=clone(s.categoryPlanAudit);if(s.wholeSessionAudit)sessionRecord.wholeSessionAudit=clone(s.wholeSessionAudit);if(s.researchPlan&&!s.extra&&!s.quick)sessionRecord.researchPlan=clone(s.researchPlan);if(s.coachDayIntent)sessionRecord.coachDayIntent=clone(s.coachDayIntent);
- if(s.coachComplement)sessionRecord.coachComplement=clone(s.coachComplement);
- sessionRecord.coachReport=generateSessionReport(sessionRecord);dc30LogCompletedInterventions(s);dc30RefreshFollowUps();data.sessions.push(sessionRecord);displayCoachReport(sessionRecord.coachReport);data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;rapidInitialCalibration();performCoachReview();checkCompletedBlocks();data.coach.challengeAudit=dc7ChallengeAudit(data.games);data.coach.challengeForecast=dc8ChallengeForecast(data.games);const saved=save();
+ if(s.coachComplement)sessionRecord.coachComplement=clone(s.coachComplement);if(Array.isArray(s.eligibilitySubstitutions))sessionRecord.eligibilitySubstitutions=clone(s.eligibilitySubstitutions);
+ sessionRecord.coachReport=generateSessionReport(sessionRecord);if(!s.quick){dc30LogCompletedInterventions(s);dc30RefreshFollowUps()}data.sessions.push(sessionRecord);displayCoachReport(sessionRecord.coachReport);data.activeSession=null;data.game=null;activeGame=null;undoSnapshot=null;if(!s.quick){rapidInitialCalibration();performCoachReview();checkCompletedBlocks();data.coach.challengeAudit=dc7ChallengeAudit(data.games);data.coach.challengeForecast=dc8ChallengeForecast(data.games)}const saved=save();
  if(saved)checkpointData();
  $("finishedText").textContent=saved?(success?(s.quick?"Quick Play saved separately.":"Today's practice is saved."):"Your practice has been saved."):storageSaveError;$("sessionFinished").classList.remove("hidden");show("train")}
 function finishSessionEarly(){if(!session())return;if(!confirm("End this training session?"))return;finishSession(false)}
@@ -5722,42 +5800,42 @@ function pauseSession(){const s=session();if(!s||s.phase==="rules"||s.phase==="c
 function finishView(){const wasQuick=data.sessions.length&&data.sessions[data.sessions.length-1].quick;$("sessionFinished").classList.add("hidden");show(wasQuick?"quick":"home")}
 /* TRAINING DISPLAY */
 const EXTRA_RULES={
- "Last Dart Standing":"Six one-dart situations. For an even remainder choose a finishing double; for an odd remainder choose a setup single. Then record whether your dart hit its chosen target. Wrong route or miss costs a life. Solve all six to WIN.",
- "Pressure Cricket":"Close each of the three displayed numbers with three marks each. Single = 1 mark, double = 2, treble = 3. A closed number earns twice its value. A fixed simulated rival scores after every three darts. Close all three AND finish ahead to WIN.",
- "Bull Blackjack":"Bank 25 for outer bull or 50 for bullseye. Reach the EXACT displayed target before your darts expire. Go over and you LOSE immediately.",
- "Neighbour Trap":"Aim at the displayed large single. A hit adds one progress. Hitting either neighbouring single removes one progress; a different miss uses a dart without progress. Reach the target before darts run out to WIN.",
- "Double Jackpot":"Choose from the four displayed doubles (or beginner singles). Each target can score ONCE per round. After a hit you must choose a different unused target. Bank the exact goal without going over. A bust loses the round.",
+ "Last Dart Standing":"Six one-dart situations. For an even remainder choose a finishing double; for an odd remainder choose a setup single. Then record whether your dart hit its chosen target. Wrong route or miss costs a life. Solve all six.",
+ "Pressure Cricket":"Close each of the three displayed numbers with three marks each. Single = 1 mark, double = 2, treble = 3. A closed number earns twice its value. A fixed simulated rival scores after every three darts. Close all three AND finish ahead.",
+ "Bull Blackjack":"Bank 25 for outer bull or 50 for bullseye. Reach the EXACT displayed target before your darts expire. Going over ends the round immediately.",
+ "Neighbour Trap":"Aim at the displayed large single. A hit adds one progress. Hitting either neighbouring single removes one progress; a different miss uses a dart without progress. Reach the target before darts run out.",
+ "Double Jackpot":"Choose from the four displayed doubles (or beginner singles). Each target can score ONCE per round. After a hit you must choose a different unused target. Bank the exact goal without going over. A bust ends the round.",
  "Dartboard Bingo":"The coach calls one random double at a time. Record each dart as Hit or Miss. You get a skill-adjusted dart allowance per call. Hit doubles disappear; missed doubles return later. Any horizontal line of FIVE is BINGO; all 20 is FULL HOUSE. A fresh random card follows each completed round.",
  "Target Mastery":"Coach-selected practice across singles, doubles, trebles, bull, checkouts, straight darts, target switching, setup, scoring and pressure. Each drill measures only what you actually record.",
- "High-Low":"Enter five three-dart visit totals. Starting from the displayed score, each visit must alternate HIGHER then LOWER than the previous visit by at least the displayed gap. If that direction would be impossible, follow the direction shown. Four correct comparisons to WIN; run out of lives or visits to LOSE.",
- "Split the Difference":"Throw pairs of three-dart visits and enter each total. Each second visit must be within the displayed tolerance of the first. Match at least two of three pairs to WIN; two failed pairs means LOSE.",
- "Checkout Poker":"Pick a checkout card from the three available. You have three darts to check out on a double. Record Checkout completed or Failed 3 darts. Choose and finish two different cards within the total attempts to WIN.",
- "Double Bull Bridge":"Complete three stages in strict order: nominated double, bull, nominated double. Record one dart at a time. Hit all three stages within your total dart allowance to WIN.",
- "Double Duel":"Play first-to-four points against a fixed virtual rival. Each dart targets the shown double. Hit earns a point. The rival earns a point on its fixed turn interval. The shown target tells you whether to aim at singles or doubles. First to four wins.",
- "Halve It":"Six three-dart visits, each at a different called target. Record how many darts hit that EXACT target (0–3). A blank visit halves your score. Beat the required total after six visits to WIN; otherwise LOSE.",
- "Outside Doubles":"Aim at the called double. Record Double Hit, Inside Single or Outside Miss. Hitting the inside single costs a life. Clear all required doubles to WIN; run out of lives or darts to LOSE.",
- "101 Sprint":"Checkout 101, finishing on a double. You have a tier-dependent TOTAL dart allowance. Tap Miss for each failed dart; tap Checkout Hit and enter the darts actually used to finish. Finish within the allowance to WIN.",
- "Golf Five":"Five nominated holes. Each hole means hitting the displayed section. Hit on dart 1, 2 or 3 to score that many strokes; missing all three is four strokes. Finish at or below par to WIN.",
- "Cricket Countdown":"Close each displayed target with THREE marks. Single = 1, double = 2, treble = 3; bull 25 = 1 or 50 = 2. Close every target inside the dart budget to WIN.",
- "Double Double":"Hit each nominated double in order, with your total dart allowance. Hit/Miss per dart. All doubles = WIN; run out = LOSE.",
+ "High-Low":"Enter five three-dart visit totals. Starting from the displayed score, each visit must alternate HIGHER then LOWER than the previous visit by at least the displayed gap. If that direction would be impossible, follow the direction shown. Aim for four correct comparisons before lives or visits run out.",
+ "Split the Difference":"Throw pairs of three-dart visits and enter each total. Each second visit must be within the displayed tolerance of the first. Match at least two of three pairs; two failed pairs end the round.",
+ "Checkout Poker":"Pick a checkout card from the three available. You have three darts to check out on a double. Record Checkout completed or Failed 3 darts. Choose and finish two different cards within the total attempts.",
+ "Double Bull Bridge":"Complete three stages in strict order: nominated double, bull, nominated double. Record one dart at a time. Hit all three stages within your total dart allowance.",
+ "Double Duel":"Play first-to-four points against a fixed virtual rival. Each dart targets the shown double. Hit earns a point. The rival earns a point on its fixed turn interval. The shown target tells you whether to aim at singles or doubles. First to four points completes the match.",
+ "Halve It":"Six three-dart visits, each at a different called target. Record how many darts hit that EXACT target (0–3). A blank visit halves your score. Aim to beat the required total after six visits.",
+ "Outside Doubles":"Aim at the called double. Record Double Hit, Inside Single or Outside Miss. Hitting the inside single costs a life. Clear all required doubles before lives or darts run out.",
+ "101 Sprint":"Checkout 101, finishing on a double. You have a tier-dependent TOTAL dart allowance. Tap Miss for each failed dart; tap Checkout Hit and enter the darts actually used to finish. Finish within the allowance.",
+ "Golf Five":"Five nominated holes. Each hole means hitting the displayed section. Hit on dart 1, 2 or 3 to score that many strokes; missing all three is four strokes. Aim to finish at or below par.",
+ "Cricket Countdown":"Close each displayed target with THREE marks. Single = 1, double = 2, treble = 3; bull 25 = 1 or 50 = 2. Close every target inside the dart budget.",
+ "Double Double":"Hit each nominated double in order, with your total dart allowance. Hit/Miss per dart. Clear all doubles before darts run out.",
  "Double-In 201":"Enter the visit total, counting only the opening double and subsequent darts. Enter 0 if no double was hit. Confirm the opening double and which dart hit it. Later visits use a three-dart total. Finish exactly on a double; bust leaves your score unchanged.",
- "Switchback":"Hit each called target in strict sequence, switching numbers each time. A miss knocks you TWO steps backwards. Clear the full route before running out of darts to WIN.",
+ "Switchback":"Hit each called target in strict sequence, switching numbers each time. A miss knocks you TWO steps backwards. Clear the full route before running out of darts.",
  "Shanghai Combo":"Complete S, then D, then T on the SAME number, in order. Tap Hit or Miss for each dart. Misses cost lives; complete all three to win the round.",
  "Bull Bank":"Bank bull points: 25 for outer bull, 50 for bullseye, 0 for a miss. Reach the goal before your darts run out.",
  "Number Lock":"Close all THREE numbered targets in ANY order. Hit the shown ring for each number, or record Miss. Misses use your allowance.",
  "Scoring Survival":"Throw THREE darts and enter your total. Reach the target score or lose a life. When lives reach zero, the round ends and restarts until time expires.",
  "Scoring Ladder":"Throw THREE darts and enter your total. Beat the target to climb. Fail and lose a life and a step. Clear four steps to win a round.",
  "Treble Hunt":"Hit the displayed target with each dart. A miss costs a life. Clear the hit goal before your lives run out; then repeat.",
- "Doubles Streak":"Hit the displayed target to build a streak. A miss breaks it and costs a life. Reach the target streak before lives run out.",
+ "Doubles Streak":"Keep hitting the displayed target. On the first miss, lose one life and move to the next target. The streak goal is a milestone; keep going until lives or exercise time run out.",
  "501 Pressure":"Start on 501. Record three-dart visit totals; finish exactly on a double within your adaptive dart allowance. A bust does not reduce your remaining score.",
- "Setup Shot":"Five attempts at each starting score, then a new random score. Each attempt is one three-dart visit. WIN by leaving the displayed range. Finishing (zero), leaving one, going below zero or outside the range LOSES. Do not check out.",
+ "Setup Shot":"Five attempts at each starting score, then a new random score. Each attempt is one three-dart visit. Aim to leave the displayed range. Finishing (zero), leaving one, going below zero or outside the range ends the attempt. Do not check out.",
  "Last Dart Rescue":"Five one-dart checkout situations. First CHOOSE the correct finishing target; a wrong route costs a life. Then record Hit or Miss for the dart.",
  "Risk or Reward":"Before each three-dart visit choose Safe or Risky. Beat the higher Risk target for a +35 bonus. Miss it and lose 50 banked points and a life. Reach the bank goal to win.",
- "First Nine Siege":"You have exactly three three-dart visits, nine darts total. Enter each visit score. Beat your tier-specific total to WIN; otherwise LOSE.",
+ "First Nine Siege":"You have exactly three three-dart visits, nine darts total. Enter each visit score. Aim to beat the displayed total.",
  "170 Challenge":"Start on 170 and finish exactly on a double before the visit budget expires. Bust leaves your score unchanged.",
  "301 Pressure":"Start on 301. Enter every visit score. You must finish exactly on a double or bullseye. A bust is an invalid finish: your score stays unchanged and you lose one LIFE. Your dart limit comes from your measured scoring, doubles and match play. When you finish, tap 1, 2 or 3 to record the actual darts used."
 };
-const RULES={"Warm-up":"Throw comfortably for the full 10 minutes. Find a steady stance and rhythm. When time ends, select Next Exercise.","Big Singles":"Throw exactly 3 darts at each number from 1 to 20. Tap Hit ONLY for the large single section; otherwise tap Miss. After dart 60, select Next Exercise.","Doubles Survival":"Aim at the displayed double. Tap Hit or Miss for each dart; rounds repeat until time expires.","Scoring Challenge":"Throw 3 darts and enter the total. Repeat for 10 visits, then begin another round.","Staying Straight":"Aim at 20s, then 19s down to 16s. Score single 1, double 2, treble 3. A miss moves on.","Checkout Climb":"Finish the shown score within 3 darts. Hit: +5 to target; fail: −1. Below 50 ends a round.","Focused Checkouts":"Clear the selected checkout range in 3 darts per finish. Checkout Hit records a finish; Missed Dart records an unsuccessful dart. Lose all lives and the round restarts.","Bull Accuracy":"Throw 30 darts at the bull. Record 50, 25 or Miss. Another round starts automatically.","Bull Survival":"Aim at the shown bull area. Hit it within the allowed darts; then repeat the challenge.","Bull Streak":"Hit the shown bull area repeatedly. A miss resets your streak and uses a life. Reach the streak goal to WIN, or run out of lives to LOSE.","Review":"Finish with relaxed throws. Keep the same easy rhythm until the timer ends."};
+const RULES={"Warm-up":"Throw comfortably for the full 10 minutes. Find a steady stance and rhythm. When time ends, select Next Exercise.","Big Singles":"Throw exactly 3 darts at each number from 1 to 20. Tap Hit ONLY for the large single section; otherwise tap Miss. After dart 60, select Next Exercise.","Doubles Survival":"Aim at the displayed double. Tap Hit or Miss for each dart; rounds repeat until time expires.","Scoring Challenge":"Throw 3 darts and enter the total. Repeat for 10 visits, then begin another round.","Staying Straight":"Aim at 20s, then 19s down to 16s. Score single 1, double 2, treble 3. A miss moves on.","Checkout Climb":"Finish the shown score within 3 darts. Hit: +5 to target; fail: −1. Below 50 ends a round.","Focused Checkouts":"Clear the selected checkout range in 3 darts per finish. Checkout Hit records a finish; Missed Dart records an unsuccessful dart. Lose all lives and the round restarts.","Bull Accuracy":"Throw 30 darts at the bull. Record 50, 25 or Miss. Another round starts automatically.","Bull Survival":"Aim at the shown bull area. Hit it within the allowed darts; then repeat the challenge.","Bull Streak":"Hit the shown bull area repeatedly. A miss resets your streak and uses a life. Reach the streak goal before running out of lives.","Review":"Finish with relaxed throws. Keep the same easy rhythm until the timer ends."};
 function button(text,code){return '<button onclick="'+code+'">'+text+'</button>'}
 let dc88Resume=null;
 function dc88Open(){const s=session(),d=$('dc88Dialog');if(!s||s.phase!=="playing"||d.open)return;dc88Resume=null;$('dc88RulesTitle').textContent=$('exerciseName').textContent+' · Rules';$('dc88RulesText').textContent=[$('exerciseRules').textContent,$('dc80Goal').dataset.full||$('dc80Goal').textContent,$('dc80Condition').textContent].filter(Boolean).join('\n\n');if(!s.pausedAt){pauseSession();dc88Resume={id:s.id,index:s.index,at:s.pausedAt}}d.onclose=()=>{const p=dc88Resume;dc88Resume=null;const now=session();if(p&&now&&now.id===p.id&&now.index===p.index&&now.pausedAt===p.at&&now.phase==='playing'&&!document.hidden)pauseSession()};d.showModal()}
@@ -5787,7 +5865,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  if(g?.stageLength&&g.name==='Doubles Survival')rule='Hit each of the '+g.stageLength+' doubles in order. You have '+g.allowed+' darts per double. Clear the route to win.';
  if(g?.holdPosition&&g.name==='Switchback')rule='Hit the displayed target, then switch to the next. Each miss uses a dart. Clear all seven targets before the dart allowance runs out.';
  if(g?.name==='Switchback'&&g.beginner)rule='Hit the displayed SINGLE, then switch to the next target. A miss uses a dart but keeps your position. Complete the sequence before your total darts run out.';
- if(g&&g.name==="Doubles Streak"&&g.variant==="singles")rule="Hit the SINGLE shown to build a streak. A miss breaks it and costs a life. Reach the goal before lives run out.";
+ if(g?.name==="Doubles Streak")rule=g.ruleVersion==="same-target-streak-v1"?"Keep hitting the "+(g.variant==="singles"?"SINGLE":"DOUBLE")+" shown. A miss ends that target’s streak, costs one life and moves to the next target. Aim for "+g.goal+" consecutive hits, then keep going. Lives exhausted or exercise time ends the round.":"Legacy round: a hit moves to the next target. A miss breaks the streak and costs a life. Reach the goal before lives run out. New rounds use the same-target rule.";
  if(g&&["Bull Survival","Bull Streak"].includes(g.name))rule=(g.target==="CENTRE"?"CENTRE = anywhere INSIDE the inner edge of the treble ring, including the bull. ":g.target==="50"?"Only the red bullseye (50) counts. ":"Either outer bull (25) or bullseye (50) counts. ")+rule;
  if(g&&g.name==='Target Mastery')rule=dc23MasteryDescriptor(g)+': '+(g.mode==='bull'?'Aim at the bull and record 25, 50 or Miss for every dart.':g.mode==='checkout'?'Attempt the displayed finish within three darts, ending on a double. Record the actual number thrown on success, or Not finished. No dart locations are inferred.':g.mode==='straight'?'Aim at the same exact segment and build a streak. Record every dart.':g.mode==='switch'?'Switch to each displayed target after every dart, recording Hit or Miss.':g.mode==='setup'?'Hit each nominated single to practise controlled setup targets.':g.mode==='pressure'?'Hit the nominated '+(g.ring==='S'?'single':'double')+' with three darts per visit. Record each dart.':g.mode==='scoring'?'Rotate through nominated scoring '+(g.ring==='S'?'singles':'trebles')+', recording each dart.':'Hit the nominated exact segment. Record every dart.');
  if(g?.name==='Shanghai Combo')rule=g.variant==='singles'?'Hit the displayed single three times. Each miss costs one life. Complete all three stages before lives run out.':'Hit the displayed single, then double, then treble of the same number. Each miss costs one life. Complete all three stages before lives run out.';
@@ -5841,8 +5919,8 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Lives: "+g.lives+" · Miss = lose a life";
   html=button("Hit","trebleDart(true)")+button("Miss","trebleDart(false)");break;
  case "Doubles Streak":
-  heading=(g.variant==="singles"?"S":"D")+g.targets[g.targetIndex];detail="Streak: "+g.streak+"/"+g.goal;
-  mini="Lives: "+g.lives+" · Best: "+g.best;
+  heading=(g.variant==="singles"?"S":"D")+g.targets[g.targetIndex];detail=(g.ruleVersion==="same-target-streak-v1"?"Streak milestone: ":"Round goal: ")+g.goal+" consecutive hits";
+  mini="Lives: "+g.lives;
   html=button("Hit","doublesStreakDart(true)")+button("Miss","doublesStreakDart(false)");break;
  case "301 Pressure":
   heading=String(g.remaining);detail="Darts used: "+g.dartsUsed+" / "+g.maxDarts+" · "+g.visits+" visits";
@@ -5877,7 +5955,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   html=g.targets.map(n=>g.locked.includes(n)?'<button disabled>✓ '+g.ring+n+'</button>':button(g.ring+n,"numberLockDart("+n+")")).join("")+button("Miss","numberLockDart(0)");break;
  case "Halve It":
   heading=g.targets[Math.min(g.index,g.targets.length-1)];detail="Visit "+(g.index+1)+"/6 · Hit this exact target with 0–3 darts";
-  mini="Bank: "+g.points+" · Win goal: "+g.goal+" · Halves: "+g.halves;
+  mini="Bank: "+g.points+" · Goal: "+g.goal+" · Halves: "+g.halves;
   html=button("0 hits","newGameDart(0)")+button("1 hit","newGameDart(1)")+button("2 hits","newGameDart(2)")+button("3 hits","newGameDart(3)");break;
  case "Outside Doubles":
   heading="D"+g.targets[Math.min(g.index,g.targets.length-1)];detail="Double "+(g.index+1)+"/"+g.targets.length;
@@ -5899,7 +5977,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  }
  case "Double Double":
   heading="D"+g.targets[Math.min(g.index,g.targets.length-1)];detail="Double "+(g.index+1)+"/"+g.targets.length+" · Darts left "+(g.allowed-g.thrown);
-  mini="Hit all nominated doubles to win";
+  mini="Hit all nominated doubles";
   html=button("Hit","newGameDart('hit')")+button("Miss","newGameDart('miss')");break;
  case "Double-In 201":{
   const darts=clamp(Math.round(num(g.nextVisitDarts)||3),1,3);
@@ -5922,14 +6000,14 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   mini="Must finish on a double";html=padMarkup()+button("Enter Score","scoringVisit()");break;
  case "Setup Shot":
   heading=String(g.remaining);detail="LEAVE 2–"+g.goal+" · DO NOT CHECK OUT";
-  mini="Zero, one, overshoot or outside range = LOSS";html=padMarkup()+button("Enter Score","scoringVisit()");break;
+  mini="Zero, one, overshoot or outside range ends the attempt";html=padMarkup()+button("Enter Score","scoringVisit()");break;
  case "Last Dart Rescue":
   {const needed=g.targets[Math.min(g.index,g.targets.length-1)],correct=needed===50?"BULL":"D"+(needed/2),wrong=needed===50?"D20":"D"+(needed===40?16:needed===32?20:needed===24?10:needed===16?12:20);
   heading=String(needed);detail="Choose the correct one-dart finish · Situation "+(g.index+1)+"/5";mini="Lives left: "+g.lives+" · Wrong route costs a life";
   html=g.aim?button("Hit " +correct,"rescueDart(true)")+button("Miss","rescueDart(false)"):button(correct,"rescueAim('"+correct+"')")+button(wrong,"rescueAim('"+wrong+"')");break;}
  case "First Nine Siege":
   heading=g.points+" / "+g.goal;detail="Nine-dart scoring challenge · Visit "+(g.visits+1)+"/3";
-  mini="Hit the cumulative points target to WIN";html=padMarkup()+button("Enter Score","scoringVisit()");break;
+  mini="Hit the cumulative points target";html=padMarkup()+button("Enter Score","scoringVisit()");break;
  case "Risk or Reward":
   heading=g.points+" / "+g.goal;detail="Visit "+(g.visits+1)+"/"+g.maxVisits+" · Lives "+g.lives;
   mini=g.choice.toUpperCase()+" target: "+riskTarget(g)+" or more · Risk success +35 bonus, risk failure −50 and 1 life";
@@ -5981,15 +6059,15 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
    button('Hit','dc23MasteryInput(\'hit\')')+button('Miss','dc23MasteryInput(\'miss\')');break;
  case "High-Low":
   heading=highLowAimHigher(g)?"HIGHER":"LOWER";detail="Previous visit "+g.previous+" · Gap "+g.diff;
-  mini="Won "+g.won+"/4 · Lives "+g.lives+" · Visit "+(g.index+1)+"/"+(g.visitLimit||5);
+  mini="Correct visits "+g.won+"/4 · Lives "+g.lives+" · Visit "+(g.index+1)+"/"+(g.visitLimit||5);
   html=padMarkup()+button("Enter Visit","new40Score()");break;
  case "Split the Difference":
   heading=g.previous===null?"SET A SCORE":"MATCH "+g.previous;detail="Keep next visit within ±"+g.tolerance;
   mini="Matched "+g.matched+"/2 · Failed "+g.failed+"/2 · Pair "+(g.pairs+1)+"/3";
   html=padMarkup()+button("Enter Visit","new40Score()");break;
  case "Checkout Poker":
-  heading=g.chosen?String(g.chosen):"PICK A CARD";detail="Win two different checkout cards";
-  mini="Wins "+g.wins+"/2 · Attempts "+g.attempts+"/"+g.allowed;
+  heading=g.chosen?String(g.chosen):"PICK A CARD";detail="Finish two different checkout cards";
+  mini="Checkouts "+g.wins+"/2 · Attempts "+g.attempts+"/"+g.allowed;
   html=g.chosen?button("Checkout completed","new40Dart('hit')")+button("Failed 3 darts","new40Dart('miss')"):g.cards.filter(n=>!(g.cardsUsed||[]).includes(n)).map(n=>button(String(n),"new40Choice("+n+")")).join("");break;
  case "Double Bull Bridge":
   heading=g.stages[Math.min(g.index,2)];detail="Double → Bull → Double, in that order";
@@ -6014,10 +6092,10 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  'Staying Straight':['KEEP HITTING '+heading,g.roundPointGoal?'First miss ends this number · reach '+g.roundPointGoal+' points overall':'First miss ends this number · maximise points'],
  'Checkout Climb':['FINISH '+heading,g.finishGoal?(g.success+'/'+g.finishGoal+' finishes · '+(g.failedVisitLimit-g.fail)+' failed visits left'):g.ruleVersion==='foundation-climb-v1'?(g.success+'/2 finishes · +5 on success · −1 after three misses · below 20 ends'):'Double-out · success +5 · failure −1 · below 50 ends'],
  'Focused Checkouts':['FINISH '+heading,'Double-out · clear range before lives expire'],
- 'Scoring Survival':['SCORE '+g.target+' OR MORE','5 successful visits wins · low score costs a life'],
+ 'Scoring Survival':['SCORE '+g.target+' OR MORE','5 successful visits · low score costs a life'],
  'Scoring Ladder':['SCORE '+g.target+' OR MORE','Clear 4 steps · failure costs a life and a step'],
  'Treble Hunt':['REACH '+g.goal+' HITS','Miss costs a life · no lives = loss'],
- 'Doubles Streak':['BUILD '+g.goal+' CONSECUTIVE HITS','Miss breaks streak and costs a life'],
+ 'Doubles Streak':[g.ruleVersion==='same-target-streak-v1'?'SAME TARGET · AIM FOR '+g.goal+' IN A ROW':'BUILD '+g.goal+' CONSECUTIVE HITS',g.ruleVersion==='same-target-streak-v1'?'First miss moves on and costs one life':'Miss breaks streak and costs a life'],
  '301 Pressure':['CHECK OUT '+heading,'Double-out · bust costs a life · darts or lives exhausted = loss'],
  '501 Pressure':['CHECK OUT '+heading,'Double-out · bust restores score · darts exhausted = loss'],
  '170 Challenge':['CHECK OUT '+heading,'Double-out · bust restores score · visits exhausted = loss'],
@@ -6053,7 +6131,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
  'Double Duel':['FIRST TO 4 POINTS','Beat rival within 12 turns']
  };
  const goal=goals[g.name];objective.classList.toggle('hidden',!goal);
- if(goal){$('dc80Goal').textContent=goal[0];$('dc80Condition').textContent=goal[1];$('dc80BlockLabel').textContent=g.name==='Setup Shot'&&g.practiceBlock?'Attempt '+g.practiceBlock.attempt+' of 5':'';}
+ if(goal){$('dc80Goal').textContent=goal[0];$('dc80Condition').textContent=goal[1].replace(/= loss\b/gi,'ends the round');$('dc80BlockLabel').textContent=g.name==='Setup Shot'&&g.practiceBlock?'Attempt '+g.practiceBlock.attempt+' of 5':'';}
 
  const danger=$('dc22Danger');
  if(danger){
@@ -6070,7 +6148,7 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   else if(g.name==='Staying Straight'){remaining=5-g.index;label='NUMBERS LEFT'}
   else if(g.name==='Halve It'){remaining=g.targets.length-g.index;label='TARGETS LEFT'}
   else if(g.name==='Golf Five'){remaining=5-g.index;label='HOLES LEFT'}
-  else if(g.name==='Double Duel'){remaining=4-g.player;label='POINTS TO WIN'}
+  else if(g.name==='Double Duel'){remaining=4-g.player;label='POINTS TO GO'}
   else if(g.name==='First Nine Siege'){remaining=3-g.visits;label='VISITS LEFT'}
   else if(g.name==='Split the Difference'){remaining=3-g.pairs;label='PAIRS LEFT'}
   else if(g.name==='Double-In 201'&&!g.entered){remaining=g.entryLimit-g.entryMisses;label='ENTRY DARTS LEFT'}
@@ -6103,6 +6181,15 @@ function renderTraining(){const s=session(),visible=!!s&&currentTab==="train",as
   $("miniMetrics").innerHTML='<div class="checkoutHud"><span class="hudChip">Busts <b>'+g.busts+'</b></span><span class="hudChip">Double-out</span><span class="hudGuide">Bust = invalid finish; score stays the same. Final dart must hit a double or bullseye.</span></div>';
  }else $("miniMetrics").textContent=mini;$("roundFlash").textContent=g.name==="Review"?"":"ROUND "+s.round;$("roundFlash").classList.toggle("hidden",g.name==="Review"||g.name==="Warm-up"||g.name==="Big Singles");
  if(phase==="playing")dc88Compact(g,heading,detail,mini,danger&&!danger.classList.contains("hidden")?danger.querySelector("span").textContent:"");
+ if(phase==="playing"){
+  const progress=dcVisibleProgress(g,s,e,data.games);
+  if(progress){
+   $('roundFlash').textContent=(progress.checkout?'CHECKOUT STREAK ':'STREAK ')+(progress.streak===null?'—':progress.streak);
+   const metric=(progress.checkout?'Checkouts: ':'Hits: ')+progress.hits+(progress.incomplete?' · Best recorded streak: ':' · Best streak: ')+progress.best+(progress.incomplete?' · Earlier chronology unavailable':'');
+   const host=$('miniMetrics'),prior=host.textContent;
+   host.textContent=metric+(prior?' · '+prior:'');
+  }
+ }
  const controls=$("gameControls");
  const controlMode=g.name==="Double-In 201"?(g.entered?(g.entryTailActive?"201-tail":"201-scoring"):(g.dc591Opening?"201-confirm":"201-entry")):"standard";
  const keepsPad=["Scoring Challenge","Scoring Survival","Scoring Ladder","301 Pressure","501 Pressure","Double-In 201","Risk or Reward","First Nine Siege","170 Challenge","Setup Shot","High-Low","Split the Difference"].includes(g.name);
@@ -6225,7 +6312,7 @@ function coach62Complement(chosen,extra,policy,priority,now=Date.now(),reserved=
  const donor=categories.findLastIndex(key=>key!==priority&&categories.filter(k=>k===key).length>1);
  if(donor<0)return null;
  const played=new Set(today.games.keys());
- const pool=QUICK_GAMES.filter(name=>dc28GameCategory(name)===category&&!DC10_MEASUREMENT_GAMES.has(name)&&name!=='Target Mastery'&&
+ const pool=QUICK_GAMES.filter(name=>dcGameEligible(name)&&dc28GameCategory(name)===category&&!DC10_MEASUREMENT_GAMES.has(name)&&name!=='Target Mastery'&&
   name!==reserved&&!chosen.includes(name)&&!played.has(name));
  if(!pool.length)return null;
  const dayOffset=Math.floor(now/DAY_MS);
@@ -6419,11 +6506,22 @@ function coach61SessionReport(record){
 }
 
 function renderHome(){coach61Briefing();const s=session(),today=new Date().getDay(),scheduled=data.days.includes(today),needsAssessment=!s&&assessmentDue();$("homeHeading").textContent=needsAssessment?(eligibleForStartChoice()?"Choose How to Start":"Continue Your Assessment"):s?"Training In Progress":scheduled?"Your Training Is Ready":"Today Is a Rest Day";$("homeMessage").textContent=needsAssessment?(eligibleForStartChoice()?"Take the full assessment or select your usual average to begin immediately.":"Continue your measured assessment to unlock training."):s?"Continue where you left off.":scheduled?"Your coach has prepared today's session.":"Rest and recovery are part of your programme.";$("homeDuration").textContent=s?fmt(sessionRemaining()):needsAssessment?(eligibleForStartChoice()?"2 OPTIONS":"6 TESTS"):scheduled?"60 MIN":"60 MIN";let actions="";if(needsAssessment)actions='<button class="primary" onclick="show(&quot;train&quot;)">Choose Starting Method</button>';else if(s)actions='<button class="primary" onclick="show(\'train\')">Continue Training</button>';else{const done=data.sessions.some(x=>x.date===dateKey()&&!x.extra&&x.completed);if(scheduled&&!done)actions='<button class="primary" onclick="beginTraining(false)">Start Training</button>';else if(scheduled)actions='<div class="info">Scheduled training completed today.</div>';actions+='<button class="secondary" style="width:100%;margin-top:10px" onclick="beginTraining(true)">Extra Training</button>';if(reassessmentDue())actions+='<button class="secondary" style="width:100%;margin-top:10px" onclick="startReassessment()">Four-week Assessment Ready</button>'}$("homeAction").innerHTML=actions;$("homeDays").innerHTML=[...data.days].sort((a,b)=>a-b).map(n=>'<span class="tag" style="margin:3px">'+DAY_NAMES[n]+'</span>').join("");if(!blockStart()){$("blockStatus").textContent="Your first training block begins with your first session.";$("blockBar").style.width="0%";$("blockInfo").textContent="Four weeks per block."}else{const i=currentBlockIndex(),begin=blockBoundary(i),end=blockBoundary(i+1),elapsed=Date.now()-begin;$("blockStatus").textContent="Training Block "+(i+1);$("blockBar").style.width=clamp(100*elapsed/(end-begin),0,100)+"%";$("blockInfo").textContent="Week "+clamp(Math.floor(elapsed/(7*DAY_MS))+1,1,4)+" of 4"};renderHomeHighlights()}
+function dcHomeSessionHistory(records,now=Date.now()){
+ const seen=new Map(),conflicts=new Set();
+ for(const s of records){
+  if(!s||typeof s.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!Number.isFinite(Date.parse(s.date))||new Date(s.date).toISOString().slice(0,10)!==s.date||s.date>dateKey(now)||
+   s.start!=null&&(!Number.isFinite(s.start)||s.start<=0||s.start>now)||s.minutes!=null&&(!['number','string'].includes(typeof s.minutes)||!Number.isFinite(Number(s.minutes))||Number(s.minutes)<0))continue;
+  const key=s.id!=null?String(s.id):JSON.stringify(s);
+  if(seen.has(key)&&JSON.stringify(seen.get(key))!==JSON.stringify(s))conflicts.add(key);
+  else seen.set(key,s);
+ }
+ return [...seen].filter(([key])=>!conflicts.has(key)).map(([,s])=>s);
+}
 function renderHomeHighlights(){
  const area=$("homeHighlights"),chart=$("homeWeekBars");if(!area||!chart)return;
- const sessions=Array.isArray(data.sessions)?data.sessions:[],games=Array.isArray(data.games)?data.games:[];
+ const sessions=dcHomeSessionHistory(Array.isArray(data.sessions)?data.sessions:[]),games=Array.isArray(data.games)?data.games:[];
  const minutes=sessions.reduce((n,x)=>n+(Number(x.minutes)||0),0);
- const good=games.filter(g=>g.completion==="natural"||g.completion==="partial");
+ const good=dcRecordHistory(games).rows;
  const total180=good.reduce((n,g)=>n+(Number(g.oneEighties)||0),0);
  area.innerHTML='<div class="homeKpi"><span class="homeKpiIcon">◎</span><strong>'+sessions.length+'</strong><small>Sessions</small></div><div class="homeKpi"><span class="homeKpiIcon">◷</span><strong>'+Math.round(minutes)+'</strong><small>Minutes trained</small></div><div class="homeKpi"><span class="homeKpiIcon">✦</span><strong>'+total180+'</strong><small>180s recorded</small></div>';
  const now=new Date(),dow=(now.getDay()+6)%7,monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()-dow),days=["M","T","W","T","F","S","S"];
@@ -6484,7 +6582,7 @@ function dc34PracticeSnapshot(player=data){
  const categories={scoring:{rounds:0,games:new Set()},doubles:{rounds:0,games:new Set()},checkout:{rounds:0,games:new Set()},bull:{rounds:0,games:new Set()}};
  const unclassified={rounds:0,games:new Set()};
  for(const g of valid){const category=g.application===true?null:dc28GameCategory(g.name),bucket=categories[category]||unclassified;bucket.rounds++;bucket.games.add(g.name)}
- return {total:valid.length,incomplete,categories:Object.fromEntries(Object.entries(categories).map(([key,val])=>[key,{rounds:val.rounds,games:val.games.size}])),unclassified:{rounds:unclassified.rounds,games:unclassified.games.size},recent:valid.slice(-5).reverse().map(g=>({name:g.name,result:typeof g.result==='string'?g.result:'Activity completed'}))};
+ return {total:valid.length,incomplete,categories:Object.fromEntries(Object.entries(categories).map(([key,val])=>[key,{rounds:val.rounds,games:val.games.size}])),unclassified:{rounds:unclassified.rounds,games:unclassified.games.size},recent:valid.slice(-5).reverse().map(g=>({name:g.name,result:dcVisibleRoundResult(g.result)}))};
 }
 function dc34RenderPracticeSnapshot(){
  const host=$('earlyPracticeSummary');if(!host)return;
@@ -7423,9 +7521,23 @@ function recordMetrics(g){
  if(g.name==="Risk or Reward"||g.name==="Setup Shot")return [{label:"Best bank / setup score",value:num(g.points||g.details?.remaining),higher:true}];
  return [{label:"Most successful targets",value:num(g.hits||g.success||g.details?.index||g.wins),higher:true}];
 }
+function dcRecordHistory(records,now=Date.now()){
+ const seen=new Map(),conflicts=new Set();let duplicates=0,excluded=0;
+ for(const g of records){
+  if(!g||!['natural','partial'].includes(g.completion))continue;
+  const time=gameTime(g);
+  if(!Number.isFinite(time)||time<=0||time>now){excluded++;continue}
+  const key=JSON.stringify([String(g.sessionId??''),g.exerciseId??g.exerciseIndex??null,g.name,time]);
+  if(seen.has(key)){
+   duplicates++;
+   if(JSON.stringify(seen.get(key))!==JSON.stringify(g))conflicts.add(key);
+  }else seen.set(key,g);
+ }
+ return {rows:[...seen].filter(([key])=>!conflicts.has(key)).map(([,g])=>g),duplicates,conflicts:conflicts.size,excluded};
+}
 function renderRecords(){
  const overview=$("recordOverview"),out=$("recordGames");if(!out)return;
- const all=data.games.filter(g=>g.completion==="natural"),allRecorded=data.games.filter(g=>g.completion==="natural"||g.completion==="partial"),total180=allRecorded.reduce((a,g)=>a+num(g.oneEighties),0),thisMonth=monthString(Date.now());
+ const eligible=dcRecordHistory(data.games),allRecorded=eligible.rows,all=allRecorded.filter(g=>g.completion==="natural"),total180=allRecorded.reduce((a,g)=>a+num(g.oneEighties),0),thisMonth=monthString(Date.now());
  const inMonth=allRecorded.filter(g=>monthString(gameTime(g))===thisMonth).reduce((a,g)=>a+num(g.oneEighties),0);
  const visits=allRecorded.flatMap(g=>Array.isArray(g.scores)?g.scores:[]);
  overview.innerHTML=`<div class="kpiGrid"><div class="kpi"><strong>${total180}</strong><small>Career 180s</small></div><div class="kpi"><strong>${inMonth}</strong><small>180s this month</small></div><div class="kpi"><strong>${visits.filter(n=>n>=100).length}</strong><small>100+ visits</small></div></div><div class="recordBreakdown"><h3>Scoring milestones</h3><div class="recordStatGrid"><div class="recordStat"><strong>${visits.filter(n=>n>=140).length}</strong><span>140+ visits</span></div><div class="recordStat"><strong>${allRecorded.filter(g=>gameTime(g)>=weekStart(Date.now())).reduce((a,g)=>a+num(g.oneEighties),0)}</strong><span>180s this week</span></div></div><div class="recordSplit"><div><span>Scheduled training 180s</span><strong>${allRecorded.filter(g=>!g.quick).reduce((a,g)=>a+num(g.oneEighties),0)}</strong></div><div><span>Quick Play 180s</span><strong>${allRecorded.filter(g=>g.quick).reduce((a,g)=>a+num(g.oneEighties),0)}</strong></div></div><details class="recordHelp"><summary>How these statistics are counted</summary><p>Only identifiable three-dart 180s are counted. Older records without exact throw information are not guessed.</p></details></div>`;
@@ -7433,10 +7545,9 @@ function renderRecords(){
   const rows=all.filter(x=>x.name===name);const best={};for(const g of rows)for(const m of recordMetrics(g)){
    const key=m.label;const old=best[key];if(!old||(m.higher?m.value>old.value:m.value<old.value))best[key]={...m,at:g.at,tier:g.tierAtStart||g.checkoutTierAtStart||null,quick:g.quick};
   }
-  const wins=rows.filter(x=>x.win===true).length,losses=rows.filter(x=>x.loss===true).length;
-  const metrics=Object.values(best).map(m=>'<div class="recordMetric"><span>'+esc(m.label)+'</span><strong>'+m.value+'</strong><small>'+esc(formatDate(m.at))+(m.tier?' · Tier '+m.tier:'')+(m.quick?' · Quick Play':'')+'</small></div>').join('');
-  return '<details class="recordSection"><summary>'+esc(name)+' <span>'+wins+'W / '+losses+'L</span></summary>'+(metrics||'<p class="muted">No completed rounds yet.</p>')+'</details>';
- });out.innerHTML=sections.join('');
+  const metrics=Object.values(best).map(m=>'<div class="recordMetric"><span>'+esc(m.label)+'</span><strong>'+m.value+'</strong><small>'+esc(formatDate(m.at))+(m.quick?' · Quick Play':'')+'</small></div>').join('');
+  return '<details class="recordSection"><summary>'+esc(name)+' <span>'+rows.length+' rounds</span></summary>'+(metrics||'<p class="muted">No completed rounds yet.</p>')+'</details>';
+ });out.innerHTML=sections.join('')+((eligible.duplicates||eligible.excluded)?'<p class="secondarySub">Repeated records: '+eligible.duplicates+' · Conflicting identities excluded: '+eligible.conflicts+' · Invalid or future dates excluded: '+eligible.excluded+'. Saved history is unchanged.</p>':'');
 }
 /* V5.15.4: comparable Mastery performance, not pooled percentages that hide targets. */
 function dc24Wilson(h,n,z=1.96){
@@ -7573,19 +7684,19 @@ function renderProgress(){coach62Week();
   '<details><summary class="pill">Measured double accuracy by number</summary><div class="targetGrid">'+doublesIntel.samples.map(x=>'<div>D'+x.target+'<strong>'+x.hits+'/'+x.darts+'</strong><small>'+(x.ready?'Repeat evidence':'Collecting')+'</small></div>').join('')+'</div></details></div>'+
   '<div class="entry" style="margin-top:14px"><h3>Checkout Intelligence · Finish Difficulty</h3><p class="muted">Actual completed checkout attempts grouped by starting score. Different finishing ranges are not treated as interchangeable.</p>'+
   checkoutIntel.map(x=>'<p>'+esc(x.name)+': '+x.hits+'/'+x.attempts+' finishes'+(x.ready?' · measured across '+x.days+' days':' · gathering evidence')+'</p>').join('')+'</div>'+
-  '<div class="entry" style="margin-top:14px"><h3>Pressure Consistency · Early Evidence</h3><p class="muted">Compares competitive WIN rates in the same game and hidden difficulty, one vote per day. This is a trend, not proof that a drill caused improvement.</p>'+
+  '<div class="entry" style="margin-top:14px"><h3>Pressure Consistency · Early Evidence</h3><p class="muted">Compares goal-completion rates in the same game and hidden difficulty, one vote per day. This is a trend, not proof that a drill caused improvement.</p>'+
   (pressureIntel.filter(x=>x.improving).length?pressureIntel.filter(x=>x.improving).slice(0,4).map(x=>'<p>✓ '+esc(x.name)+' · more consistent across '+x.days+' days</p>').join(''):'<p>Collecting repeated comparable pressure results.</p>')+'</div>';
  const audit=dc20Audit();
  $("singlesProgress").innerHTML+='<div class="entry" style="margin-top:14px"><h3>Coach Forecast Audit · Prospective Evidence</h3>'+ 
-  '<p class="muted">Predictions are locked before standard competitive rounds, then compared with actual wins and losses. One result per game and day. Recovery, Quick Play and modified challenges are excluded. This checks forecasting, NOT whether adaptive training causes improvement.</p>'+ 
+  '<p class="muted">Predictions are locked before standard competitive rounds, then compared with actual goal completion. One result per game and day. Recovery, Quick Play and modified challenges are excluded. This checks forecasting, NOT whether adaptive training causes improvement.</p>'+ 
   '<p>'+audit.rounds+' matched rounds across '+audit.days+' days'+(audit.enough?' · comparison ready':' · collecting independent evidence')+'</p>'+ 
   (audit.enough?'<p>Coach prediction error: '+audit.brier.toFixed(3)+' · neutral 50% prediction: '+audit.neutral.toFixed(3)+' (lower is better)</p>':
    '<p>At least 40 comparable rounds on 20 separate days are needed before showing a prediction-error comparison.</p>')+
   '<details><summary class="pill">Probability calibration</summary>'+audit.groups.map((x,i)=>'<p>'+
-   ['Below 35%','35–65%','Above 65%'][i]+': '+x.n+' rounds'+(x.n>=10?' · forecast '+(x.p*100).toFixed(0)+'% · actual '+(x.won*100).toFixed(0)+'% wins':' · gathering evidence')+'</p>').join('')+'</details></div>';
+   ['Below 35%','35–65%','Above 65%'][i]+': '+x.n+' rounds'+(x.n>=10?' · forecast '+(x.p*100).toFixed(0)+'% · actual '+(x.won*100).toFixed(0)+'% completed':' · gathering evidence')+'</p>').join('')+'</details></div>';
  const blocks=[...(data.coach.completedBlocks||[])].reverse();$("blockReport").innerHTML=blocks.length?blocks.map(b=>'<div class="entry"><h3>Training Block '+(num(b.index)+1)+'</h3><p>'+formatDate(b.start)+' to '+formatDate(b.end-1)+'</p>'+(b.highlights&&b.highlights.length?b.highlights.map(h=>'<p>✓ '+esc(h.name)+': improved by '+num(h.improvement).toFixed(1)+esc(h.unit)+'</p>').join(''):'<p>Block completed. Your coach has prepared the next phase.</p>')+'</div>').join(''):'<p class="muted">The first four-week review appears once sufficient training data is available.</p>';
  $("sessionHistory").innerHTML=data.sessions.slice(-30).reverse().map(s=>'<div class="entry"><strong>'+esc(s.date||'Session')+'</strong> · '+num(s.minutes).toFixed(1)+' minutes'+(s.quick?' · Quick Play':s.extra?' · Extra session':'')+(s.coachReport?'<details><summary>Coach’s Report</summary>'+[['Today’s Achievements',s.coachReport.good],['Training Completed',s.coachReport.highlight],['Coach’s Next Steps',s.coachReport.plan]].filter(x=>x[1]).map(([name,msg])=>'<p><strong>'+esc(name)+':</strong> '+esc(msg)+'</p>').join('')+'</details>':'')+'</div>').join('')||'<p>No sessions recorded yet.</p>';
- $("gameHistory").innerHTML=data.games.slice(-40).reverse().map(g=>'<div class="entry"><strong>'+esc(g.name==="Doubles Survival"&&g.variant==="singles"?'Singles Survival':g.name||'Game')+'</strong> · '+esc(g.result||'Completed')+(g.completion==='partial'?' (partial)':'')+'</div>').join('')||'<p>No games recorded yet.</p>';
+ $("gameHistory").innerHTML=data.games.slice(-40).reverse().map(g=>'<div class="entry"><strong>'+esc(g.name==="Doubles Survival"&&g.variant==="singles"?'Singles Survival':g.name||'Game')+'</strong> · '+esc(dcVisibleRoundResult(g.result||'Completed'))+(g.completion==='partial'?' (partial)':'')+'</div>').join('')||'<p>No games recorded yet.</p>';
  $("historySection").classList.toggle('hidden',!historyVisible);$("historyToggle").textContent=historyVisible?'Hide Training History':'View Training History';
 }
 
@@ -8379,7 +8490,7 @@ function idcPhysicalAllowed(){
  alert("The independent coach cannot approve throwing right now. Review readiness in Coach before continuing.");return false;
 }
 function idcBoundary(){if(currentTab!=="train")return null;const s=session();if(s&&s.phase==="complete"&&!s.quick){const a=s.completed.find(x=>x.exerciseIndex===s.index);if(a)return {kind:"exercise",sessionId:String(s.id),index:s.index,name:a.name,at:a.at,day:dateKey(s.start),quick:false}}if(!s&&!$("sessionFinished").classList.contains("hidden")){const x=data.sessions.at(-1);if(x&&!x.quick)return {kind:"session",sessionId:String(x.id),index:null,name:"Training session",at:Math.max(x.start,...(x.activities||[]).map(a=>Number(a.at)||0)),day:x.date,quick:false}}return null}
-window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>data.games.filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
+window.IDCTrainingBridge=Object.freeze({precisionHistory:(name,day,now)=>data.games.filter(g=>g?.name===name&&g.day<=day&&Number.isFinite(g.at)&&g.at>=now-84*DAY_MS&&g.at<=now).map(g=>({name:g.name,day:g.day,at:g.at,quick:g.quick,extra:g.extra,recovery:g.recovery,completion:g.completion,tierAtStart:g.tierAtStart,win:g.win,ruleVersion:g.ruleVersion??null,challengeTuning:g.challengeTuning,precision:g.precision?clone(g.precision):null})),installCalibration:(choices,legacy=[])=>{for(const b of [...legacy,...choices])QUICK_START_BANDS[b.key]={average:b.average,tiers:b.tiers};for(const id of ['quickStartAverage','recalibrateAverage']){const node=$(id),old=node.value;for(const option of node.options)option.hidden=true;for(const b of [...legacy,...choices]){const option=document.createElement('option');option.value=b.key;option.textContent=b.label??('Previous '+b.average+' average');option.hidden=legacy.includes(b);node.append(option)}const saved=data.assessment?.quickBand;node.value=id==='recalibrateAverage'&&QUICK_START_BANDS[saved]?saved:choices.find(b=>b.average>=((QUICK_START_BANDS[old]?.average)??25))?.key??choices[0].key;}},boundary:idcBoundary,snapshot:()=>JSON.parse(JSON.stringify({sessions:data.sessions,games:data.games,assessment:data.assessment,assessmentHistory:data.assessmentHistory,bigSingles:data.bigSingles})),memory:()=>data.idcCoachMemory==null?null:clone(data.idcCoachMemory),writeMemory:(next,expected,reflectionBoundary=null)=>{if(reflectionBoundary&&JSON.stringify(idcBoundary())!==JSON.stringify(reflectionBoundary))throw Error("Practice boundary changed");const beforeMemory=data.idcCoachMemory??null;const withoutReadiness=m=>m==null?null:{...m,state:{...m.state,readiness:[]}};const readinessOnly=JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(beforeMemory)))===JSON.stringify(withoutReadiness(window.IDCPolicy.validateMemory(next)));if(session()&&!(reflectionBoundary&&session().phase==="complete")&&!readinessOnly)throw Error("Finish or end the current session before changing coach memory");if(JSON.stringify(data.idcCoachMemory??null)!==expected)throw Error("Coach memory changed; review again");const previous=data.idcCoachMemory;data.idcCoachMemory=clone(next);if(!save(false)){if(previous===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=previous;throw Error(storageSaveError||"Unable to save coaching memory")}if(readinessOnly&&window.IDCPolicy?.mayStart()!==true){
  if(session()?.phase==="playing"&&!session().pausedAt)pauseSession();
  if(activeStage==="warmup"||assessmentWarmup().startedAt)pauseAssessmentWarmup();
  }checkpointData();return true},active:()=>!!session(),nativePlanPreview:()=>{const s=session();if(!s&&assessmentDue())return {status:'assessment-required',segments:[]};const plan=s?s.plan.slice(s.index):generateSession(false,false,true);return {status:s?s.allocated?'locked':'initial':'initial',segments:plan.map(e=>({name:e.name,mode:e.mode,minutes:e.mode==='timed'?Math.round(e.seconds/60):null}))}},legacyDecision:()=>{const x=dc39UnifiedDecision(false);return {categories:x.categories,mastery:x.masteryDecision?{category:x.masteryDecision.category,minutes:x.masteryDecision.minutes}:null,reason:x.masteryReason}},day:()=>dateKey()});

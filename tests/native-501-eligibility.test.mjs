@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source=fs.readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
+const code=source.slice(source.indexOf('function dc501PressureEligibility('),source.indexOf('function chooseQuick('));
+const DAY_MS=86400000,now=1760000000000;
+const factory=new Function('data','assessmentDate','dailySamples','skillSamples','dc2Estimate','DAY_MS','dc28GameCategory',code+';return {dc501PressureEligibility,dcGameEligible,dc501Substitute}');
+const make=(data,rows=[],est={confidence:'low',value:42})=>factory(data,a=>a?.completedAt||0,x=>x,()=>({scoring:rows}),(...args)=>{assert.ok(args[1].every(r=>!r.quick&&r.time<=now&&r.time>=now-42*DAY_MS));return est},DAY_MS,()=> 'checkout');
+test('501 threshold is exact and rejects invalid provisional values',()=>{for(const v of [79.9,80,80.1,180,-1,181,NaN,null,'80'])assert.equal(make({assessment:{finished:true,completedAt:now,quickStart:true,profile:{selfReportedAverage:v}}}).dc501PressureEligibility(now).allowed,typeof v==='number'&&Number.isFinite(v)&&v>=80&&v<=180)});
+test('measured assessment threshold and stale or missing evidence',()=>{for(const v of [79.9,80,80.1])assert.equal(make({assessment:{finished:true,completedAt:now,profile:{scoring:{visits:20,average:v,total:v*20}}}}).dc501PressureEligibility(now).allowed,v>=80);for(const at of [0,now+1,now-43*DAY_MS])assert.equal(make({assessment:{finished:true,completedAt:at,quickStart:true,profile:{selfReportedAverage:90}}}).dc501PressureEligibility(now).allowed,false)});
+test('current independent training takes precedence and recreational samples never enter estimate',()=>{for(const v of [79.9,80,80.1])assert.equal(make({assessment:null},[{quick:true,time:now},{time:now},{time:now+1},{time:now-43*DAY_MS}],{confidence:'medium',value:v}).dc501PressureEligibility(now).allowed,v>=80)});
+test('future ineligible exercise preserves duration and avoids an already scheduled replacement',()=>{const s={index:0,plan:[{name:'501 Pressure',mode:'timed',seconds:600},{name:'301 Pressure'}]};const f=make({assessment:null});assert.equal(f.dcGameEligible('301 Pressure'),true);const item=f.dc501Substitute(s,s.plan[0]);assert.equal(item.name,'Focused Checkouts');assert.equal(item.seconds,600);assert.equal(s.eligibilitySubstitutions.length,1);assert.equal(s.plan[0],item)});
