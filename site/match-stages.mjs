@@ -16,16 +16,22 @@ export function minimumFinishDarts(score){
 const band=s=>s<=40?'2–40':s<=80?'41–80':s<=120?'81–120':'121–170';
 const count=(a,b)=>b?a/b:null;
 const empty=()=>({visits:0,darts:0,points:0,busts:0,finishes:0});
-const make=()=>({legs:0,days:new Set(),scoring:empty(),checkout:empty(),bogey:empty(),setup:{attempts:0,leaves:0,doubleLeaves:0,busts:0},escape:{attempts:0,leaves:0},finishDarts:{1:0,2:0,3:0},shortest:{1:{attempts:0,finishes:0},2:{attempts:0,finishes:0},3:{attempts:0,finishes:0}},bands:Object.fromEntries(['2–40','41–80','81–120','121–170'].map(k=>[k,empty()])),aim:{known:0,total:0,knownFinishAttempts:0,knownFinishHits:0,fullyAimedLegs:0,completeLegAttempts:0,completeLegHits:0,misses:{},targets:{}}});
+const make=()=>({legs:0,days:new Set(),firstNine:{legs:0,points:0,darts:0},recovery:{opportunities:0,points:0,darts:0},scoring:empty(),checkout:empty(),bogey:empty(),setup:{attempts:0,leaves:0,doubleLeaves:0,busts:0},escape:{attempts:0,leaves:0},finishDarts:{1:0,2:0,3:0},shortest:{1:{attempts:0,finishes:0},2:{attempts:0,finishes:0},3:{attempts:0,finishes:0}},bands:Object.fromEntries(['2–40','41–80','81–120','121–170'].map(k=>[k,empty()])),aim:{known:0,total:0,knownFinishAttempts:0,knownFinishHits:0,fullyAimedLegs:0,completeLegAttempts:0,completeLegHits:0,misses:{},targets:{}}});
 function addVisit(m,v){
  m.visits++;m.darts+=v.darts.length;m.points+=v.scored;m.busts+=Number(v.bust);m.finishes+=Number(v.finished);
 }
 function addLeg(m,a){
  m.legs++;m.days.add(a.leg.day);
+ if(a.firstNineDarts===9){m.firstNine.legs++;m.firstNine.points+=a.firstNinePoints;m.firstNine.darts+=9}
+ let previous=null;
  const complete=a.unknownIntent===0;if(complete)m.aim.fullyAimedLegs++;
  for(const v of a.visits){
   const min=minimumFinishDarts(v.start),phase=v.start>170?'scoring':min===null?'bogey':'checkout';
   addVisit(m[phase],v);
+  // A recovery sample is the next scoring visit after a credited visit below 40.
+  // No cross-leg transitions, checkout visits or assumed emotional pressure.
+  if(phase==='scoring'&&previous&&previous.start>170&&previous.scored<40){m.recovery.opportunities++;m.recovery.points+=v.scored;m.recovery.darts+=v.darts.length}
+  previous=v;
   if(phase==='checkout'){
    addVisit(m.bands[band(v.start)],v);m.shortest[min].attempts++;
    if(v.finished){m.shortest[min].finishes++;m.finishDarts[v.darts.length]++}
@@ -54,7 +60,7 @@ function addLeg(m,a){
 }
 function finish(m){
  const stage=s=>({...s,average:count(3*s.points,s.darts),bustRate:count(s.busts,s.visits),finishRate:count(s.finishes,s.visits)});
- return {...m,days:m.days.size,scoring:stage(m.scoring),checkout:stage(m.checkout),bogey:stage(m.bogey),bands:Object.fromEntries(Object.entries(m.bands).map(([k,v])=>[k,stage(v)])),setup:{...m.setup,rate:count(m.setup.leaves,m.setup.attempts)},escape:{...m.escape,rate:count(m.escape.leaves,m.escape.attempts)},aim:{...m.aim,coverage:count(m.aim.known,m.aim.total),completeLegRate:count(m.aim.completeLegHits,m.aim.completeLegAttempts),targets:Object.fromEntries(Object.entries(m.aim.targets).map(([k,t])=>[k,{...t,days:t.days.size}]))}};
+ return {...m,days:m.days.size,firstNine:{...m.firstNine,average:count(3*m.firstNine.points,m.firstNine.darts)},recovery:{...m.recovery,average:count(3*m.recovery.points,m.recovery.darts)},scoring:stage(m.scoring),checkout:stage(m.checkout),bogey:stage(m.bogey),bands:Object.fromEntries(Object.entries(m.bands).map(([k,v])=>[k,stage(v)])),setup:{...m.setup,rate:count(m.setup.leaves,m.setup.attempts)},escape:{...m.escape,rate:count(m.escape.leaves,m.escape.attempts)},aim:{...m.aim,coverage:count(m.aim.known,m.aim.total),completeLegRate:count(m.aim.completeLegHits,m.aim.completeLegAttempts),targets:Object.fromEntries(Object.entries(m.aim.targets).map(([k,t])=>[k,{...t,days:t.days.size}]))}};
 }
 export function stageProfiles(legs,day){
  if(!dayValid(day)||!Array.isArray(legs))throw Error('Invalid match stage input');
@@ -75,6 +81,8 @@ export function stageProfiles(legs,day){
 }
 const metrics={
  'scoring-stage average':{read:r=>[3*r.scoring.points,r.scoring.darts],floor:3,min:90,units:'points'},
+ 'first-nine average':{read:r=>[3*r.firstNine.points,r.firstNine.darts],floor:3,min:90,units:'points'},
+ 'next scoring visit after below 40':{read:r=>[3*r.recovery.points,r.recovery.darts],floor:3,min:90,units:'points'},
  'checkout visit conversion':{read:r=>[r.checkout.finishes,r.checkout.visits],floor:.05,min:40,units:'percentage points'},
  'setup leave conversion':{read:r=>[r.setup.leaves,r.setup.attempts],floor:.08,min:40,units:'percentage points'},
  'checkout bust rate':{read:r=>[r.checkout.busts,r.checkout.visits],floor:.05,min:40,units:'percentage points'},
@@ -88,7 +96,7 @@ export function stageTransfer(report,day){
   for(const [metric,spec] of Object.entries(metrics)){
    const bins=new Map();
    for(const profile of [p,c])for(const d of profile.daily){
-    const [hits,attempts]=spec.read(d);if(!attempts)continue;
+    const [hits,attempts]=spec.read(d);if(!attempts||dayGap(d.day,day)<0||dayGap(d.day,day)>=84)continue;
     const k=Math.floor(dayGap(d.day,day)/7),w=bins.get(k)??{practice:[],competition:[]};
     w[profile.context].push({value:hits/attempts,attempts});bins.set(k,w);
    }
@@ -114,6 +122,7 @@ export function stageLines(report,period=28){
   if(!w.legs)continue;
   lines.push(p.start+' straight-in · '+p.context+' · '+period+' days: '+w.legs+' completed legs on '+w.days+' days.');
   lines.push('Scoring-stage average '+num(w.scoring.average)+' from '+w.scoring.darts+' actual darts in '+w.scoring.visits+' visits starting above 170.');
+  lines.push('First-nine average '+num(w.firstNine.average)+' from '+w.firstNine.legs+' eligible legs. Next scoring visit after a credited scoring visit below 40: '+num(w.recovery.average)+' average from '+w.recovery.opportunities+' within-leg opportunities. Not a measure of psychological pressure.');
   lines.push('Setup zone 171–350: '+w.setup.leaves+'/'+w.setup.attempts+' legal checkout leaves ('+pct(w.setup.rate)+'); '+w.setup.doubleLeaves+' one-dart leaves. Bogey-score escapes '+w.escape.leaves+'/'+w.escape.attempts+'.');
   lines.push('Checkout conversion '+w.checkout.finishes+'/'+w.checkout.visits+' ('+pct(w.checkout.finishRate)+'); '+w.checkout.busts+' bust visits. '+Object.entries(w.bands).map(([k,v])=>k+': '+v.finishes+'/'+v.visits).join(' · ')+'.');
   lines.push('Shortest legal route opportunities: '+Object.entries(w.shortest).map(([k,v])=>k+' dart '+v.finishes+'/'+v.attempts).join(' · ')+'. Actual finishing visits used '+Object.entries(w.finishDarts).map(([k,v])=>k+' dart '+v).join(' · ')+'.');
@@ -127,3 +136,29 @@ export function transferLines(rows){
  if(!rows.length)return ['No same-rule actual practice and competition leg histories to compare.'];
  return [...rows.map(r=>r.start+' straight-in · '+r.metric+': '+r.pairedWeeks+' matched weekly blocks, '+r.daysA+'/'+r.daysB+' measured days, '+r.attemptsA+'/'+r.attemptsB+' opportunities. '+(r.status==='observed-gap'?'Competition minus practice '+(r.units==='points'?r.difference:100*r.difference).toFixed(1)+' '+r.units+'.':r.status==='unclear'?'No clear observed difference.':'More comparable observations needed.')),'Matched actual leg stages, not fixed-drill versus match equivalence. Differences may reflect opponents, tactics, selection or conditions; pressure is not established as a cause.'];
 }
+
+ // Independent competition progress, not a training-effect estimate.
+ // Nonoverlapping windows and exact starting rules; equal weight per day.
+ export function competitionProgress(report,day){
+  if(!dayValid(day))throw Error('Invalid competition review date');
+  const shift=n=>new Date(Date.parse(day)-n*86400000).toISOString().slice(0,10);
+  const windows=[{from:shift(55),to:shift(28)},{from:shift(27),to:day}];
+  const rows=[];
+  for(const profile of report.profiles.filter(p=>p.context==='competition')){
+   for(const [metric,spec] of Object.entries(metrics)){
+    const [earlier,recent]=windows.map(w=>{
+     const days=profile.daily.filter(d=>d.day>=w.from&&d.day<=w.to).map(d=>{const [hits,attempts]=spec.read(d);return {day:d.day,hits,attempts}}).filter(d=>d.attempts>0);
+     const opportunities=days.reduce((n,d)=>n+d.attempts,0),hits=days.reduce((n,d)=>n+d.hits,0);
+     return {...w,days:days.length,opportunities,hits,value:count(hits,opportunities),dayMean:distribution(days.map(d=>d.hits/d.attempts)).mean};
+    });
+    const difference=earlier.value===null||recent.value===null?null:recent.value-earlier.value;
+    rows.push({start:profile.start,metric,units:spec.units,earlier,recent,difference,status:difference===null?'missing-window':earlier.days<7||recent.days<7||earlier.opportunities<spec.min||recent.opportunities<spec.min?'limited':'descriptive'});
+   }
+  }
+  return rows;
+ }
+ export function competitionProgressLines(rows){
+  if(!rows.length)return ['No eligible real competition straight-in leg records. Log actual legs when convenient; practice and bot results cannot fill this gap.'];
+  const fmt=(x,u)=>x===null?'not measured':(u==='points'?x:100*x).toFixed(1)+(u==='points'?'':'%');
+  return [...rows.map(r=>r.start+' straight-in · '+r.metric+': '+r.earlier.from+' to '+r.earlier.to+' '+fmt(r.earlier.value,r.units)+' ('+r.earlier.days+' days, '+r.earlier.opportunities+' opportunities); '+r.recent.from+' to '+r.recent.to+' '+fmt(r.recent.value,r.units)+' ('+r.recent.days+' days, '+r.recent.opportunities+' opportunities). '+(r.difference===null?'No comparison possible.':'Observed change '+(r.difference>0?'+':'')+(r.units==='points'?r.difference:100*r.difference).toFixed(1)+' '+r.units+'. '+(r.status==='limited'?'Limited coverage.':'Descriptive comparison only.'))),'Separate real competition windows; no overlap, no bot or practice substitution. Opponents, tactics, equipment, readiness and selection may differ. This report does not establish a training effect or trigger a change.'];
+ }

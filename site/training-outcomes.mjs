@@ -121,7 +121,7 @@ export function delayedFollowups(episodes,state,host,day,blockedDays=[]){
  // Never reuse another episode's benchmark as independent follow-up.
  const endpointIds=new Set(episodes.flatMap(e=>e.measurementIds??[]));
  for(const e of [...episodes].sort((a,b)=>a.to.localeCompare(b.to)||key(a).localeCompare(key(b)))){
-  if(e.to>day||e.delta<floor(e.skill)||dayGap(e.to,day)<7)continue;
+  if(e.to>day||dayGap(e.to,day)<7||!FIXED_PROTOCOLS[e.skill]?.includes(e.protocol)||!Number.isFinite(e.delta))continue;
   const scope=key(e),days=groups.get(scope);if(!days)continue;
   const later=[...days].filter(([d,rs])=>dayGap(e.to,d)>=7&&dayGap(e.to,d)<=21&&!used.has(JSON.stringify([scope,d]))&&!rs.some(o=>endpointIds.has(o.id))).sort((a,b)=>a[0].localeCompare(b[0]));
   const x=later.find(([,rs])=>summarise(rs).attempts>=minimum[e.skill]);if(!x)continue;
@@ -130,7 +130,12 @@ export function delayedFollowups(episodes,state,host,day,blockedDays=[]){
   used.add(JSON.stringify([scope,d]));
   const s=summarise(rs),value=measure(e.skill,s.value),gain=value-e.baseline;
   const interveningDays=[...recordedDays].filter(v=>v>=e.to&&v<=d).sort();
-  const status=gain>=floor(e.skill)&&gain>=e.delta*.75?'gain-still-observed':gain<=0?'gain-not-observed':'partial-or-unclear';
+  const threshold=floor(e.skill);
+  const status=e.delta>=threshold
+   ?gain>=threshold&&gain>=e.delta*.75?'gain-still-observed':gain<=0?'gain-not-observed':'partial-or-unclear'
+   :e.delta<=-threshold
+    ?gain<=-threshold?'decline-still-observed':gain>=threshold?'later-improvement-observed':'decline-no-longer-clear'
+    :gain>=threshold?'later-improvement-observed':gain<=-threshold?'later-decline-observed':'no-clear-later-change';
   out.push({skill:e.skill,protocol:e.protocol,setting:e.setting,from:e.from,to:e.to,followup:d,delay:dayGap(e.to,d),baseline:e.baseline,after:e.after,value,gain,attempts:s.attempts,measurementIds:rs.map(o=>o.id),interveningDays,status,independentOfRecordedTraining:interveningDays.length===0});
  }
  return out;
@@ -156,5 +161,5 @@ export function followupLines(report){
  const rows=report.followups,lines=[rows.length+' separately measured delayed follow-ups.'];
  if(!rows.length)lines.push('No eligible independent later benchmark yet.');
  for(const r of rows.slice(-20).reverse())lines.push(r.skill+' · '+r.protocol+' · '+settingLabel(r.setting)+' · '+r.delay+' days later: '+r.baseline.toFixed(1)+' before, '+r.after.toFixed(1)+' after, '+r.value.toFixed(1)+' at follow-up'+(r.skill==='scoring'?' points.':'%.')+' '+r.status.replaceAll('-',' ')+'. '+(r.independentOfRecordedTraining?'No intervening saved training days; unlogged practice remains unknown.':r.interveningDays.length+' saved training days including endpoints; not a retention-isolation test.'));
- return [...lines,'Only new benchmark identities are used for follow-up. Observing a gain later does not establish permanent retention or causal benefit.'];
+ return [...lines,'Both initially successful and unsuccessful approaches are eligible for a later check. Only new benchmark identities are used; later changes do not establish permanent retention or causal benefit.'];
 }

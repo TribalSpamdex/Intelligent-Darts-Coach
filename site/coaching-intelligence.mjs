@@ -4,13 +4,13 @@ import {nextComparison,comparisonPlanLines} from './trial-planning.mjs';
 // explicit review, not on each keypad press, dart or timer tick.
 import {trainingLedger,ledgerLines} from './training-ledger.mjs';
 import {trainingOutcomes,outcomeReportLines,followupLines} from './training-outcomes.mjs';
-import {stageProfiles,stageTransfer,stageLines,transferLines} from './match-stages.mjs';
+import {stageProfiles,stageTransfer,stageLines,transferLines,competitionProgress,competitionProgressLines} from './match-stages.mjs';
 import {developmentProfile,developmentAgenda,developmentLines,agendaLines,goalRunwayLines} from './development-review.mjs';
 export const INTELLIGENCE_QUESTIONS=Object.freeze([
  'What should I work on next?','How much have I actually trained?','How does my training relate to progress?',
  'Which drills help me improve?','Does longer practice help me?','Have my gains lasted?',
  'Where do I lose performance in legs?','How does practice transfer to competition?','How far am I from my goals?',
- 'Do I lose consistency during practice?','What should I test next?'
+ 'Do I lose consistency during practice?','What should I test next?','Is my real match performance improving?'
 ]);
 const answer=(type,lines)=>({kind:'answer',type,lines});
 export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[]){
@@ -23,6 +23,7 @@ export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[
  const period=q.match(/^(?:match stages|where do i lose performance in legs)(?: (7|28|84|365) days)?$/);
  if(period)return answer('match-stages',stageLines(stageProfiles(state.legs??[],day),period[1]?Number(period[1]):28));
  if(/^(how does practice transfer to competition|actual match transfer|match stage comparison)$/.test(q))return answer('match-transfer',transferLines(stageTransfer(stageProfiles(state.legs??[],day),day)));
+ if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day)));
  if(/^(how far am i from my goals|goal runway|goal gaps)$/.test(q))return answer('goal-runway',goalRunwayLines(developmentAgenda(host,state,day,{now})));
  if(/^(do i lose consistency during practice|early versus late rounds|within exercise performance)$/.test(q))return answer('exercise-sequence',sequenceLines(exerciseSequences(host,state,reflections,day,now)));
  if(/^(what should i test next|next training comparison|comparison plan)$/.test(q))return answer('comparison-plan',comparisonPlanLines(nextComparison(host,state,day,now)));
