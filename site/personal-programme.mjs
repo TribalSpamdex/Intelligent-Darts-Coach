@@ -1,3 +1,4 @@
+import {adaptiveReview,reviewMethodChoice} from './adaptive-review.mjs';
 import {methodSignalReview,methodSignalAllows} from './development-signals.mjs';
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate,currentMethodReviews} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
@@ -37,10 +38,12 @@ export function planPreview(host,state,report,events,day,now=Date.now(),existing
  const rows=base(),open=(state.interventions??[]).find(i=>i.status==='accepted'&&dayValid(i.responseDay)&&i.responseDay<=day);
  const pending=(state.interventions??[]).some(i=>i.status==='proposed'&&i.proposedDay<=day);
  const shortfall=open?deliveryGate(host,open,day,now):null;
+ const reference=adaptiveReview(host,state,day,now);
+ const referenceBlocked=skill=>reference.decision==='readiness'||reference.conflicts.some(c=>c.focus.skill===skill)||reference.profiles.some(p=>p.skill===skill&&p.status==='recovering');
  // Preview only. Use an accepted focus, not a descriptive association or
  // forecast, and only while the existing engine independently supports it.
  let focus=null;
- if(event.phase!=='near-event'&&open&&!shortfall.defer&&!pending&&core.has(open.skill)&&open.context==='practice'&&report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id&&dayGap(open.responseDay,day)>=0&&dayGap(open.responseDay,day)<open.reviewAfterDays){
+ if(event.phase!=='near-event'&&open&&!referenceBlocked(open.skill)&&!shortfall.defer&&!pending&&core.has(open.skill)&&open.context==='practice'&&report?.verification?.status==='passed'&&report.active?.mode==='accepted-temporary-focus'&&report.active.intervention===open.id&&dayGap(open.responseDay,day)>=0&&dayGap(open.responseDay,day)<open.reviewAfterDays){
   const to=rows.find(x=>x.skill===open.skill),from=rows.filter(x=>x.skill!==open.skill&&x.minutes>=10&&core.has(x.skill)).sort((a,b)=>b.minutes-a.minutes||a.skill.localeCompare(b.skill))[0];
   if(to&&from){to.minutes+=5;from.minutes-=5;to.reason='Accepted focus preview; native allocation safeguards still decide actual session.';focus=open.skill}
  }
@@ -49,7 +52,7 @@ export function planPreview(host,state,report,events,day,now=Date.now(),existing
  if(!blocked){
   const learning=personalLearning(host,state,day,now),reviews=currentMethodReviews(methodReviews(host,state,day,now),learningBoundary(state,day)),deferred=methodReviewGate(reviews,day),awaiting=methodFollowupGate(reviews,day);
   for(const row of rows){
-   if(awaiting.some(r=>r.skill===row.skill))continue;
+   if(referenceBlocked(row.skill)||awaiting.some(r=>r.skill===row.skill))continue;
    const profile=learning.find(x=>x.skill===row.skill),evidence=profile?.supported.filter(x=>x.kind==='method'&&dayValid(x.latest)&&dayGap(x.latest,day)>=0&&dayGap(x.latest,day)<=28)??[];
    const distinct=[...new Set(evidence.map(x=>x.favoured.name))];
    // Different methods or protocol disagreements are reasons not to select.
@@ -153,5 +156,6 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   // leave a cached preference behind.
   const {currentComparisons,currentFollowups}=trainingOutcomes(host,context.state,day,now);
   const choice=learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons:currentComparisons,followups:currentFollowups,day,reviews:methodReviews(host,context.state,day,now)});
-  return methodSignalAllows(choice,methodSignalReview({currentComparisons,currentFollowups},day));
+  const measured=methodSignalAllows(choice,methodSignalReview({currentComparisons,currentFollowups},day));
+  return measured.status==='selected'?reviewMethodChoice(measured,adaptiveReview(host,context.state,day,now)):measured;
  }

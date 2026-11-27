@@ -1,3 +1,4 @@
+import {adaptiveReview,adaptiveReviewLines,warningReplay,warningReplayLines} from './adaptive-review.mjs';
 import {quickDevelopment,quickDevelopmentLines} from './quick-development.mjs';
 import {transferSignals,transferSignalLines,individualMethodSignals,methodDecisionLines,performanceWatchLines} from './development-signals.mjs';
 import {exerciseSequences,sequenceLines} from './session-learning.mjs';
@@ -7,13 +8,14 @@ import {nextComparison,comparisonPlanLines} from './trial-planning.mjs';
 import {learningEpisodes} from './challenge-episodes.mjs';
 import {trainingLedger,ledgerLines} from './training-ledger.mjs';
 import {trainingOutcomes,outcomeReportLines,followupLines} from './training-outcomes.mjs';
-import {stageProfiles,stageTransfer,stageLines,transferLines,competitionProgress,competitionProgressLines,methodCompetitionReview,methodCompetitionLines} from './match-stages.mjs';
+import {stageProfiles,stageTransfer,stageLines,transferLines,competitionProgress,competitionProgressLines,competitionStageDevelopment,competitionStageDevelopmentLines,methodCompetitionReview,methodCompetitionLines} from './match-stages.mjs';
 import {developmentProfile,developmentAgenda,developmentLines,agendaLines,goalRunwayLines} from './development-review.mjs';
 export const INTELLIGENCE_QUESTIONS=Object.freeze([
  'What should I work on next?','How much have I actually trained?','How does my training relate to progress?',
  'Which drills help me improve?','Does longer practice help me?','Have my gains lasted?',
  'Where do I lose performance in legs?','How does practice transfer to competition?','How far am I from my goals?',
- 'What is Quick Play telling you?','Which methods should I keep using?','Are my practice gains reaching matches?','Are any weaknesses emerging?','Do I lose consistency during practice?','What should I test next?','Is my real match performance improving?'
+ 'What is Quick Play telling you?','Which methods should I keep using?','Are my practice gains reaching matches?','Are any weaknesses emerging?','Do I lose consistency during practice?','What should I test next?','Is my real match performance improving?',
+ 'What is my current skill profile?','Why has my performance changed?','How reliable are your warnings?'
 ]);
 const answer=(type,lines)=>({kind:'answer',type,lines});
 export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[]){
@@ -27,6 +29,9 @@ export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[
  if(/^(are any weaknesses emerging|performance watch|early performance warning)$/.test(q))return answer('performance-watch',[...performanceWatchLines(state,day),...quickDevelopmentLines(quickDevelopment(host,state,day,now))]);
  if(/^(which methods should i keep using|method decisions|what works for me)$/.test(q))return answer('individual-methods',methodDecisionLines(individualMethodSignals(host,state,day,now)));
  if(/^(are my practice gains reaching matches|is my practice carrying over|practice match progress)$/.test(q))return answer('match-direction',transferSignalLines(transferSignals(state,day)));
+ if(/^(what is my current skill profile|current player profile|my current skill profile)$/.test(q))return answer('adaptive-profile',adaptiveReviewLines(adaptiveReview(host,state,day,now),{detail:true}));
+ if(/^(why has my performance changed|why am i getting worse|why have i gone backwards|diagnose my performance)$/.test(q))return answer('adaptive-diagnosis',adaptiveReviewLines(adaptiveReview(host,state,day,now)));
+ if(/^(how reliable are your warnings|review your warnings|warning accuracy)$/.test(q))return answer('warning-replay',warningReplayLines(warningReplay(state,day)));
  const period=q.match(/^(?:match stages|where do i lose performance in legs)(?: (7|28|84|365) days)?$/);
  if(period)return answer('match-stages',stageLines(stageProfiles(state.legs??[],day),period[1]?Number(period[1]):28));
  if(/^(how does practice transfer to competition|actual match transfer|match stage comparison|how do my drills relate to competition)$/.test(q)){
@@ -34,7 +39,7 @@ export function intelligenceAnswer(host,state,q,day,now=Date.now(),reflections=[
   const episodes=report.profiles.some(p=>p.context==='competition')?learningEpisodes(host,state,day,now).episodes:[];
   return answer('match-transfer',[...transferSignalLines(transferSignals(state,day)),...transferLines(transfer),...methodCompetitionLines(methodCompetitionReview(report,episodes,state,day))]);
  }
- if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day)));
+ if(/^(is my real match performance improving|competition progress|real match progress)$/.test(q))return answer('competition-progress',[...competitionProgressLines(competitionProgress(stageProfiles(state.legs??[],day),day)),...competitionStageDevelopmentLines(competitionStageDevelopment(state,day))]);
  if(/^(how far am i from my goals|goal runway|goal gaps)$/.test(q))return answer('goal-runway',goalRunwayLines(developmentAgenda(host,state,day,{now})));
  if(/^(do i lose consistency during practice|early versus late rounds|within exercise performance)$/.test(q))return answer('exercise-sequence',sequenceLines(exerciseSequences(host,state,reflections,day,now)));
  if(/^(what should i test next|next training comparison|comparison plan)$/.test(q))return answer('comparison-plan',comparisonPlanLines(nextComparison(host,state,day,now)));

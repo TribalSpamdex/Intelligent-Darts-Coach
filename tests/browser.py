@@ -277,8 +277,8 @@ with sync_playwright() as p:
     assert 'No saved competitions' in page.locator('#idcEvents').inner_text()
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=false')
     page.locator('#idcDeepPanel').evaluate('(e)=>e.open=true')
-    assert page.locator('#idcDeepQuestions button').count()==18
-    for question in ('What is Quick Play telling you?', 'Which methods should I keep using?', 'Are my practice gains reaching matches?', 'Are any weaknesses emerging?'):
+    assert page.locator('#idcDeepQuestions button').count()==21
+    for question in ('What is Quick Play telling you?', 'Which methods should I keep using?', 'Are my practice gains reaching matches?', 'Are any weaknesses emerging?', 'What is my current skill profile?', 'Why has my performance changed?', 'How reliable are your warnings?'):
         assert page.locator('#idcDeepQuestions').get_by_role('button',name=question,exact=True).count()==1, question
     page.locator('#idcDeepQuestions button').filter(has_text='Is my real match performance improving?').click()
     assert 'No eligible real competition' in page.locator('#idcAnswer').inner_text()
@@ -525,6 +525,12 @@ with sync_playwright() as p:
        for(const n of [0,1,7,8,14,15,21,22])for(const [skill,attempts,hits] of [['scoring',30,avg*10],['doubles',60,doubles],['checkout',12,checkout],['bull',30,bull]])
         data.idcCoachMemory.state.observations.push({id:'IDC:precision-check:'+skill+':'+day(n),day:day(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
        window.IDCPrecision.invalidate();
+       if(results.length===0){
+        const boundaryPreference=window.IDCPolicy.preferredDrills();
+        if(Object.keys(boundaryPreference).length)throw Error('Pre-change evidence unexpectedly controls preferences '+JSON.stringify(boundaryPreference));
+        data.idcCoachMemory.state.setups=[];data.idcCoachMemory.state.changes=[];
+        window.IDCPrecision.invalidate();
+       }
        const pref=window.IDCPolicy.preferredDrills();
        if(Object.values(pref).some(n=>!QUICK_GAMES.includes(n)||DC10_MEASUREMENT_GAMES.has(n)))throw Error('Measured drill is not executable '+JSON.stringify(pref));
        const plans=FOCUS.map(focus=>Array.from(chooseSessionGames(focus,4,null,false,null)));
@@ -728,7 +734,7 @@ with sync_playwright() as p:
     from browser_player_progress import run_player_progress_audit
     from browser_sol49 import run_sol49_audit
     from browser_sol50 import run_sol50_audit
-    from browser_sol51 import run_sol51_audit,run_pinned51_upgrade_audit,run_pinned52_upgrade_audit
+    from browser_sol51 import run_sol51_audit,run_pinned51_upgrade_audit,run_pinned52_upgrade_audit,run_pinned53_upgrade_audit
     from browser_sol52 import run_sol52_audit
     import traceback
     audit_errors=[]
@@ -737,7 +743,7 @@ with sync_playwright() as p:
     # Physical iOS airplane-mode validation remains a separate release gate.
     if os.getenv('IDC_BROWSER','chromium')=='webkit' and webkit_offline_error:
         print('UNRESOLVED WebKit network-emulation diagnostic:',webkit_offline_error)
-    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol49_audit,run_sol50_audit,run_sol51_audit,run_pinned51_upgrade_audit,run_pinned52_upgrade_audit,run_sol52_audit):
+    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol49_audit,run_sol50_audit,run_sol51_audit,run_pinned51_upgrade_audit,run_pinned52_upgrade_audit,run_pinned53_upgrade_audit,run_sol52_audit):
         try:
             audit(browser)
         except Exception as exc:

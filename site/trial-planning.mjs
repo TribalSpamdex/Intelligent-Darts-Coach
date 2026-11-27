@@ -3,7 +3,8 @@
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes} from './training-outcomes.mjs';
 import {developmentAgenda} from './development-review.mjs';
-import {settingKey} from './challenge-setting.mjs';
+import {settingKey,validSetting} from './challenge-setting.mjs';
+import {FIXED_PROTOCOLS,learningBoundary} from './challenge-episodes.mjs';
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const format=s=>s.name+' · '+s.field+' '+(Array.isArray(s.after)?s.after.join('/'):s.after);
 export function nextComparison(host,state,day,now=Date.now(),provided=null){
@@ -14,7 +15,12 @@ export function nextComparison(host,state,day,now=Date.now(),provided=null){
  const report=provided??trainingOutcomes(host,state,day,now);
  const goals=agenda.goals.filter(g=>g.context==='practice'&&g.status!=='target-observed');
  const relevant=c=>goals.some(g=>g.skill===c.skill&&g.protocol===c.protocol);
- const current=report.comparisons.filter(c=>c.pairs>=2&&c.latest&&dayGap(c.latest,day)<=28&&dayGap(c.latest,day)>=0);
+ const boundary=learningBoundary(state,day);
+ // Never revive a pre-change comparison merely because its last endpoint
+ // happens to be recent. Rebuilt current comparisons already require both
+ // endpoints after the current learning boundary.
+ const available=report.currentComparisons??(boundary?[]:report.comparisons??[]);
+ const current=available.filter(c=>Number.isInteger(c.pairs)&&c.pairs>=2&&dayValid(c.latest)&&dayGap(c.latest,day)<=28&&dayGap(c.latest,day)>=0&&(!boundary||c.latest>boundary)&&FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)&&['method','dose'].includes(c.kind)&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&(c.kind==='dose'?settingKey(c.firstSetting)===settingKey(c.secondSetting):settingKey(c.firstSetting)!==settingKey(c.secondSetting))&&Array.isArray(c.matched)&&c.matched.length&&c.matched.every(m=>[m.aSeconds,m.bSeconds].every(n=>Number.isInteger(n)&&n>=300&&n<=7200)));
  // Coverage and relevance, never outcome magnitude, decide which one
  // investigation is most informative. No extrapolated effect size.
  const candidates=current.sort((a,b)=>Number(relevant(b))-Number(relevant(a))||b.pairs-a.pairs||b.weeks-a.weeks||b.latest.localeCompare(a.latest)||a.first.localeCompare(b.first)||a.second.localeCompare(b.second));
