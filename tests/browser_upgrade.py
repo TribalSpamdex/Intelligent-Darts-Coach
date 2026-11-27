@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Thread, Lock, Event
 from urllib.parse import urlsplit
 import re
+import socket
 from time import monotonic
 
 def wait_async(page, predicate, description, timeout=30):
@@ -24,7 +25,7 @@ def wait_async(page, predicate, description, timeout=30):
 SITE=Path(__file__).resolve().parent.parent/'site'
 
 def run_upgrade_audit(browser):
-    state={'generation':901,'fail':False,'failed':0}
+    state={'generation':901,'fail':False,'failed':0,'disconnect':False,'dropped':0}
     lock=Lock()
     failed_request=Event()
 
@@ -55,10 +56,17 @@ def run_upgrade_audit(browser):
             path=urlsplit(self.path).path
             with lock:
                 generation=state['generation']
+                disconnect=state['disconnect']
+                if disconnect:state['dropped']+=1
                 fail=state['fail']
                 unavailable=fail and path!='/sw.js'
                 if unavailable:
                     state['failed']+=1
+            if disconnect:
+                self.close_connection=True
+                try:self.connection.shutdown(socket.SHUT_RDWR)
+                except OSError:pass
+                return
             if unavailable:
                 failed_request.set()
                 self.send_error(503,'Synthetic interrupted precache')
@@ -185,7 +193,22 @@ def run_upgrade_audit(browser):
         page.locator('#idcAsk').click()
         assert 'legal finish' in page.locator('#idcAnswer').inner_text()
         assert page.evaluate("data.__upgradeAudit==='keep'")
-        print('Real worker upgrade audit: interrupted precache, waiting generation, old tabs, consistent activation, origin-outage relaunch and profile survival passed')
+        # Deny the transport itself: even the worker script and every
+        # uncached probe must fail at the socket, rather than return HTTP 503.
+        with lock:
+            state.update(disconnect=True)
+        assert page.evaluate("async()=>{try{await fetch('./transport-disconnected-probe',{cache:'no-store'});return false}catch(e){return true}}")
+        with lock:
+            assert state['dropped']>0, state
+        page.goto(url+'?audit=transport-disconnected')
+        page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
+        probe(page,903)
+        page.locator('#navTechnique').click()
+        page.locator('#idcQuestion').fill('Checkout 81 with 2 darts')
+        page.locator('#idcAsk').click()
+        assert 'legal finish' in page.locator('#idcAnswer').inner_text()
+        assert page.evaluate("data.__upgradeAudit==='keep'")
+        print('Real worker upgrade audit: interrupted precache, waiting generation, old tabs, consistent activation, origin outage, transport disconnection and profile survival passed')
     finally:
         if ctx is not None:
             ctx.close()
