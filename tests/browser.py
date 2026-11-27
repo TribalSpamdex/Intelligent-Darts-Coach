@@ -725,7 +725,7 @@ with sync_playwright() as p:
     from browser_migration import run_migration_audit
     from browser_player_progress import run_player_progress_audit
     from browser_sol49 import run_sol49_audit
-from browser_sol50 import run_sol50_audit
+    from browser_sol50 import run_sol50_audit
     import traceback
     audit_errors=[]
     # Automation-level offline switch is separately recorded. Mandatory
@@ -733,8 +733,7 @@ from browser_sol50 import run_sol50_audit
     # Physical iOS airplane-mode validation remains a separate release gate.
     if os.getenv('IDC_BROWSER','chromium')=='webkit' and webkit_offline_error:
         print('UNRESOLVED WebKit network-emulation diagnostic:',webkit_offline_error)
-    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol49_audit):
-    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol50_audit):
+    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol49_audit,run_sol50_audit):
         try:
             audit(browser)
         except Exception as exc:
