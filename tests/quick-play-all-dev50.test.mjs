@@ -89,3 +89,8 @@ test('exact-target observations are available to coach statistics and not scored
  const a=integratedAsk(h,newMemory().state,'How am I doing in Quick Play?',day,now);
  assert.equal(a.type,'quick-ability');assert.match(a.lines.join(' '),/Golf Five/);assert.doesNotMatch(a.lines.join(' '),/No eligible completed Quick Play/);
 });
+
+test('DEV52 every one of the fifteen formerly excluded games feeds the contextual review without inventing a trend from one round',async()=>{
+ const {quickDevelopment}=await import('../site/quick-development.mjs');const state=newMemory().state;
+ for(const [name,make] of Object.entries(fixture)){const h=host(make()),r=quickDevelopment(h,state,day,now);assert.ok(r.games.includes(name),name);assert.ok(r.profiles.some(p=>p.game===name),name);assert.equal(r.focus,null,name);}
+});

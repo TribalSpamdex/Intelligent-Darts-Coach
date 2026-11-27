@@ -1,3 +1,4 @@
+import {methodSignalReview,methodSignalAllows} from './development-signals.mjs';
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate,currentMethodReviews} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
 import {trainingOutcomes,durationReview,doseBand,delayedMethodCautions} from './training-outcomes.mjs';
@@ -151,5 +152,6 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   // The history is reconstructed on demand: correction/deletion cannot
   // leave a cached preference behind.
   const {currentComparisons,currentFollowups}=trainingOutcomes(host,context.state,day,now);
-  return learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons:currentComparisons,followups:currentFollowups,day,reviews:methodReviews(host,context.state,day,now)});
+  const choice=learnedMethodChoice({...context,events:context.memory.events,history:host.sessions,policy,options,comparisons:currentComparisons,followups:currentFollowups,day,reviews:methodReviews(host,context.state,day,now)});
+  return methodSignalAllows(choice,methodSignalReview({currentComparisons,currentFollowups},day));
  }

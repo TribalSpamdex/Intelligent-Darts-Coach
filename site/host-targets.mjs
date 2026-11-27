@@ -1,4 +1,4 @@
-import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames,extraQuickRounds,roundIdentity} from './v62-evidence.mjs';
+import {trainingParentIndex,trainingParentEligible,recordedDay,skillPlayEligible,masteryRows,canonicalSkillGames,extraQuickRounds,roundIdentity,quickProtocolConfig} from './v62-evidence.mjs';
 // Binary intended-target evidence is NOT an actual landing segment.
 import {mean,sd,rankedRoutes,visit,isDouble} from './engine/engine.mjs';
 import {preferredDoubles} from './engine/goals.mjs';
@@ -10,12 +10,12 @@ const targetOK=x=>typeof x==='string'&&/^(?:[SDT](?:[1-9]|1[0-9]|20)|50|25)$/.te
 const localDay=t=>{const d=new Date(t);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const count=(x,n)=>Number.isInteger(x)&&x>=0&&x<=n;
 const fixed='Fixed doubles assessment';
-export function projectTargets(host,day,now=Date.now(),checks=[]){
+export function projectTargets(host,day,now=Date.now(),checks=[],{includeConfiguration=false}={}){
  if(!dayValid(day)||!Number.isFinite(now)||!Array.isArray(host.games)||!Array.isArray(host.sessions))throw Error('Invalid target evidence input');
  const groups=new Map(),conflicts=new Set(),parents=trainingParentIndex(host.sessions);
  const eligible=d=>dayValid(d)&&dayGap(d,day)>=0&&dayGap(d,day)<84;
  function record(id,rows){if(conflicts.has(id))return;const prev=groups.get(id);if(prev){if(JSON.stringify(prev)!==JSON.stringify(rows)){groups.delete(id);conflicts.add(id)}return}groups.set(id,rows)}
- const row=(day,protocol,target,attempts,hits)=>({day,protocol,target,attempts,hits});
+ const row=(day,protocol,target,attempts,hits,g=null)=>({day,protocol,target,attempts,hits,...(includeConfiguration&&g?.quick?{config:quickProtocolConfig(g)}:{})});
  for(const a of [...(host.assessmentHistory??[]),host.assessment].filter(Boolean)){
  if(a.version!==6||a.finished!==true||a.quickStart||a.carriedForward||!Number.isFinite(a.completedAt)||a.completedAt>now||a.completedAt<=0)continue;
  const d=recordedDay(a.completedAt,a.offsetMinutes);if(!eligible(d))continue;
@@ -38,12 +38,12 @@ export function projectTargets(host,day,now=Date.now(),checks=[]){
  const log=duel?(Array.isArray(raw)?raw.map(x=>{const m=/^([SD])([1-9]|1[0-9]|20)$/.exec(x?.target);return m?{ring:m[1],target:Number(m[2]),hit:x.hit}:null}):null):g.targetLog??g.details?.targetLog,expectedHits=duel?g.details?.player:g.hits;
  if(!['S','D','T'].includes(ring)||!Array.isArray(log)||!log.length||log.length!==g.thrown||!log.every(x=>x?.ring===ring&&Number.isInteger(x.target)&&x.target>=1&&x.target<=20&&typeof x.hit==='boolean')||log.filter(x=>x.hit).length!==expectedHits)continue;
  const bins=new Map();
- for(const x of log){const t=ring+x.target,v=bins.get(t)??row(g.day,(g.quick?'Quick Play · ':'')+g.name+' · tier '+(g.tierAtStart??'unspecified')+(g.name==='Doubles Streak'?' · '+(g.ruleVersion==='same-target-streak-v1'?'per-target streak':'legacy advancing targets'):''),t,0,0);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
+ for(const x of log){const t=ring+x.target,v=bins.get(t)??row(g.day,(g.quick?'Quick Play · ':'')+g.name+' · tier '+(g.tierAtStart??'unspecified')+(g.name==='Doubles Streak'?' · '+(g.ruleVersion==='same-target-streak-v1'?'per-target streak':'legacy advancing targets'):''),t,0,0,g);v.attempts++;v.hits+=Number(x.hit);bins.set(t,v)}
  record('game:'+roundIdentity(g),[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
  for(const r of extraQuickRounds(host,day,now)){
   const bins=new Map(),g=r.g,protocol='Quick Play · '+g.name+' · '+r.setting+' · recorded targets';
-  for(const x of r.targets){const v=bins.get(x.target)??row(g.day,protocol,x.target,0,0);v.attempts+=x.attempts;v.hits+=x.hits;bins.set(x.target,v)}
+  for(const x of r.targets){const v=bins.get(x.target)??row(g.day,protocol,x.target,0,0,g);v.attempts+=x.attempts;v.hits+=x.hits;bins.set(x.target,v)}
   if(bins.size)record('extra:'+JSON.stringify([g.name,g.at,String(g.sessionId)]),[...bins.values()].sort((a,b)=>a.target.localeCompare(b.target)));
  }
  const mastery=new Map();
@@ -95,9 +95,9 @@ export function targetDevelopment(host,state,day,now=Date.now(),checks=[]){
  const boundary=learningBoundary(state,day),assessment=host.assessment;
  const assessmentAt=assessment?.finished&&Number.isFinite(assessment.completedAt)&&assessment.completedAt<=now?assessment.completedAt:null;
  const current={...host,games:(host.games??[]).filter(g=>(!boundary||g?.day>boundary)&&(!assessmentAt||g?.at>=assessmentAt))};
- const rows=projectTargets(current,day,now,checks.filter(c=>!boundary||c.day>boundary)).rows.filter(r=>(!boundary||r.day>boundary)&&(!assessmentAt||r.day>recordedDay(assessmentAt,assessment.offsetMinutes)));
+ const rows=projectTargets(current,day,now,checks.filter(c=>!boundary||c.day>boundary),{includeConfiguration:true}).rows.filter(r=>(!boundary||r.day>boundary)&&(!assessmentAt||r.day>recordedDay(assessmentAt,assessment.offsetMinutes)));
  const groups=new Map();
- for(const r of rows){const key=JSON.stringify([r.protocol,r.target]),group=groups.get(key)??[];group.push(r);groups.set(key,group)}
+ for(const r of rows){const key=JSON.stringify([r.protocol,r.target,r.config??null]),group=groups.get(key)??[];group.push(r);groups.set(key,group)}
  const profiles=[...groups.values()].map(group=>{
   const {protocol,target}=group[0],skill=target[0]==='D'?'doubles':target[0]==='T'?'trebles':target[0]==='S'?'singles':'bull';
   const observations=group.map((r,i)=>({id:'target:'+i,day:r.day,skill,context:'practice',protocol,attempts:r.attempts,hits:r.hits}));

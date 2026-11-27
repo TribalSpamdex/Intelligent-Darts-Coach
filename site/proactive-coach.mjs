@@ -1,3 +1,4 @@
+import {quickDevelopment,quickDevelopmentLines} from './quick-development.mjs';
 // A single actionable coaching prompt, not an extra automatic planner.
 import {dayValid,dayGap} from './engine/context.mjs';
 import {developmentAgenda} from './development-review.mjs';
@@ -25,6 +26,7 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
   'method-followup':'A separate measurement is needed to review the previous choice.',
   development:'Recorded development evidence; strength depends on comparable measurements.',
   'changed-conditions':'A dated player-reported setup or routine change limits which older evidence can guide current optional choices.',
+  'quick-check':'Repeated contextual game evidence; confirm under familiar fixed conditions.',
   'target-check':'Repeated within-task target measurements; confirmation is needed before broader conclusions.',
   balanced:'No new supported change; this does not establish that performance is stable.'
  };
@@ -77,8 +79,11 @@ export function coachBrief(host,state,report,events,reflections,day,now=Date.now
 
  const targets=targetDevelopment(host,state,day,now);
  if(targets.focus)return response('target-check','Check '+targets.focus.target+' in familiar practice',targetDevelopmentLines(targets).slice(0,3).join(' '),{target:targets.focus.target});
+ const quick=quickDevelopment(host,state,day,now);
+ if(quick.focus?.trend.status==='declining'&&event.phase==='ordinary')return response('quick-check','Check a recent Quick Play change',quickDevelopmentLines(quick).slice(0,3).join(' '),{quickCheck:quick.focus.scoring?'Scoring Challenge':/bull/i.test(quick.focus.label)&&!quick.focus.target?'Bull Accuracy':null});
  const lead=agenda.actions.find(a=>['investigate-decline','early-watch','recent-form','review-stable-training','stale','goal-evidence','review-coverage'].includes(a.kind));
  if(lead)return response('development','Current development priority',lead.skill+': '+lead.reason+' '+lead.next);
+ if(quick.focus&&event.phase==='ordinary')return response('quick-check','Watch a developing Quick Play change',quickDevelopmentLines(quick).slice(0,3).join(' '),{quickCheck:quick.focus.scoring?'Scoring Challenge':/bull/i.test(quick.focus.label)&&!quick.focus.target?'Bull Accuracy':null});
  if(event.phase==='event-week'){const p=competitionPreparation(state,events,day,{report});return response('competition','Competition this week',p.focus?p.focus.start+' straight-in '+p.focus.metric+': '+p.action+' No additional workload.':p.action);}
  return response('balanced','Maintain your balanced practice','Continue your usual session and record comparable checks when practical. No new adjustment is justified.');
 }

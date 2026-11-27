@@ -277,7 +277,9 @@ with sync_playwright() as p:
     assert 'No saved competitions' in page.locator('#idcEvents').inner_text()
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=false')
     page.locator('#idcDeepPanel').evaluate('(e)=>e.open=true')
-    assert page.locator('#idcDeepQuestions button').count()==14
+    assert page.locator('#idcDeepQuestions button').count()==18
+    for question in ('What is Quick Play telling you?', 'Which methods should I keep using?', 'Are my practice gains reaching matches?', 'Are any weaknesses emerging?'):
+        assert page.locator('#idcDeepQuestions').get_by_role('button',name=question,exact=True).count()==1, question
     page.locator('#idcDeepQuestions button').filter(has_text='Is my real match performance improving?').click()
     assert 'No eligible real competition' in page.locator('#idcAnswer').inner_text()
     page.locator('#idcDeepQuestions button').filter(has_text='Recovery from 81 after S19').click()
@@ -726,7 +728,8 @@ with sync_playwright() as p:
     from browser_player_progress import run_player_progress_audit
     from browser_sol49 import run_sol49_audit
     from browser_sol50 import run_sol50_audit
-    from browser_sol51 import run_sol51_audit,run_pinned51_upgrade_audit
+    from browser_sol51 import run_sol51_audit,run_pinned51_upgrade_audit,run_pinned52_upgrade_audit
+    from browser_sol52 import run_sol52_audit
     import traceback
     audit_errors=[]
     # Automation-level offline switch is separately recorded. Mandatory
@@ -734,7 +737,7 @@ with sync_playwright() as p:
     # Physical iOS airplane-mode validation remains a separate release gate.
     if os.getenv('IDC_BROWSER','chromium')=='webkit' and webkit_offline_error:
         print('UNRESOLVED WebKit network-emulation diagnostic:',webkit_offline_error)
-    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol49_audit,run_sol50_audit,run_sol51_audit,run_pinned51_upgrade_audit):
+    for audit in (run_gameplay_audit,run_upgrade_audit,run_migration_audit,run_player_progress_audit,run_sol49_audit,run_sol50_audit,run_sol51_audit,run_pinned51_upgrade_audit,run_pinned52_upgrade_audit,run_sol52_audit):
         try:
             audit(browser)
         except Exception as exc:
