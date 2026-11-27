@@ -91,3 +91,13 @@ test('a completed session cannot contain an interrupted exercise or contradictor
  delete s.interruptedExercise;s.activities[0].interrupted=true;
  assert.equal(trainingLedger(host,day,now).rows.length,0);
 });
+
+test('individual activities cannot overlap even when total elapsed time looks plausible',()=>{
+ const {host,s}=fixture(['Scoring Challenge','Bull Accuracy']);
+ s.activities[0].at=stamp(day,30);s.activities[1].at=stamp(day,31);
+ assert.equal(trainingLedger(host,day,now).rows.length,0);
+ s.activities[1].at=stamp(day,35)-400;
+ assert.equal(trainingLedger(host,day,now).rows.length,2);
+ s.activities[1].at=stamp(day,35)-600;
+ assert.equal(trainingLedger(host,day,now).rows.length,0);
+});

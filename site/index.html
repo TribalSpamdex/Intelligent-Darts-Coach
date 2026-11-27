@@ -2844,11 +2844,28 @@ function dc29MasteryCategory(s,activity){
  }
  return categories.size===1?[...categories][0]:null;
 }
+function dc28ReliableTimeline(s,now){
+ if(!Number.isFinite(s?.start)||s.start<=0||s.start>now||!Array.isArray(s.activities)||s.activities.length>100||s.interruptedExercise)return false;
+ let last=s.start,used=0,count=0;const indexes=new Set(),ids=new Set();
+ for(const a of [...s.activities].sort((a,b)=>a?.exerciseIndex-b?.exerciseIndex)){
+  if(!a||a.interrupted||!Number.isInteger(a.seconds)||a.seconds<0||a.seconds>3600||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||indexes.has(a.exerciseIndex)||a.exerciseId!=null&&ids.has(String(a.exerciseId))||!Number.isFinite(a.at)||a.at<last||a.at>now)return false;
+  indexes.add(a.exerciseIndex);if(a.exerciseId!=null)ids.add(String(a.exerciseId));used+=a.seconds;count++;
+  if(a.seconds>(a.at-last)/1000+.5||used>(a.at-s.start)/1000+count*.5||used>7200)return false;
+  last=a.at;
+ }
+ return true;
+}
 function dc28CategoryLedger(now=Date.now()){
- const start=now-168*DAY_MS,byDay=new Map();
- for(const s of data.sessions||[]){
-  if(!s||s.quick||s.completed!==true||!Number.isFinite(s.start)||s.start<start||s.start>now||!Array.isArray(s.activities))continue;
-  const day=dateKey(s.start),item=byDay.get(day)||{day,at:s.start,counts:{scoring:0,doubles:0,checkout:0,bull:0},minutes:{scoring:0,doubles:0,checkout:0,bull:0},unknownMinutes:0,sessions:0};
+ const start=now-168*DAY_MS,byDay=new Map(),seen=new Map(),blockedDays=new Set();
+ const candidates=(data.sessions||[]).filter(s=>s&&s.quick===false&&s.completed===true&&Number.isFinite(s.start)&&s.start>=start&&s.start<=now&&Array.isArray(s.activities));
+ for(const s of candidates){
+  const day=dateKey(s.start),key=String(s.id);
+  if(!['number','string'].includes(typeof s.id)||!dc28ReliableTimeline(s,now))blockedDays.add(day);
+  if(seen.has(key)){blockedDays.add(day);blockedDays.add(seen.get(key))}else seen.set(key,day);
+ }
+ for(const s of candidates){
+  const day=dateKey(s.start);if(blockedDays.has(day))continue;
+  const item=byDay.get(day)||{day,at:s.start,counts:{scoring:0,doubles:0,checkout:0,bull:0},minutes:{scoring:0,doubles:0,checkout:0,bull:0},unknownMinutes:0,sessions:0};
   item.sessions++;item.at=Math.min(item.at,s.start);
   for(const activity of s.activities){
    if(!activity||!Number.isFinite(Number(activity.seconds))||Number(activity.seconds)<300)continue;
@@ -4391,7 +4408,7 @@ function padMarkup(){return '<div class="scorePad"><div class="scorePadDisplay">
 /* Double-in 201 uses the same on-screen keypad as every numeric game.
    D then 1–20 (D25 for bullseye), or 0 for a missed dart. */
 function dc591OpeningValid(n,d,k,allowance,room){
- return Number.isInteger(n)&&[...Array.from({length:20},(_,i)=>i+1),25].includes(d)&&Number.isInteger(k)&&k>=1&&k<=Math.min(allowance,room)&&n>=2*d&&(room===k?n===2*d:possibleVisitIn(n-2*d,room-k));
+ return Number.isInteger(n)&&Number.isInteger(room)&&room>=1&&room<=3&&Number.isInteger(allowance)&&allowance>=1&&[...Array.from({length:20},(_,i)=>i+1),25].includes(d)&&Number.isInteger(k)&&k>=1&&k<=Math.min(allowance,room)&&n>=2*d&&(room===k?n===2*d:possibleVisitIn(n-2*d,room-k));
 }
 function doubleInPadMarkup(){
  const g=activeGame,p=g.dc591Opening;
@@ -4483,6 +4500,8 @@ let pendingCheckoutDarts=null;
 let selectedCheckoutDartCount=null;
 const FINISH_DOUBLE_SCORES=[...Array.from({length:20},(_,i)=>(i+1)*2),50];
 function possibleVisitIn(score,darts){
+ if(!Number.isInteger(score)||score<0||!Number.isInteger(darts)||darts<0||darts>3)return false;
+ if(darts===0)return score===0;
  if(darts===1)return DART_SCORES.includes(score);
  if(darts===2)return DART_SCORES.some(a=>DART_SCORES.includes(score-a));
  return POSSIBLE_VISITS.has(score);

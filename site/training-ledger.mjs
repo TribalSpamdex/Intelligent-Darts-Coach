@@ -28,7 +28,7 @@ export function validActivityTimeline(start,activities,now){
   if(!a||!duration(a.seconds)||!Number.isInteger(a.exerciseIndex)||a.exerciseIndex<0||!positiveTime(end,now)||end<last)return false;
   used+=a.seconds;count++;
   // At most half a second of rounding per completed activity.
-  if(used>(end-start)/1000+count*.5)return false;
+  if(a.seconds>(end-last)/1000+.5||used>(end-start)/1000+count*.5)return false;
   last=end;
  }
  return true;
