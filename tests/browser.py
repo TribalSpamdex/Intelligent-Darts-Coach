@@ -82,6 +82,26 @@ with sync_playwright() as p:
       }finally{if(saved===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=saved;window.IDCPrecision.invalidate()}
     }""")
     assert '35% to 20%' in sparse['review'] and 'Decision: balanced' in sparse['review'] and '-15 percentage points' in sparse['answer'], sparse
+    # A synthetic decline with a recorded protocol concern yields an optional check.
+    prompt=page.evaluate("""async()=>{
+      const saved=data.idcCoachMemory;
+      try{
+       const {newMemory}=await import('./coach-memory.mjs?v=2.0.0-dev');
+       data.idcCoachMemory=clone(window.IDCTrainingBridge.memory()??newMemory());
+       const previous=dateKey(Date.now()-DAY_MS);
+       data.idcCoachMemory.state.observations=Array.from({length:56},(_,i)=>({id:'prompt-'+i,day:dateKey(Date.now()-i*DAY_MS),skill:'doubles',context:'practice',protocol:'Fixed doubles',attempts:100,hits:i<28?20:60}));
+       data.idcCoachMemory.state.answers=[{day:previous,skill:'doubles',context:'practice',protocol:'Fixed doubles',question:'protocol',answer:'no'}];
+       window.IDCPrecision.invalidate();document.getElementById('idcReview').click();
+       const skip=[...document.querySelectorAll('#idcBrief button')].find(b=>b.textContent==='Skip for today');
+       if(!skip)return {available:false,brief:document.getElementById('idcBrief').innerText,report:document.getElementById('idcReport').innerText};
+       const before=JSON.stringify(data.idcCoachMemory);skip.click();
+       return {available:true,unchanged:before===JSON.stringify(data.idcCoachMemory),brief:document.getElementById('idcBrief').innerText,preference:localStorage.getItem('IDC:brief-dismissed-day')===dateKey()};
+      }finally{if(saved===undefined)delete data.idcCoachMemory;else data.idcCoachMemory=saved;localStorage.removeItem('IDC:brief-dismissed-day');window.IDCPrecision.invalidate()}
+    }""")
+    assert prompt['available'] and prompt['unchanged'] and prompt['preference'] and 'Optional check skipped' in prompt['brief'], prompt
+    page.reload()
+    page.wait_for_function("typeof idcWriter!=='undefined' && idcWriter==='held'")
+    page.locator('#navTechnique').click()
     page.locator('#idcExample').click()
     assert 'SIMULATION ONLY' in page.locator('#idcReport').inner_text()
     assert 'temporary-focus' in page.locator('#idcReport').inner_text()
@@ -239,7 +259,9 @@ with sync_playwright() as p:
     assert 'No saved competitions' in page.locator('#idcEvents').inner_text()
     page.locator('#idcAutonomyPanel').evaluate('(e)=>e.open=false')
     page.locator('#idcDeepPanel').evaluate('(e)=>e.open=true')
-    assert page.locator('#idcDeepQuestions button').count()==13
+    assert page.locator('#idcDeepQuestions button').count()==14
+    page.locator('#idcDeepQuestions button').filter(has_text='Is my real match performance improving?').click()
+    assert 'No eligible real competition' in page.locator('#idcAnswer').inner_text()
     page.locator('#idcDeepQuestions button').filter(has_text='Recovery from 81 after S19').click()
     assert 'Remaining score 62' in page.locator('#idcAnswer').inner_text()
     page.locator('#idcDeepPanel').evaluate('(e)=>e.open=false')

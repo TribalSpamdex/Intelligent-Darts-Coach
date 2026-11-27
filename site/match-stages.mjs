@@ -138,7 +138,7 @@ export function transferLines(rows){
 }
 
  // Independent competition progress, not a training-effect estimate.
- // Nonoverlapping windows and exact starting rules; equal weight per day.
+ // Nonoverlapping windows and exact starting rules; pooled and day-level summaries kept distinct.
  export function competitionProgress(report,day){
   if(!dayValid(day))throw Error('Invalid competition review date');
   const shift=n=>new Date(Date.parse(day)-n*86400000).toISOString().slice(0,10);

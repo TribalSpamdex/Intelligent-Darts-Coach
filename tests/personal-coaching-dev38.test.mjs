@@ -69,3 +69,16 @@ test('new competition question uses existing local dialogue and preserves memory
  const q='Is my real match performance improving?';assert.ok(QUESTIONS.includes(q));
  const r=integratedAsk(host,s,q,day,now);assert.equal(r.type,'competition-progress');assert.equal(JSON.stringify(s),before);
 });
+
+test('actual competition progress remains descriptive even with multiple days and adequate volume',()=>{
+ const rows=[];
+ for(const n of [0,1,7,8,14,15,21,28,29,35,36,42,43,49])for(let i=0;i<5;i++)rows.push(leg('c-'+n+'-'+i,ago(n),n<28?quick:slow));
+ const r=competitionProgress(stageProfiles(rows,day),day).find(x=>x.metric==='scoring-stage average');
+ assert.equal(r.earlier.days,7);assert.equal(r.recent.days,7);assert.equal(r.status,'descriptive');assert.equal(r.difference,88.5);
+ assert.match(competitionProgressLines([r])[0],/Descriptive comparison only/);
+});
+test('question and match summaries do not create data when history is empty',()=>{
+ const s=newMemory().state;const before=JSON.stringify(s);
+ assert.match(integratedAsk(host,s,'competition progress',day,now).lines[0],/No eligible real competition/);
+ assert.equal(JSON.stringify(s),before);
+});
