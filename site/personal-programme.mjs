@@ -1,8 +1,8 @@
 import {deliveryGate,methodReviews,methodReviewGate,methodFollowupGate} from './coaching-accountability.mjs';
 import {dayValid,dayGap} from './engine/context.mjs';
-import {trainingOutcomes} from './training-outcomes.mjs';
+import {trainingOutcomes,durationReview,doseBand} from './training-outcomes.mjs';
 import {FIXED_PROTOCOLS,recordedConfounder} from './challenge-episodes.mjs';
-import {validSetting} from './challenge-setting.mjs';
+import {validSetting,settingKey} from './challenge-setting.mjs';
 import {eventContext,validateEvents} from './competition-calendar.mjs';
 import {developmentAgenda} from './development-review.mjs';
 const slots=[['scoring',10,'Scoring Challenge'],['doubles',10,'Doubles Survival'],['checkout',10,'Focused Checkouts'],['bull',5,'Bull Accuracy'],['singles',5,'Big Singles']];
@@ -112,6 +112,7 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
   const supported=comparisons.filter(c=>c?.kind==='method'&&core.has(c.skill)&&['first-associated','second-associated'].includes(c.status)&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&Number.isInteger(c.pairs)&&c.pairs>=6&&Number.isInteger(c.weeks)&&c.weeks>=6&&FIXED_PROTOCOLS[c.skill]?.includes(c.protocol)&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&c.firstSetting.skill===c.skill&&c.secondSetting.skill===c.skill&&c.firstSetting.name!==c.secondSetting.name)
    .map(c=>({...c,favoured:c.status==='first-associated'?c.firstSetting:c.secondSetting,other:c.status==='first-associated'?c.secondSetting:c.firstSetting}));
   const deferred=methodReviewGate(reviews,day),followup=methodFollowupGate(reviews,day);
+  const durationPreferences=durationReview(comparisons,day);
   const eligible=[];
   for(const o of options){
    if(!o||!core.has(o.skill)||typeof o.normal!=='string'||typeof o.alternative!=='string'||o.normal===o.alternative||!Number.isFinite(o.normalScore)||!Number.isFinite(o.alternativeScore)||o.alternativeScore<o.normalScore||o.alternativeScore-o.normalScore>2.5||!Number.isInteger(o.seconds)||o.seconds<300||o.seconds>1200||!Number.isInteger(o.normalTier)||!Number.isInteger(o.alternativeTier)||o.normalTier<1||o.normalTier>7||o.alternativeTier<1||o.alternativeTier>7)continue;
@@ -134,6 +135,10 @@ export function longProgrammeLines(p){return [...blockLines(p.first),...p.phases
    // is a veto, not permission to cherry-pick a favourable duplicate.
    if(comparisons.some(c=>c?.kind==='method'&&c.skill===o.skill&&c.protocol===rows[0].protocol&&c.status==='unclear'&&c.pairs>=6&&c.weeks>=6&&dayValid(c.latest)&&dayGap(c.latest,day)>=0&&dayGap(c.latest,day)<=28&&validSetting(c.firstSetting)&&validSetting(c.secondSetting)&&[c.firstSetting.name,c.secondSetting.name].includes(o.normal)&&[c.firstSetting.name,c.secondSetting.name].includes(o.alternative)))continue;
    const best=[...doseMatched].sort((a,b)=>b.pairs-a.pairs||b.weeks-a.weeks||b.latest.localeCompare(a.latest))[0];
+   // Duration evidence is a veto on an optional choice, never permission
+   // to add/subtract time or override an independently supported focus.
+   const plannedBand=doseBand(o.seconds);
+   if(durationPreferences.some(r=>r.skill===o.skill&&r.protocol===best.protocol&&settingKey(r.setting)===settingKey(best.favoured)&&r.status==='observed-preference'&&r.durations.includes(plannedBand)&&r.preferred!==plannedBand&&!recordedConfounder(state,r.latest,day)))continue;
    eligible.push({status:'selected',normal:o.normal,alternative:o.alternative,skill:o.skill,seconds:o.seconds,protocol:best.protocol,pairs:best.pairs,weeks:best.weeks,latest:best.latest,expectedSetting:JSON.parse(JSON.stringify(best.favoured)),scoreGap:o.alternativeScore-o.normalScore,day,reason:'Player-enabled native near-tie; matched observational evidence supports trying this method. Native rules and minutes are unchanged.'});
   }
   return eligible.sort((a,b)=>a.scoreGap-b.scoreGap||b.pairs-a.pairs||a.normal.localeCompare(b.normal)||a.alternative.localeCompare(b.alternative))[0]??no('No sufficiently supported native near-tie');
