@@ -525,6 +525,12 @@ with sync_playwright() as p:
        for(const n of [0,1,7,8,14,15,21,22])for(const [skill,attempts,hits] of [['scoring',30,avg*10],['doubles',60,doubles],['checkout',12,checkout],['bull',30,bull]])
         data.idcCoachMemory.state.observations.push({id:'IDC:precision-check:'+skill+':'+day(n),day:day(n),skill,context:'practice',protocol:'IDC precision fixed '+skill,attempts,hits});
        window.IDCPrecision.invalidate();
+       if(results.length===0){
+        const boundaryPreference=window.IDCPolicy.preferredDrills();
+        if(Object.keys(boundaryPreference).length)throw Error('Pre-change evidence unexpectedly controls preferences '+JSON.stringify(boundaryPreference));
+        data.idcCoachMemory.state.setups=[];data.idcCoachMemory.state.changes=[];
+        window.IDCPrecision.invalidate();
+       }
        const pref=window.IDCPolicy.preferredDrills();
        if(Object.values(pref).some(n=>!QUICK_GAMES.includes(n)||DC10_MEASUREMENT_GAMES.has(n)))throw Error('Measured drill is not executable '+JSON.stringify(pref));
        const plans=FOCUS.map(focus=>Array.from(chooseSessionGames(focus,4,null,false,null)));
