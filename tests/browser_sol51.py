@@ -148,7 +148,7 @@ def run_pinned_upgrade(browser, source_version, source_commit):
         page.locator('#gameControls').get_by_role('button',name='Hit',exact=True).click()
         assert page.evaluate("data.games.length===1 && activeGame.skillTraceVersion===1 && activeGame.skillStartLives>0")
         assert page.evaluate("async()=>{const m=await import('./v62-evidence.mjs?v=2.0.0-dev');return m.extraQuickRounds(window.IDCTrainingBridge.snapshot(),dateKey()).length===1}")
-        if version in ('dev52','dev53','dev54','dev55'):
+        if int(version.removeprefix('dev'))>=52:
             assert page.evaluate("activeGame.skillProtocol?.version===1 && activeGame.skillProtocol?.name==='Shanghai Combo'")
             assert page.evaluate("data.games[0].skillProtocol?.version===1" if source_version in ('dev52','dev53','dev54') else "data.games[0].skillProtocol===undefined")
         if source_version in ('dev51','dev52','dev53','dev54'):

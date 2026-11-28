@@ -78,6 +78,7 @@ def run_upgrade_audit(browser):
             marker=str(generation)
             if file=='index.html':
                 assert '</head>' in content
+                content=re.sub(r'2\.0\.0-dev\d+', '2.0.0-dev'+marker, content)
                 content=content.replace('</head>','<meta name="idc-audit-generation" content="'+marker+'"></head>',1)
             elif file=='sw.js':
                 content,count=re.subn(r"const CACHE='[^']+';", "const CACHE='IDC:assets:2.0.0-dev"+marker+"';",content,count=1)
@@ -187,6 +188,30 @@ def run_upgrade_audit(browser):
         probe(page,903)
         assert page.evaluate("data.__upgradeAudit==='keep' && localStorage.getItem('dartsCoachV4')==='LEGACY-UPGRADE-SENTINEL'")
         assert page.evaluate("async()=>!!await (await caches.open('OTHER:unrelated')).match('./unrelated')")
+        # Dev56 manual update: a second window must prevent activation.
+        with lock:
+            state.update(generation=904,fail=False)
+        page.evaluate("show('settings')")
+        page.locator('#idcCheckUpdate').click()
+        page.locator('#idcApplyUpdate').wait_for(state='visible',timeout=60000)
+        assert '2.0.0-dev904' in page.locator('#idcUpdateStatus').inner_text()
+        other=ctx.new_page()
+        other.goto(url+'?audit=manual-other-window')
+        if other.locator('#idcWalkthrough').is_visible():
+            other.locator('#idcWalkthroughSkip').click()
+        other.wait_for_function('navigator.serviceWorker.controller!==null')
+        page.locator('#idcApplyUpdate').click()
+        page.wait_for_function("document.getElementById('idcUpdateStatus').textContent.includes('Close other open IDC')")
+        probe(page,903)
+        other.close()
+        page.locator('#idcApplyUpdate').click()
+        page.wait_for_function("document.getElementById('idcInstalledVersion')?.textContent==='2.0.0-dev904' && navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'",timeout=60000)
+        probe(page,904)
+        assert page.evaluate("data.__upgradeAudit==='keep' && localStorage.getItem('dartsCoachV4')==='LEGACY-UPGRADE-SENTINEL'")
+        page.evaluate("show('settings')")
+        page.locator('#idcCheckUpdate').click()
+        page.wait_for_function("document.getElementById('idcUpdateStatus').textContent.includes('You are up to date: 2.0.0-dev904')")
+        print('Dev56 manual update audit: waiting version, multi-window rejection, reload, verified latest version and player data survival passed')
         # Deny every runtime request at the real origin. Verify the outage
         # with an uncached probe, then navigate using only the installed worker.
         # This is distinct from Playwright network-emulation/airplane mode.
@@ -197,7 +222,7 @@ def run_upgrade_audit(browser):
         if page.locator('#idcWalkthrough').is_visible():
             page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
-        probe(page,903)
+        probe(page,904)
         page.locator('#navTechnique').click()
         page.locator('#idcQuestion').fill('Checkout 81 with 2 darts')
         page.locator('#idcAsk').click()
@@ -214,7 +239,7 @@ def run_upgrade_audit(browser):
         if page.locator('#idcWalkthrough').is_visible():
             page.locator('#idcWalkthroughSkip').click()
         page.wait_for_function("navigator.serviceWorker.controller!==null && typeof idcWriter!=='undefined' && idcWriter==='held'")
-        probe(page,903)
+        probe(page,904)
         page.locator('#navTechnique').click()
         page.locator('#idcQuestion').fill('Checkout 81 with 2 darts')
         page.locator('#idcAsk').click()
