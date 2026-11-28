@@ -19,6 +19,8 @@ self.addEventListener('install',e=>e.waitUntil((async()=>{
  const cache=await caches.open(CACHE);
  await cache.addAll(requiredURLs().map(url=>new Request(url,{cache:'reload'})));
  await assertComplete();
+ const state=await releaseStatus();
+ if(state.shellVersion!==CACHE.slice('IDC:assets:'.length))throw Error('IDC cached shell version does not match the worker generation');
 })()));
 // Inspect the actual cached shell, not an HTTP/CDN version claim.
 async function releaseStatus(){

@@ -975,7 +975,7 @@ html[data-appearance=light] body nav[aria-label="Main navigation"]:not(#dc590a):
 <details class="techTopic"><summary><span class="techTopicIcon">◷</span><span><strong>Rhythm & match pressure</strong><small>Maintain the same routine under jeopardy</small></span></summary><div class="techContent"><div class="rhythmDiagram"><span>Settle</span><b>›</b><span>Focus</span><b>›</b><span>Throw</span><b>›</b><span>Reset</span></div><p>Pressure changes attention. Keep your routine short and repeatable: settle your feet, pick the target, throw at your normal pace, then reset for the next dart.</p><p>A failed visit doesn't mean the routine was wrong. Judge changes over many sessions, especially when pressure differs.</p><div class="techExercise"><b>Try it:</b> Give yourself three darts at a double for five rounds. Use the exact same pre-throw routine whether the previous round met the target or not.</div></div></details>
 </div></div></section>
 <section id="settings" class="hidden">
-<div class="card" id="idcUpdateCard"><h2>App Updates</h2><p class="muted">Installed version: <strong id="idcInstalledVersion">2.0.0-dev56</strong></p><p class="muted">Update in place when online. Your player data stays on this device. Finish active training first.</p><div id="idcUpdateStatus" class="backupStatus" role="status" aria-live="polite">Ready to check.</div><button id="idcCheckUpdate" class="secondary" type="button" style="width:100%;margin-top:8px">Check for Updates</button><button id="idcApplyUpdate" class="primary" type="button" style="width:100%;margin-top:8px" hidden>Install Update</button></div>
+<style>#idcApplyUpdate[hidden]{display:none!important}</style><div class="card" id="idcUpdateCard"><h2>App Updates</h2><p class="muted">Installed version: <strong id="idcInstalledVersion">2.0.0-dev56</strong></p><p class="muted">Update in place when online. Your player data stays on this device. Finish active training first.</p><div id="idcUpdateStatus" class="backupStatus" role="status" aria-live="polite">Ready to check.</div><button id="idcCheckUpdate" class="secondary" type="button" style="width:100%;margin-top:8px">Check for Updates</button><button id="idcApplyUpdate" class="primary" type="button" style="width:100%;margin-top:8px" hidden>Install Update</button></div>
 <div class="card"><h2>Walkthrough Guide</h2><p class="muted">Learn how to use your coach, training, games, progress and backups. Reopen the guide whenever you need it.</p><button id="idcWalkthroughSettings" class="secondary" type="button" style="width:100%" onclick="idcWalkthroughOpen()">Open Walkthrough Guide</button></div>
 <div class="card"><h2>Weekly Training Days</h2><p class="muted">Select five days. The coach handles the training on those days.</p><div class="dayRow" id="days"></div><p id="dayStatus" class="muted"></p></div><div class="card"><h2>Training Data</h2><p class="muted">Data is stored in this browser or Home Screen app, not on GitHub. Updates at the same address should preserve it. Safari and a Home Screen app may have different saved data. Keep an external backup.</p><h3>1. Protect Your Training</h3>
 <p class="muted">An extra recovery copy is saved automatically in this browser after each finished assessment or session. This is not a backup in iPhone Files. For protection against browser data loss, save a file as well.</p>
@@ -8709,7 +8709,15 @@ window.IDCTrainingBridge=Object.freeze({startTargetCheck:idcStartTargetCheck,sta
   busy=true;check.disabled=true;apply.hidden=true;candidate=null;set('Checking for updates…');
   try{
    if(navigator.onLine===false)throw Error('You are offline. Reconnect to check for updates.');
-   const reg=await registration;await reg.update();await settle(reg);await inspect(reg);
+   const reg=await registration;
+   let observed=reg.installing;
+   const watch=()=>{if(reg.installing)observed=reg.installing};
+   reg.addEventListener('updatefound',watch);
+   try{
+    await reg.update();watch();await settle(reg);
+    if(observed?.state==='redundant'&&!reg.waiting)throw Error('Update download failed. Existing version kept.');
+    await inspect(reg);
+   }finally{reg.removeEventListener('updatefound',watch)}
   }catch(e){set(String(e.message||e)+' No player data was removed.')}
   finally{busy=false;check.disabled=false}
  });
